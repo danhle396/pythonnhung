@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vku-aiot-ml"
+version = "1.0.0"
+description = "mlcore — thư viện ML tự xây dựng (chỉ NumPy) + pipeline huấn luyện cho trạm AIoT VKU"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "pandas>=2.0"]
+
+[tool.setuptools]
+packages = ["mlcore", "aiot_ml"]
+
+[tool.setuptools.package-dir]
+mlcore = "mlcore"
+aiot_ml = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

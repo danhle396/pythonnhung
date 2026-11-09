@@ -1,0 +1,20 @@
+# ACL theo thiết bị: mỗi trạm chỉ được ghi topic của chính nó và đọc cmd/config/forecast của nó.
+# %u = username (đặt username = device_id cho thiết bị)
+
+# backend: toàn quyền trong không gian vku/aiot
+user backend
+topic readwrite vku/aiot/#
+
+# dashboard (chỉ đọc, nếu dùng MQTT qua WebSocket)
+user dashboard
+topic read vku/aiot/#
+
+# mọi thiết bị (username = device_id)
+pattern write vku/aiot/%u/telemetry
+pattern write vku/aiot/%u/alert
+pattern write vku/aiot/%u/nowcast
+pattern write vku/aiot/%u/status
+pattern write vku/aiot/%u/ack
+pattern read vku/aiot/%u/cmd
+pattern read vku/aiot/%u/config
+pattern read vku/aiot/%u/forecast

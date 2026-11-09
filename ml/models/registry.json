@@ -1,0 +1,332 @@
+{
+  "forecast_temp_1h": {
+    "active": {
+      "model_ver": "fc-temp_1h-202611092315",
+      "path": "models\\forecast\\temp_1h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 0.2989024912341929,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 0.592555632025694,
+      "created_at": "2026-11-09T23:15:06",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-temp_1h-202611092315",
+        "path": "models\\forecast\\temp_1h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 0.2989024912341929,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 0.592555632025694,
+        "created_at": "2026-11-09T23:15:06",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_temp_3h": {
+    "active": {
+      "model_ver": "fc-temp_3h-202611092315",
+      "path": "models\\forecast\\temp_3h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 0.5432585778473796,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 1.5588781830695113,
+      "created_at": "2026-11-09T23:15:38",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-temp_3h-202611092315",
+        "path": "models\\forecast\\temp_3h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 0.5432585778473796,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 1.5588781830695113,
+        "created_at": "2026-11-09T23:15:38",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_temp_6h": {
+    "active": {
+      "model_ver": "fc-temp_6h-202611092315",
+      "path": "models\\forecast\\temp_6h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 0.6878364068733779,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 2.759279651296169,
+      "created_at": "2026-11-09T23:15:56",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-temp_6h-202611092315",
+        "path": "models\\forecast\\temp_6h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 0.6878364068733779,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 2.759279651296169,
+        "created_at": "2026-11-09T23:15:56",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_hum_1h": {
+    "active": {
+      "model_ver": "fc-hum_1h-202611092316",
+      "path": "models\\forecast\\hum_1h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 1.8564541988710213,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 2.9682266574902503,
+      "created_at": "2026-11-09T23:16:06",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-hum_1h-202611092316",
+        "path": "models\\forecast\\hum_1h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 1.8564541988710213,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 2.9682266574902503,
+        "created_at": "2026-11-09T23:16:06",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_hum_3h": {
+    "active": {
+      "model_ver": "fc-hum_3h-202611092316",
+      "path": "models\\forecast\\hum_3h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 3.2442397586712324,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 7.541427697484133,
+      "created_at": "2026-11-09T23:16:19",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-hum_3h-202611092316",
+        "path": "models\\forecast\\hum_3h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 3.2442397586712324,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 7.541427697484133,
+        "created_at": "2026-11-09T23:16:19",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_hum_6h": {
+    "active": {
+      "model_ver": "fc-hum_6h-202611092316",
+      "path": "models\\forecast\\hum_6h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 3.980081976313472,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 13.209681119522827,
+      "created_at": "2026-11-09T23:16:35",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-hum_6h-202611092316",
+        "path": "models\\forecast\\hum_6h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 3.980081976313472,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 13.209681119522827,
+        "created_at": "2026-11-09T23:16:35",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_pres_1h": {
+    "active": {
+      "model_ver": "fc-pres_1h-202611092316",
+      "path": "models\\forecast\\pres_1h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 0.21146823287473426,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 0.5201307639366827,
+      "created_at": "2026-11-09T23:16:48",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-pres_1h-202611092316",
+        "path": "models\\forecast\\pres_1h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 0.21146823287473426,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 0.5201307639366827,
+        "created_at": "2026-11-09T23:16:48",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_pres_3h": {
+    "active": {
+      "model_ver": "fc-pres_3h-202611092317",
+      "path": "models\\forecast\\pres_3h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 0.3883724264803486,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 1.3740536820371645,
+      "created_at": "2026-11-09T23:17:01",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-pres_3h-202611092317",
+        "path": "models\\forecast\\pres_3h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 0.3883724264803486,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 1.3740536820371645,
+        "created_at": "2026-11-09T23:17:01",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_pres_6h": {
+    "active": {
+      "model_ver": "fc-pres_6h-202611092317",
+      "path": "models\\forecast\\pres_6h.json",
+      "model": "GBDT",
+      "metric_name": "MAE_test",
+      "metric_value": 0.5626418347881997,
+      "greater_is_better": false,
+      "data_hash": "8d177dfbfd711698",
+      "baseline_persistence_MAE": 1.968329892177105,
+      "created_at": "2026-11-09T23:17:15",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-pres_6h-202611092317",
+        "path": "models\\forecast\\pres_6h.json",
+        "model": "GBDT",
+        "metric_name": "MAE_test",
+        "metric_value": 0.5626418347881997,
+        "greater_is_better": false,
+        "data_hash": "8d177dfbfd711698",
+        "baseline_persistence_MAE": 1.968329892177105,
+        "created_at": "2026-11-09T23:17:15",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_rain_1h": {
+    "active": {
+      "model_ver": "fc-rain_1h-202611092317",
+      "path": "models\\forecast\\rain_1h.json",
+      "model": "GBDT",
+      "metric_name": "F1_test",
+      "metric_value": 0.8326504884966908,
+      "greater_is_better": true,
+      "data_hash": "8d177dfbfd711698",
+      "created_at": "2026-11-09T23:17:30",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-rain_1h-202611092317",
+        "path": "models\\forecast\\rain_1h.json",
+        "model": "GBDT",
+        "metric_name": "F1_test",
+        "metric_value": 0.8326504884966908,
+        "greater_is_better": true,
+        "data_hash": "8d177dfbfd711698",
+        "created_at": "2026-11-09T23:17:30",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_rain_3h": {
+    "active": {
+      "model_ver": "fc-rain_3h-202611092317",
+      "path": "models\\forecast\\rain_3h.json",
+      "model": "GBDT",
+      "metric_name": "F1_test",
+      "metric_value": 0.8388613861386139,
+      "greater_is_better": true,
+      "data_hash": "8d177dfbfd711698",
+      "created_at": "2026-11-09T23:17:45",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-rain_3h-202611092317",
+        "path": "models\\forecast\\rain_3h.json",
+        "model": "GBDT",
+        "metric_name": "F1_test",
+        "metric_value": 0.8388613861386139,
+        "greater_is_better": true,
+        "data_hash": "8d177dfbfd711698",
+        "created_at": "2026-11-09T23:17:45",
+        "promoted": true
+      }
+    ]
+  },
+  "forecast_rain_6h": {
+    "active": {
+      "model_ver": "fc-rain_6h-202611092317",
+      "path": "models\\forecast\\rain_6h.json",
+      "model": "GBDT",
+      "metric_name": "F1_test",
+      "metric_value": 0.854085999592419,
+      "greater_is_better": true,
+      "data_hash": "8d177dfbfd711698",
+      "created_at": "2026-11-09T23:17:58",
+      "promoted": true
+    },
+    "history": [
+      {
+        "model_ver": "fc-rain_6h-202611092317",
+        "path": "models\\forecast\\rain_6h.json",
+        "model": "GBDT",
+        "metric_name": "F1_test",
+        "metric_value": 0.854085999592419,
+        "greater_is_better": true,
+        "data_hash": "8d177dfbfd711698",
+        "created_at": "2026-11-09T23:17:58",
+        "promoted": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,129 @@
+Dữ liệu: 43824 giờ, 56 feature | train 26208 (2021-01 → 2023-12), val 8778, test 8718 (2025-01 → 2025-12)
+GRU: (26208, 24, 12) …
+  epoch 0 train=0.87485 val=1.22360
+  epoch 1 train=0.75238 val=1.07669
+  epoch 2 train=0.71776 val=1.04781
+  epoch 3 train=0.68452 val=0.99830
+  epoch 4 train=0.66808 val=0.97752
+  epoch 5 train=0.66174 val=0.96175
+  epoch 6 train=0.65664 val=0.97227
+  epoch 7 train=0.64974 val=0.95413
+  epoch 8 train=0.65562 val=0.95254
+  epoch 9 train=0.63203 val=0.93869
+  epoch 10 train=0.62686 val=0.93913
+  epoch 11 train=0.63153 val=0.95757
+  epoch 12 train=0.61891 val=0.94046
+  epoch 13 train=0.62825 val=0.94019
+  epoch 14 train=0.62221 val=0.93848
+  epoch 15 train=0.60787 val=0.92024
+  epoch 16 train=0.60415 val=0.93805
+  epoch 17 train=0.60303 val=0.93459
+  epoch 18 train=0.60364 val=0.92247
+  epoch 19 train=0.58901 val=0.92725
+
+=== temp_1h ===
+  GBDT: 123 cây (best_iter 123), 7.7s, suy luận 17.6 µs/mẫu
+  Persistence     MAE=0.593 RMSE=0.831
+  Seasonal naive  MAE=0.994 RMSE=1.387
+  Holt-Winters    MAE=0.422 RMSE=0.592
+  Ridge           MAE=0.348 RMSE=0.490
+  GBDT            MAE=0.299 RMSE=0.440
+  GRU (NumPy)     MAE=0.310 RMSE=0.451
+  -> lưu temp_1h.json, model=GBDT, promoted=True
+
+=== temp_3h ===
+  GBDT: 313 cây (best_iter 313), 17.1s, suy luận 45.2 µs/mẫu
+  Persistence     MAE=1.559 RMSE=2.107
+  Seasonal naive  MAE=0.993 RMSE=1.387
+  Holt-Winters    MAE=0.821 RMSE=1.132
+  Ridge           MAE=0.690 RMSE=0.912
+  GBDT            MAE=0.543 RMSE=0.766
+  GRU (NumPy)     MAE=0.556 RMSE=0.769
+  -> lưu temp_3h.json, model=GBDT, promoted=True
+
+=== temp_6h ===
+  GBDT: 308 cây (best_iter 308), 16.3s, suy luận 45.7 µs/mẫu
+  Persistence     MAE=2.759 RMSE=3.496
+  Seasonal naive  MAE=0.992 RMSE=1.386
+  Holt-Winters    MAE=0.925 RMSE=1.270
+  Ridge           MAE=0.837 RMSE=1.109
+  GBDT            MAE=0.688 RMSE=0.948
+  GRU (NumPy)     MAE=0.714 RMSE=0.973
+  -> lưu temp_6h.json, model=GBDT, promoted=True
+
+=== hum_1h ===
+  GBDT: 125 cây (best_iter 125), 8.1s, suy luận 18.6 µs/mẫu
+  Persistence     MAE=2.968 RMSE=4.256
+  Seasonal naive  MAE=4.919 RMSE=6.877
+  Holt-Winters    MAE=2.384 RMSE=3.353
+  Ridge           MAE=2.045 RMSE=2.846
+  GBDT            MAE=1.856 RMSE=2.638
+  GRU (NumPy)     MAE=1.932 RMSE=2.710
+  -> lưu hum_1h.json, model=GBDT, promoted=True
+
+=== hum_3h ===
+  GBDT: 172 cây (best_iter 172), 10.7s, suy luận 25.3 µs/mẫu
+  Persistence     MAE=7.541 RMSE=10.253
+  Seasonal naive  MAE=4.923 RMSE=6.883
+  Holt-Winters    MAE=4.299 RMSE=5.832
+  Ridge           MAE=3.822 RMSE=5.070
+  GBDT            MAE=3.244 RMSE=4.452
+  GRU (NumPy)     MAE=3.295 RMSE=4.538
+  -> lưu hum_3h.json, model=GBDT, promoted=True
+
+=== hum_6h ===
+  GBDT: 238 cây (best_iter 238), 13.5s, suy luận 34.5 µs/mẫu
+  Persistence     MAE=13.210 RMSE=16.681
+  Seasonal naive  MAE=4.930 RMSE=6.903
+  Holt-Winters    MAE=4.766 RMSE=6.438
+  Ridge           MAE=4.515 RMSE=5.908
+  GBDT            MAE=3.980 RMSE=5.417
+  GRU (NumPy)     MAE=4.052 RMSE=5.506
+  -> lưu hum_6h.json, model=GBDT, promoted=True
+
+=== pres_1h ===
+  GBDT: 188 cây (best_iter 188), 11.4s, suy luận 28.2 µs/mẫu
+  Persistence     MAE=0.520 RMSE=0.618
+  Seasonal naive  MAE=1.434 RMSE=1.942
+  Holt-Winters    MAE=0.239 RMSE=0.305
+  Ridge           MAE=0.234 RMSE=0.300
+  GBDT            MAE=0.211 RMSE=0.275
+  GRU (NumPy)     MAE=0.216 RMSE=0.280
+  -> lưu pres_1h.json, model=GBDT, promoted=True
+
+=== pres_3h ===
+  GBDT: 157 cây (best_iter 157), 10.8s, suy luận 22.9 µs/mẫu
+  Persistence     MAE=1.374 RMSE=1.600
+  Seasonal naive  MAE=1.434 RMSE=1.941
+  Holt-Winters    MAE=0.447 RMSE=0.579
+  Ridge           MAE=0.460 RMSE=0.585
+  GBDT            MAE=0.388 RMSE=0.503
+  GRU (NumPy)     MAE=0.405 RMSE=0.523
+  -> lưu pres_3h.json, model=GBDT, promoted=True
+
+=== pres_6h ===
+  GBDT: 219 cây (best_iter 219), 12.6s, suy luận 32.2 µs/mẫu
+  Persistence     MAE=1.968 RMSE=2.313
+  Seasonal naive  MAE=1.433 RMSE=1.940
+  Holt-Winters    MAE=0.654 RMSE=0.855
+  Ridge           MAE=0.627 RMSE=0.826
+  GBDT            MAE=0.563 RMSE=0.740
+  GRU (NumPy)     MAE=0.594 RMSE=0.779
+  -> lưu pres_6h.json, model=GBDT, promoted=True
+
+=== rain_1h ===
+  Persistence  F1=0.826 AUC=0.865 Brier=0.124 thr=0.50
+  Logistic     F1=0.826 AUC=0.931 Brier=0.096 thr=0.40
+  GBDT         F1=0.833 AUC=0.939 Brier=0.091 thr=0.40
+
+=== rain_3h ===
+  Persistence  F1=0.783 AUC=0.813 Brier=0.178 thr=0.50
+  Logistic     F1=0.826 AUC=0.915 Brier=0.116 thr=0.40
+  GBDT         F1=0.839 AUC=0.926 Brier=0.107 thr=0.45
+
+=== rain_6h ===
+  Persistence  F1=0.723 AUC=0.766 Brier=0.254 thr=0.50
+  Logistic     F1=0.836 AUC=0.900 Brier=0.127 thr=0.48
+  GBDT         F1=0.854 AUC=0.912 Brier=0.119 thr=0.46
+
+Xong trong 292s. Kết quả: D:\hoctap\VKU_University\year4\python\final\ml\experiments\forecast_results.json

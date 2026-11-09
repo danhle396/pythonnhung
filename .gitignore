@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+build/
+dist/
+
+# Bí mật
+.env
+firmware/include/secrets.h
+broker/mosquitto/passwd
+broker/mosquitto/certs/
+
+# PlatformIO
+firmware/.pio/
+.pio_build.log
+
+# Dữ liệu & model lớn (tái tạo bằng script)
+ml/data/raw/
+ml/data/processed/
+ml/models/*.npz
+ml/models/forecast/*.npz
+
+# DB local
+backend/*.db
+backend/*.db-*
+*.sqlite
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+docs/architecture/*.bkp
+docs/architecture/.$*
