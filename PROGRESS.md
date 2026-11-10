@@ -4,7 +4,7 @@
 > Phiên Claude Code tiếp theo: đọc `CLAUDE.md` → `task.md` → file này, rồi làm tiếp mục "CÒN LẠI" theo thứ tự.
 > Cập nhật file này sau mỗi hạng mục hoàn thành.
 
-Cập nhật lần cuối: 2026-11-09
+Cập nhật lần cuối: 2026-11-10
 
 ## ĐÃ XONG (đã chạy và kiểm chứng)
 
@@ -13,7 +13,7 @@ Cập nhật lần cuối: 2026-11-09
       tree (CART histogram: hồi quy MSE/Newton, phân loại Gini/Entropy có trọng số lớp), ensemble (RF, GBDT MSE/log-loss,
       early stopping), anomaly (Isolation Forest, CUSUM, z-score theo giờ), nn (MLP, GRU + BPTT), optim (SGD/Momentum/Adam),
       explain (split gain, permutation), serialize (JSON/.npz + header), export_c (sinh C header).
-- [x] Test: `ml/tests/` **41 test pass** (dữ liệu đồ chơi có đáp án, gradient check < 1e-5 cho Logistic/MLP/GRU,
+- [x] Test: `ml/tests/` **42 test pass** (dữ liệu đồ chơi có đáp án, gradient check < 1e-5 cho Logistic/MLP/GRU,
       so khớp C (g++) với Python 0 lệch, round-trip serialize, feature không rò rỉ tương lai, hysteresis/debounce).
 - [x] `ml/src/fetch_open_meteo.py`: đã tải `ml/data/external/vku_hourly_2021_2025.csv` (43 824 giờ).
 - [x] `ml/src/train_forecast.py`: kết quả trong `docs/report/results_forecast.md`. GBDT tốt nhất mọi cặp target × horizon:
@@ -39,30 +39,59 @@ Cập nhật lần cuối: 2026-11-09
       Isolation Forest), offline (> 60 s / LWT), ack qua API + nút inline Telegram.
 - [x] Forecast service (APScheduler 10 phút, nguồn trạm → Open-Meteo → persistence), tin 6h sáng, notifier Telegram/Email.
 - [x] REST API đủ danh sách §7.5 + JWT + `/docs`; `WS /ws/live`.
-- [x] `backend/tests/` **14 test pass**.
+- [x] `backend/tests/` 14 test pass (đợt 1; đợt 2 thêm integration test → 15).
 - [x] Chạy end-to-end thật: Mosquitto (auth + ACL) → backend → `tools/simulator.py` (kịch bản lpg_mid): 531 tin, 0 lỗi,
       cảnh báo 0→1→2→3→2→1, độ trễ cảm biến→gửi thông báo ≈ 450 ms, nhắc lại cấp 3 mỗi phút, forecast retain về thiết bị.
 
 ### Broker & công cụ
 - [x] `broker/mosquitto/` (mosquitto.conf, acl theo thiết bị, make_passwd.sh, gen_certs.sh cho TLS).
-- [x] `tools/simulator.py`, `tools/load_test.py` (chưa chạy), `tools/label_logger.py`.
+- [x] `tools/simulator.py`, `tools/load_test.py`, `tools/label_logger.py`.
 - [x] `.gitignore`, `.env.example`.
 
-## CÒN LẠI (làm theo thứ tự)
-1. [ ] **Dashboard** `dashboard/app.py` (Streamlit, §9): tổng quan (thẻ T/H/P/Lux/Rain/Gas, đèn cấp, online, RSSI),
-       biểu đồ 1h/24h/7 ngày, dự báo thực tế vs dự báo + khoảng tin cậy + xác suất mưa + nowcast, timeline cảnh báo + nút ack,
-       trang thiết bị (ngưỡng, chu kỳ, test_alarm/mute/calibrate), trang mô hình (`/api/models`), xuất CSV, responsive.
-       Gọi API backend (`API_URL`, đăng nhập JWT `ADMIN_USER/ADMIN_PASS`). Thêm `dashboard/requirements.txt`.
-2. [ ] **Docker** (§11): `docker-compose.yml` (mosquitto, timescaledb, backend chạy `alembic upgrade head` rồi uvicorn,
-       dashboard, grafana tuỳ chọn), `backend/Dockerfile` (cài `ml/` bằng `pip install -e ../ml`), `dashboard/Dockerfile`,
-       healthcheck, tạo passwd mosquitto khi khởi động.
-3. [ ] **README.md** (≤ 10 bước cài đặt) + `docs/architecture/mqtt.md` (topic/payload/QoS/retain theo §5) +
-       sequence diagram luồng cảnh báo & dự báo (Mermaid) trong `docs/architecture/`.
-4. [ ] **Kiểm thử** (§12): chạy `tools/load_test.py` 20 và 50 thiết bị → `docs/report/results_load.md`;
-       viết `backend/tests/test_integration_mqtt.py` (tự bật mosquitto nếu có, simulator → broker → ingest → DB → API);
-       test mất mạng/gửi bù bằng simulator; ghi bảng độ trễ P50/P95 vào `docs/report/`.
-5. [ ] `docs/report/`: khung báo cáo 6 chương (§13) dùng các file results_*.md + hình trong `docs/report/figures/`.
-6. [ ] (Nâng cao, tuỳ chọn) OTA qua HTTP trong firmware (`cmd: ota`), TLS 8883.
+### Đợt 2 (2026-11-10)
+- [x] **Dashboard** `dashboard/app.py` (Streamlit): Tổng quan, Biểu đồ (1h/24h/7 ngày, tải CSV), Dự báo (thực tế vs dự báo
+      + khoảng tin cậy, xác suất mưa, so sánh nowcast), Cảnh báo (timeline, lọc, nút ack), Thiết bị (lệnh, form ngưỡng/chu kỳ,
+      lịch sử config/lệnh), Mô hình (registry + kết quả). Kiểm thử headless bằng `streamlit.testing.AppTest` trên dữ liệu
+      simulator: 6/6 trang không lỗi, ack và gửi config hoạt động (thiết bị ack config).
+- [x] **Docker**: `docker-compose.yml` (mosquitto tự tạo passwd từ env, timescaledb, backend chạy `alembic upgrade head`,
+      dashboard, grafana profile `monitoring`), `backend/Dockerfile`, `dashboard/Dockerfile`, `.dockerignore`, healthcheck.
+      Đã kiểm tra cú pháp YAML và migration Alembic (upgrade/downgrade trên SQLite). ⚠ **Chưa chạy thử `docker compose up`**
+      vì máy phát triển không cài Docker — cần chạy thử trên máy có Docker.
+- [x] **README.md** (cài đặt ≤ 10 bước), `docs/architecture/mqtt.md`, `docs/architecture/sequences.md` (Mermaid).
+- [x] **Kiểm thử**: load test 20 và 50 thiết bị × 1 msg/s × 30 s, QoS 1 → `docs/report/results_load_20.md`, `results_load_50.md`
+      (mất gói 0 %, P95 broker ≈ 2 ms, 100 % vào DB, CPU backend TB ≈ 55–61 % một lõi, SQLite).
+      `backend/tests/test_integration_mqtt.py`: Mosquitto thật → ingest → DB → API, chống trùng khi gửi bù, cmd xuống thiết bị,
+      LWT → offline (tự bỏ qua nếu không có mosquitto). Backend tổng cộng **15 test pass**.
+- [x] `docs/report/bao_cao_khung.md`: khung 6 chương + nguồn số liệu/hình cho từng mục, tài liệu tham khảo, kịch bản demo.
+- [x] OTA firmware qua HTTP (`cmd: ota` + `url`, API `POST /api/devices/{id}/cmd {"cmd":"ota","url":...}`); TLS 8883 có sẵn
+      (`gen_certs.sh`, cờ `MQTT_USE_TLS`) — chưa build thử với TLS.
+
+### Đợt 3 (2026-11-10) — hoàn thiện phần mềm, báo cáo, slide
+- [x] **Docker chạy thật** trên Docker Desktop (Windows 11/WSL2): `docker compose up -d --build` → 4 container healthy;
+      migration tạo hypertable + 3 continuous aggregate + retention trên TimescaleDB 2.17/PG16; simulator → broker → DB → API;
+      forecast service chạy trong container. Đã sửa: passwd Mosquitto sinh vào `/mosquitto/auth` (chủ mosquitto, 0700) thay vì
+      thư mục mount; healthcheck không dùng `$SYS` (ACL chặn); cổng host cấu hình được (`MQTT_HOST_PORT`...);
+      **registry.json lưu đường dẫn Windows** (`models\forecast\…`) làm backend Linux không nạp được model → sửa
+      `train_forecast` (as_posix) + `forecast_infer` (chuẩn hoá) + chuẩn hoá registry.json; `.gitattributes` (eol=lf cho sh/conf/py).
+- [x] Load test 50 thiết bị trên Docker + TimescaleDB → `docs/report/results_load_50_docker.md` (0 % mất, P95 3.4 ms, CPU backend ≈ 10 %).
+- [x] Bias correction: khi hệ số góc trạm→Open-Meteo ngoài [0.5, 1.5] chỉ hiệu chỉnh độ lệch (trước đây clip 0.5 làm khoảng tin cậy
+      rộng gấp đôi); kẹp độ ẩm dự báo trong [0, 100]. Thêm test → **ml 42 test pass**.
+- [x] Dashboard: `?page=` / `?device=` trên URL, mặc định `station01`, trục giờ 24h, điểm + thanh CI cho dự báo, giờ địa phương.
+      **Smoke test** `dashboard/tests/test_app.py` (6 trang + ack + gửi config, API giả từ dữ liệu thật) → 7 pass.
+- [x] Grafana: datasource uid cố định + dashboard provision sẵn `grafana/dashboards/vku_aiot.json` (đã kiểm tra: kết nối DB OK).
+- [x] Hình báo cáo: `tools/make_report_figures.py` (MAE, F1 mưa, Rule/Model/Hybrid, load, diễn biến cảnh báo),
+      `tools/render_mermaid.js` (kiến trúc, ERD, 3 sơ đồ tuần tự từ `docs/architecture/*.md`), ảnh chụp 6 trang dashboard + Grafana.
+- [x] **Báo cáo đầy đủ 6 chương**: `docs/report/bao_cao.md` → `bao_cao.docx` (33 trang, `tools/md_to_docx.py` qua MS Word).
+- [x] **Slide 18 trang**: `docs/report/slides_bao_ve.pptx` (sinh bằng `tools/slides/build_slides.js`, có speaker notes, biểu đồ native).
+- [x] Kịch bản demo + video 4 phút + câu hỏi bảo vệ: `docs/report/kich_ban_demo.md`.
+
+## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
+- [ ] Điền họ tên, MSSV, GVHD ở đầu `docs/report/bao_cao.md` rồi chạy lại `python tools/md_to_docx.py docs/report/bao_cao.md`.
+- [ ] Quay video demo theo `docs/report/kich_ban_demo.md` (phương án B dùng simulator nếu chưa có phần cứng).
+- [ ] Khi có dữ liệu khí thật: `python -m aiot_ml.train_gas_edge --data ...`, `train_anomaly --data ...`, cập nhật results_*.md,
+      chạy lại `tools/make_report_figures.py` và `tools/slides/build_slides.js` (cập nhật số liệu slide 14).
+- [ ] Đo đạc phần cứng (⚙ trong báo cáo chương 5): độ trễ edge, end-to-end Telegram P50/P95, 72 h, mất Wi-Fi, báo động giả,
+      µs suy luận trên ESP32, công suất; chụp ảnh lắp ráp.
 
 ## VIỆC CẦN NGƯỜI LÀM (phần cứng — Claude không làm được)
 - Mua MQ-2, buzzer, LED, nút, điện trở phân áp 10k/20k; lắp theo `firmware/include/config.h`; đo lại `MQ2_RL_KOHM` trên module.

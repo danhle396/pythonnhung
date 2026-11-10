@@ -56,6 +56,16 @@ def test_bias_corrector_learns_offset():
     assert np.isclose(bc.to_station("temp", 25.0), 26.5)
 
 
+def test_bias_corrector_falls_back_to_offset_when_uncorrelated():
+    om = _toy_hourly()
+    st = om.copy()
+    rng = np.random.default_rng(0)
+    st["temp"] = om["temp"].mean() + 2.0 + rng.normal(0, 1, len(om))  # trạm gần như không tương quan với OM
+    bc = BiasCorrector(alpha=0.0).fit(st, om)
+    a, b = bc.coef["temp"]
+    assert a == 1.0 and np.isclose(b, (om["temp"] - st["temp"]).mean())
+
+
 # ------------------------------------------------------------------ rule engine
 def test_rule_debounce_up_and_immediate_danger():
     r = RuleEngine(RuleConfig(debounce_up=3))

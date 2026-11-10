@@ -26,11 +26,23 @@ export PYTHONUTF8=1                                 # bắt buộc trên Windows
 
 ## Lệnh kiểm thử
 ```bash
-cd ml && ../.venv/Scripts/python -m pytest -q                 # 41 test mlcore + pipeline
-cd backend && ../.venv/Scripts/python -m pytest -q tests      # 14 test backend
+cd ml && ../.venv/Scripts/python -m pytest -q                 # 42 test mlcore + pipeline
+cd backend && ../.venv/Scripts/python -m pytest -q tests      # 15 test backend (gồm integration với Mosquitto nếu có)
 cd firmware && ../.venv/Scripts/pio test -e native            # 12 test firmware trên PC (cần g++)
+.venv/Scripts/python -m pytest -q dashboard/tests              # 7 smoke test dashboard (API giả)
 cd firmware && cp -n include/secrets.h.example include/secrets.h && ../.venv/Scripts/pio run -e esp32dev
 ```
+
+## Docker
+```bash
+docker compose up -d --build            # trùng cổng 1883 với Mosquitto Windows? đặt MQTT_HOST_PORT=11883 trong .env
+docker compose --profile monitoring up -d grafana
+```
+
+## Báo cáo / slide (docs/report/)
+- Nội dung: `bao_cao.md` (nguồn) → `python tools/md_to_docx.py docs/report/bao_cao.md` (cần MS Word, pip install markdown).
+- Slide: `cd tools/slides && npm install && node build_slides.js` — số liệu chép tay trong script, cập nhật khi huấn luyện lại.
+- Hình: `tools/make_report_figures.py`, `node tools/render_mermaid.js` (từ tools/slides sau npm install).
 
 ## Chạy hệ thống local (không Docker)
 ```bash
@@ -54,4 +66,5 @@ cd ml
 - `Arduino.h` định nghĩa macro `RISING/FALLING/HIGH/LOW` — không đặt tên enum trùng.
 - PubSubClient chỉ publish QoS 0; độ tin cậy dựa vào `seq` + đệm offline + chống trùng ở backend.
 - Telemetry DB khoá chính (device_id, ts, seq) — phù hợp hypertable TimescaleDB.
+- `ml/models/registry.json` phải lưu đường dẫn kiểu POSIX (`models/forecast/...`) — backend chạy trong Linux container.
 - Dữ liệu khí hiện là mô phỏng: mọi số liệu cảnh báo khí trong báo cáo phải ghi rõ cho tới khi có dữ liệu thật.

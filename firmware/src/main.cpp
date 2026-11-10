@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
+#include <HTTPUpdate.h>
 #include <esp_task_wdt.h>
 #include <time.h>
 
@@ -41,6 +42,8 @@ static Nowcast lastNowcast;
 static volatile bool flagCalibrate = false, flagReboot = false, flagTestAlarm = false, flagMute = false,
                      flagConfigChanged = true;
 static volatile int cloudLevel = 0;
+static volatile bool flagOta = false;
+static char otaUrl[200] = "";
 static const char* LEVEL_NAME[] = {"normal", "advisory", "warning", "danger"};
 
 // ------------------------------------------------------------------ tiện ích JSON
@@ -126,6 +129,15 @@ static void onMessage(const char* suffix, const uint8_t* payload, unsigned int l
     else if (!strcmp(cmd, "calibrate")) flagCalibrate = true;
     else if (!strcmp(cmd, "reboot")) flagReboot = true;
     else if (!strcmp(cmd, "escalate")) cloudLevel = constrain((int)(j["level"] | 0), 0, 3);
+    else if (!strcmp(cmd, "ota")) {  // OTA firmware qua HTTP: {"cmd":"ota","url":"http://host/firmware.bin"}
+      const char* url = j["url"] | "";
+      if (strncmp(url, "http://", 7) != 0 && strncmp(url, "https://", 8) != 0) {
+        sendAck("cmd", id, false, "bad url");
+        return;
+      }
+      strlcpy(otaUrl, url, sizeof(otaUrl));
+      flagOta = true;
+    }
     else { sendAck("cmd", id, false, "unknown cmd"); return; }
     sendAck("cmd", id, true, cmd);
   } else if (!strcmp(suffix, "config")) {
@@ -355,6 +367,18 @@ static void TaskNetwork(void*) {
       char msg[40];
       snprintf(msg, sizeof msg, "R0=%.2f kOhm", r0);
       sendAck("calibrate", nullptr, true, msg);
+    }
+    if (flagOta) {  // tải firmware mới; thành công -> tự khởi động lại
+      flagOta = false;
+      mqtt.publish("status", "{\"state\":\"updating\"}", true);
+      esp_task_wdt_delete(nullptr);  // tải có thể lâu hơn timeout WDT
+      WiFiClient otaClient;
+      httpUpdate.rebootOnUpdate(true);
+      t_httpUpdate_return r = httpUpdate.update(otaClient, otaUrl);
+      esp_task_wdt_add(nullptr);
+      char msg[64];
+      snprintf(msg, sizeof msg, "ota failed: %s", httpUpdate.getLastErrorString().c_str());
+      sendAck("ota", nullptr, r == HTTP_UPDATE_NO_UPDATES, r == HTTP_UPDATE_NO_UPDATES ? "no update" : msg);
     }
     if (flagReboot) {
       mqtt.publish("status", "{\"state\":\"rebooting\"}", true);

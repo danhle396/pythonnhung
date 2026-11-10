@@ -96,7 +96,9 @@ def config_history(device_id: str, db: Session = Depends(get_db)):
 
 @router.post("/devices/{device_id}/cmd", tags=["devices"])
 def send_cmd(device_id: str, body: CommandIn, db: Session = Depends(get_db), user: str = Depends(require_user)):
-    kw = {"level": body.level} if body.cmd == "escalate" else {}
+    if body.cmd == "ota" and not body.url:
+        raise HTTPException(422, "cmd ota cần url firmware .bin")
+    kw = {"level": body.level} if body.cmd == "escalate" else ({"url": body.url} if body.cmd == "ota" else {})
     cid = rt().publisher.cmd(device_id, body.cmd, **kw)
     db.add(Command(id=cid, device_id=device_id, cmd=body.cmd, payload=kw or None, created_by=user))
     db.commit()

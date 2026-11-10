@@ -54,6 +54,8 @@ def main():
             j = json.loads(m.payload)
         except Exception:
             return
+        if not str(j.get("device_id", "")).startswith(a.prefix) or "t_pub_ms" not in j:
+            return  # bỏ qua thiết bị thật / simulator khác đang chạy song song
         with lock:
             lat.append(t - j["t_pub_ms"])
             seen.setdefault(j["device_id"], set()).add(j["seq"])

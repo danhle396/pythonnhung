@@ -148,8 +148,9 @@ class DeviceConfigIn(BaseModel):
 
 
 class CommandIn(BaseModel):
-    cmd: str = Field(pattern="^(mute|test_alarm|calibrate|reboot|escalate)$")
+    cmd: str = Field(pattern="^(mute|test_alarm|calibrate|reboot|escalate|ota)$")
     level: int | None = Field(default=None, ge=0, le=3)
+    url: str | None = Field(default=None, pattern="^https?://", max_length=190)  # cho cmd ota
 
 
 class AckRequest(BaseModel):

@@ -1,0 +1,110 @@
+# Dựng toàn bộ backend: docker compose up -d --build
+#   API + Swagger : http://localhost:8000/docs
+#   Dashboard     : http://localhost:8501
+#   MQTT          : localhost:1883 (user/pass tạo từ .env)
+#   Grafana (tuỳ chọn): docker compose --profile monitoring up -d  -> http://localhost:3000
+# Trùng cổng trên máy host? đặt MQTT_HOST_PORT / DB_HOST_PORT / API_HOST_PORT / DASHBOARD_HOST_PORT / GRAFANA_HOST_PORT
+name: vku-aiot
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    restart: unless-stopped
+    ports: ["${MQTT_HOST_PORT:-1883}:1883", "${MQTT_WS_HOST_PORT:-9001}:9001"]
+    environment:
+      MQTT_BACKEND_PASS: ${MQTT_PASS:-backend-pass}
+      MQTT_DEVICE_PASS: ${MQTT_DEVICE_PASS:-change-me}
+      MQTT_DASHBOARD_PASS: ${MQTT_DASHBOARD_PASS:-dashboard-pass}
+      MQTT_DEVICES: ${MQTT_DEVICES:-station01 station02 station03}
+    # mỗi lần khởi động: sinh passwd từ biến môi trường + chép acl vào /mosquitto/auth (chủ mosquitto, 0700) rồi chạy broker
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /mosquitto/auth
+        sh /mosquitto/config/make_passwd.sh /mosquitto/auth/passwd
+        cp /mosquitto/config/acl /mosquitto/auth/acl
+        chown mosquitto:mosquitto /mosquitto/auth/passwd /mosquitto/auth/acl
+        chmod 0700 /mosquitto/auth/passwd /mosquitto/auth/acl
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+    volumes:
+      - ./broker/mosquitto:/mosquitto/config:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -u backend -P \"$$MQTT_BACKEND_PASS\" -i healthcheck -t vku/aiot/_health -E -W 3"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aiot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aiot-pass}
+      POSTGRES_DB: aiot
+    volumes: [db-data:/var/lib/postgresql/data]
+    ports: ["${DB_HOST_PORT:-5432}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiot -d aiot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: {context: ., dockerfile: backend/Dockerfile}
+    restart: unless-stopped
+    env_file: [{path: .env, required: false}]
+    environment:
+      DATABASE_URL: postgresql+psycopg://aiot:${POSTGRES_PASSWORD:-aiot-pass}@db:5432/aiot
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      MQTT_USER: backend
+      MQTT_PASS: ${MQTT_PASS:-backend-pass}
+      DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:8501}
+    depends_on:
+      db: {condition: service_healthy}
+      mosquitto: {condition: service_healthy}
+    ports: ["${API_HOST_PORT:-8000}:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  dashboard:
+    build: {context: ., dockerfile: dashboard/Dockerfile}
+    restart: unless-stopped
+    environment:
+      API_URL: http://backend:8000
+      DASHBOARD_USER: ${ADMIN_USER:-admin}
+      DASHBOARD_PASS: ${ADMIN_PASS:-admin123}
+    depends_on:
+      backend: {condition: service_healthy}
+    ports: ["${DASHBOARD_HOST_PORT:-8501}:8501"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=4)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    profiles: [monitoring]
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASS:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aiot-pass}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ["${GRAFANA_HOST_PORT:-3000}:3000"]
+
+volumes:
+  mosquitto-data:
+  db-data:
+  grafana-data:

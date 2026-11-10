@@ -1,0 +1,95 @@
+# Trạm quan trắc môi trường AIoT — VKU Đà Nẵng
+
+**An AIoT Environmental Monitoring Station for Short-Term Weather Forecasting and Multi-Level Early Warning of
+Combustible Gas and Smoke Using Hybrid Edge–Cloud AI on ESP32 and MQTT.**
+
+ESP32 đọc DHT22, BMP280, BH1750, YL-83, MQ-2 → cảnh báo khí/khói 4 cấp **ngay tại edge** (rule + cây quyết định,
+chạy cả khi mất mạng) → MQTT → backend Python dự báo thời tiết 1h/3h/6h, xác nhận và leo thang cảnh báo, gửi Telegram/Email
+→ dashboard realtime. **Toàn bộ mô hình AI tự cài đặt từ đầu** trong `ml/mlcore` (chỉ NumPy).
+
+> ⚠ Nguyên mẫu học thuật — không thay thế thiết bị báo cháy/báo gas đã được chứng nhận.
+
+```
+firmware/   ESP32 (PlatformIO): cảm biến, edge AI, cảnh báo, nowcast, MQTT, đệm offline, OLED
+ml/         mlcore (CART, RF, GBDT, Logistic/Ridge, Holt-Winters, Isolation Forest, CUSUM, MLP/GRU, xuất C) + pipeline
+backend/    FastAPI + SQLAlchemy + MQTT ingest + alert/forecast service + Telegram
+dashboard/  Streamlit (6 trang) + smoke test · grafana/  dashboard Grafana provision sẵn (tuỳ chọn)
+broker/     cấu hình Mosquitto (auth + ACL theo thiết bị, TLS tuỳ chọn)
+tools/      simulator.py (giả lập ESP32), load_test.py, label_logger.py, make_report_figures.py, render_mermaid.js,
+            md_to_docx.py, slides/build_slides.js
+docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, báo cáo + slide (docs/report/)
+```
+
+## Cài đặt từ đầu (≤ 10 bước)
+
+**Cách 1 — Docker (khuyến nghị):**
+1. `git clone https://github.com/danhle396/pythonnhung.git && cd pythonnhung`
+2. `cp .env.example .env` rồi điền `JWT_SECRET`, `ADMIN_PASS`, `MQTT_PASS`, `MQTT_DEVICE_PASS`, (tuỳ chọn) `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`.
+3. `docker compose up -d --build` → API `http://localhost:8000/docs`, dashboard `http://localhost:8501`
+   (Grafana: `docker compose --profile monitoring up -d` → `http://localhost:3000`, admin/admin).
+   Trùng cổng với dịch vụ có sẵn trên máy (vd. Mosquitto Windows ở 1883): đặt `MQTT_HOST_PORT=11883` (tương tự
+   `API_HOST_PORT`, `DASHBOARD_HOST_PORT`, `DB_HOST_PORT`, `GRAFANA_HOST_PORT`) trong `.env`.
+4. Chưa có phần cứng: `pip install paho-mqtt numpy pandas && pip install -e ml` rồi
+   `python tools/simulator.py --backfill-hours 48 --events "30:lpg_mid" --password <MQTT_DEVICE_PASS>`.
+5. Nạp firmware: `cd firmware && cp include/secrets.h.example include/secrets.h` (điền Wi-Fi, IP broker, mật khẩu thiết bị)
+   → `pio run -e esp32dev -t upload` → `pio device monitor`.
+6. Sau 24–48 h burn-in MQ-2 trong không khí sạch: dashboard → Thiết bị → **Hiệu chuẩn R0**.
+
+**Cách 2 — chạy trực tiếp (dev, SQLite):**
+1. `python -m venv .venv` và kích hoạt; `pip install -r backend/requirements.txt -r dashboard/requirements.txt && pip install -e ml`
+2. Chạy Mosquitto với `broker/mosquitto/mosquitto.conf` (tạo passwd: `sh broker/mosquitto/make_passwd.sh`; sửa 2 dòng
+   `password_file`/`acl_file` trỏ tới file passwd và `acl` trên máy, `persistence_location` tới thư mục có quyền ghi).
+3. `cd backend && uvicorn app.main:app --port 8000`
+4. `streamlit run dashboard/app.py`
+5. `python tools/simulator.py --backfill-hours 48 --events "30:lpg_mid"`
+
+Windows: đặt `PYTHONUTF8=1` để log tiếng Việt hiển thị đúng.
+
+## Huấn luyện lại mô hình
+```bash
+cd ml
+python -m aiot_ml.fetch_open_meteo --start 2021-01-01 --end 2025-12-31   # 5 năm dữ liệu giờ tại VKU
+python -m aiot_ml.train_forecast      # baseline + Holt-Winters + Ridge + GBDT + GRU → models/, docs/report/
+python -m aiot_ml.train_gas_edge      # model edge → firmware/include/gas_model.h (+ --data <csv thật>)
+python -m aiot_ml.train_anomaly       # Isolation Forest + CUSUM cho cloud
+```
+Model mới chỉ được thăng cấp trong `ml/models/registry.json` khi tốt hơn model đang dùng trên tập test.
+
+## Kiểm thử
+```bash
+cd ml && pytest -q                    # mlcore: dữ liệu đồ chơi, gradient check, C ↔ Python
+cd backend && pytest -q tests         # API, ingest, cảnh báo, forecast, integration với Mosquitto thật
+cd firmware && pio test -e native     # filter, rule engine, alert manager, nowcast, model C
+pytest -q dashboard/tests            # 6 trang dashboard + ack + gửi cấu hình (API giả)
+python tools/load_test.py --devices 50 --duration 60 --api http://localhost:8000
+```
+
+## Kết quả chính
+| Hạng mục | KPI | Kết quả |
+|---|---|---|
+| MAE nhiệt độ 1h (GBDT, test 2025) | < 1.0 °C | **0.30 °C** |
+| MAE độ ẩm 1h | < 5 %RH | **1.86 %RH** |
+| F1 mưa 3h tới | > 0.75 | **0.839** |
+| Mất gói MQTT (50 thiết bị × 1 msg/s, QoS 1) | < 1 % | **0 %** |
+| Độ trễ cảm biến → gửi thông báo (simulator) | < 5 s | **≈ 0.45 s** |
+| Mất gói, Docker + TimescaleDB (50 thiết bị) | < 1 % | **0 %**, P95 broker 3.4 ms, CPU backend ≈ 10 % |
+| Firmware ESP32 (có OTA) | — | RAM 14.9 %, Flash 48.9 %, model edge ≈ 17 kB |
+
+Chi tiết: `docs/report/results_*.md`. Số liệu cảnh báo khí hiện dùng **dữ liệu mô phỏng** (`ml/src/gas_sim.py`) cho tới
+khi có thí nghiệm MQ-2 thật (`tools/label_logger.py`).
+
+## Tài liệu
+- Kế hoạch: `task.md` · Tiến độ: `PROGRESS.md`
+- MQTT: `docs/architecture/mqtt.md` · Sơ đồ tuần tự: `docs/architecture/sequences.md`
+- Sơ đồ khối: `docs/architecture/system_block_diagram.drawio` · Kiến trúc + ERD (Mermaid): `docs/architecture/diagrams.md`
+- **Báo cáo**: `docs/report/bao_cao.md` / `bao_cao.docx` · **Slide**: `docs/report/slides_bao_ve.pptx` ·
+  Kịch bản demo/video: `docs/report/kich_ban_demo.md`
+
+### Sinh lại hình, báo cáo Word và slide
+```bash
+python tools/make_report_figures.py --api http://localhost:8000 --minutes 4 --start <mốc UTC kịch bản>   # hình kết quả
+cd tools/slides && npm install
+node ../render_mermaid.js            # sơ đồ Mermaid → PNG (dùng Edge/Chrome có sẵn)
+node build_slides.js                 # → docs/report/slides_bao_ve.pptx
+cd ../.. && pip install markdown && python tools/md_to_docx.py docs/report/bao_cao.md   # → .docx (cần MS Word)
+```

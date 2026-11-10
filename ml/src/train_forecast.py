@@ -177,7 +177,7 @@ def main(argv=None):
             path = save_model(bundle, model_dir / key, model_ver=mver, data_hash=dhash,
                               meta={"test": res[bundle["model_name"]]})
             promoted = reg.propose(f"forecast_{key}", {
-                "model_ver": mver, "path": str(path.relative_to(ML_DIR)), "model": bundle["model_name"],
+                "model_ver": mver, "path": path.relative_to(ML_DIR).as_posix(), "model": bundle["model_name"],
                 "metric_name": "MAE_test", "metric_value": res[bundle["model_name"]]["MAE"],
                 "greater_is_better": False, "data_hash": dhash,
                 "baseline_persistence_MAE": res["Persistence"]["MAE"]})
@@ -223,7 +223,7 @@ def main(argv=None):
                   "threshold": res[name]["threshold"], "model_name": name}
         mver = f"fc-{key}-{time.strftime('%Y%m%d%H%M')}"
         path = save_model(bundle, model_dir / key, model_ver=mver, data_hash=dhash, meta={"test": res[name]})
-        reg.propose(f"forecast_{key}", {"model_ver": mver, "path": str(path.relative_to(ML_DIR)), "model": name,
+        reg.propose(f"forecast_{key}", {"model_ver": mver, "path": path.relative_to(ML_DIR).as_posix(), "model": name,
                                         "metric_name": "F1_test", "metric_value": res[name]["F1"],
                                         "greater_is_better": True, "data_hash": dhash})
         log_experiment(f"forecast_{key}", cfg["gbdt_clf"], {k: v["F1"] for k, v in res.items() if not k.startswith("_")},

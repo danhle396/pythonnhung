@@ -39,8 +39,13 @@ class BiasCorrector:
                 self.coef[v] = (1.0, float((j[f"{v}_om"] - j[f"{v}_st"]).mean()) if len(j) else 0.0)
                 continue
             m = Ridge(alpha=self.alpha).fit(j[[f"{v}_st"]].to_numpy(), j[f"{v}_om"].to_numpy())
-            a = float(np.clip(m.coef_[0], 0.5, 1.5))
-            self.coef[v] = (a, float(m.intercept_ if a == m.coef_[0] else (j[f"{v}_om"] - a * j[f"{v}_st"]).mean()))
+            a = float(m.coef_[0])
+            if 0.5 <= a <= 1.5:
+                self.coef[v] = (a, float(m.intercept_))
+            else:
+                # tương quan trạm–Open-Meteo kém (hệ số góc bất thường): chỉ hiệu chỉnh độ lệch, tránh khuếch đại
+                # sai số khi đổi ngược (chia cho a nhỏ sẽ nới rộng khoảng tin cậy)
+                self.coef[v] = (1.0, float((j[f"{v}_om"] - j[f"{v}_st"]).mean()))
         return self
 
     def to_om(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -86,7 +91,7 @@ class Forecaster:
             if not name.startswith("forecast_") or not slot.get("active"):
                 continue
             entry = slot["active"]
-            obj, head = load_model(ML_DIR / entry["path"])
+            obj, head = load_model(ML_DIR / entry["path"].replace("\\", "/"))  # registry có thể sinh trên Windows
             obj["_ver"] = head["model_ver"]
             obj["_rmse"] = head.get("meta", {}).get("test", {}).get("RMSE")
             self.bundles[name.removeprefix("forecast_")] = obj
@@ -119,6 +124,8 @@ class Forecaster:
                 lo, hi = (v - 1.96 * r, v + 1.96 * r) if r else (None, None)
                 if bias is not None:
                     v, lo, hi = (float(bias.to_station(b["target"], z)) if z is not None else None for z in (v, lo, hi))
+                if b["target"] == "hum":  # độ ẩm tương đối nằm trong [0, 100]
+                    v, lo, hi = (min(100.0, max(0.0, z)) if z is not None else None for z in (v, lo, hi))
                 out.append(ForecastItem(b["target"], b["horizon"], v, lo, hi, b["_ver"], b["model_name"],
                                         {"source": source}))
             else:
