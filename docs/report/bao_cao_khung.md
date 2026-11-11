@@ -51,11 +51,11 @@
 ## Chương 5 — Thực nghiệm và đánh giá
 5.1 Dự báo thời tiết: `docs/report/results_forecast.md`, hình `figures/forecast_3h_nov2025.png`, `figures/importance_temp_1h.png`.
     Thảo luận: GBDT tốt nhất mọi cặp; GRU NumPy gần bằng GBDT; persistence độ ẩm 6h rất kém do chu kỳ ngày.
-5.2 Cảnh báo khí tại edge — Rule / Model / Hybrid: `docs/report/results_gas_edge.md` (⚠ hiện là mô phỏng → ⚙ chạy lại với
-    dữ liệu thật từ `tools/label_logger.py`). Thảo luận: hybrid phát hiện khói/rò rỉ chậm sớm hơn; báo động giả do cồn.
-5.3 Bất thường ở cloud: `docs/report/results_anomaly.md` (Isolation Forest vs z-score theo giờ, CUSUM trôi R0).
+5.2 Cảnh báo khí tại edge — Rule / Model / Hybrid: ⚙ chờ dữ liệu đo thật từ `tools/label_logger.py`
+    (`train_gas_edge --data` sinh `docs/report/results_gas_edge.md`). Hiện edge chạy rule.
+5.3 Bất thường ở cloud: ⚙ chờ vài tuần telemetry trạm (`train_anomaly --data` sinh `docs/report/results_anomaly.md`).
 5.4 Hiệu năng hệ thống: `docs/report/results_load_20.md`, `results_load_50.md` (mất gói 0 %, P95 broker ≈ 2 ms);
-    độ trễ cảm biến → thông báo ≈ 0.45 s (simulator). ⚙ Độ trễ edge thật (xả gas → còi), end-to-end tới Telegram P50/P95.
+    ⚙ Độ trễ cảm biến → thông báo, độ trễ edge thật (xả gas → còi), end-to-end tới Telegram P50/P95.
 5.5 Tài nguyên edge ⚙: flash/RAM (đã có), thời gian suy luận trên ESP32 (`pio test -e esp32dev -f test_gas_model`), công suất.
 5.6 Độ bền ⚙: chạy 72 h (heap, reconnect, WDT reset từ topic status), test mất Wi-Fi / mất broker, so sánh trạm với Open-Meteo.
 
@@ -70,5 +70,4 @@ Cho et al. 2014 (GRU); Holt 1957 / Winters 1960; Open-Meteo Historical API; NIOS
 
 ## Slide & demo
 Slide 15–20 trang theo 6 chương. Kịch bản demo trực tiếp (task.md §13): dashboard → bật lửa gas lại gần → LED/còi đổi cấp
-→ Telegram → bấm ack → rút Wi-Fi chứng minh edge vẫn cảnh báo. Không có phần cứng: dùng
-`python tools/simulator.py --events "10:lpg_mid,200:smoke"` + dashboard.
+→ Telegram → bấm ack → rút Wi-Fi chứng minh edge vẫn cảnh báo (cần trạm thật).

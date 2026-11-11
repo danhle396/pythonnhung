@@ -1,4 +1,4 @@
-"""Smoke test dashboard: render 6 trang với API giả (dữ liệu ghi lại từ backend thật, api_fixture.json).
+"""Smoke test dashboard: render 6 trang với API giả (fixture kiểm thử api_fixture.json — không phải số liệu đo).
 
     python -m pytest -q dashboard/tests
 """

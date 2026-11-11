@@ -138,7 +138,7 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   // edge
   card(s, M, 1.4, 4.6, 5.1, C.mist, 'edge');
   text(s, 'EDGE — ESP32', {x: M + 0.25, y: 1.55, w: 4, h: 0.4, fontFace: HEAD, fontSize: 16, bold: true, color: C.deep});
-  const eb = ['5 cảm biến · lọc median + EWMA', '10 feature cửa sổ 10–60 s', 'Rule 4 cấp ∥ Random Forest 10 cây',
+  const eb = ['5 cảm biến · lọc median + EWMA', '10 feature cửa sổ 10–60 s', 'Rule 4 cấp (+ RF khi có dữ liệu thật)',
     'level = max(rule, model)', 'LED · còi · quạt · OLED', 'Đệm offline LittleFS · seq'];
   eb.forEach((t, i) => {
     s.addShape(pres.shapes.ROUNDED_RECTANGLE, {x: M + 0.25, y: 2.05 + i * 0.7, w: 4.1, h: 0.56, rectRadius: 0.08,
@@ -157,7 +157,7 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   const cx = bx + 2.65;
   card(s, cx, 1.4, W - M - cx, 5.1, C.mist, 'cloud');
   text(s, 'CLOUD — Docker Compose', {x: cx + 0.25, y: 1.55, w: 4.5, h: 0.4, fontFace: HEAD, fontSize: 16, bold: true, color: C.deep});
-  const cb = [['Ingest', 'validate · chống trùng · ghi lô'], ['Alert service', 'leo thang 10 phút · Isolation Forest · nhắc lại'],
+  const cb = [['Ingest', 'validate · chống trùng · ghi lô'], ['Alert service', 'leo thang theo độ dốc 10 phút · nhắc lại'],
     ['Forecast service', 'GBDT mlcore + bias correction'], ['TimescaleDB', 'hypertable · continuous aggregate'],
     ['API + Dashboard', 'JWT · WebSocket · Streamlit · Grafana'], ['Thông báo', 'Telegram · Email · ack inline']];
   const cwid = W - M - cx - 0.5;
@@ -208,11 +208,11 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   card(s, x2, 1.45, w2, 4.25, C.mist);
   text(s, 'Chống dao động & an toàn', {x: x2 + 0.25, y: 1.6, w: w2 - 0.5, h: 0.4, fontFace: HEAD, fontSize: 16, bold: true, color: C.deep});
   bullets(s, ['Hysteresis 15 %: hạ cấp khi ppm < 0,85 × ngưỡng', 'Debounce: lên 3 mẫu, xuống 5 mẫu; cấp 3 lên ngay',
-    'Fusion = max(rule, model): model chỉ báo sớm hơn, không hạ cấp', 'Cloud leo thang khi ppm tăng đều 10 phút hoặc Isolation Forest báo bất thường'],
+    'Hiện chạy rule (chưa có dữ liệu khí đo thật để huấn luyện model)', 'Cloud leo thang khi ppm tăng đều 10 phút'],
   {x: x2 + 0.25, y: 2.1, w: w2 - 0.5, h: 3.0, fontSize: 14});
   text(s, '10 feature: gas_ppm · Rs/R0 · slope10 · std30 · dev_base · temp · dtemp/phút · hum · dhum/phút · lux_rel',
     {x: M, y: 6.05, w: W - 2 * M, h: 0.5, fontSize: 14, color: C.grey, italic: true});
-  s.addNotes('Ngưỡng mặc định có thể đổi từ xa qua topic config. Hybrid lấy max để ưu tiên không bỏ sót.');
+  s.addNotes('Ngưỡng mặc định có thể đổi từ xa qua topic config. Khi có model: fusion = max(rule, model), model không hạ cấp rule.');
 }
 
 // =============================================================== 7. mlcore
@@ -262,25 +262,24 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
 
 // =============================================================== 9. Edge model → C
 {
-  const s = slide('Từ Python tới ESP32: xuất Random Forest sang C', 'Học máy');
-  const steps = [['Huấn luyện', 'train_gas_edge.py\nRF 10 cây, sâu 6'], ['Xuất C', 'export_c.py → gas_model.h\nmảng const, không đệ quy'],
-    ['So khớp', 'g++ + Unity test\n490 mẫu, lệch 0'], ['Nạp ESP32', 'TaskEdgeAI 1 Hz\nfusion với rule']];
+  const s = slide('Từ Python tới ESP32: quy trình xuất mô hình sang C', 'Học máy');
+  const steps = [['Thu dữ liệu', 'label_logger.py\nMQ-2 đo thật, gán nhãn'], ['Huấn luyện', 'train_gas_edge.py\nDecision Tree / RF nhỏ'],
+    ['Xuất C', 'export_c.py → gas_model.h\nmảng const, không đệ quy'], ['Nạp ESP32', 'TaskEdgeAI 1 Hz\nfusion với rule']];
   const sw = (W - 2 * M - 3 * 0.45) / 4;
   steps.forEach(([t, d], i) => {
     const x = M + i * (sw + 0.45);
-    card(s, x, 1.5, sw, 1.9, i === 2 ? 'FFF4E0' : C.mist);
+    card(s, x, 1.5, sw, 1.9, i === 0 ? 'FFF4E0' : C.mist);
     dot(s, x + 0.25, 1.7, 0.5, C.deep, i + 1);
     text(s, t, {x: x + 0.9, y: 1.7, w: sw - 1.1, h: 0.5, fontFace: HEAD, fontSize: 17, bold: true, valign: 'middle'});
     text(s, d, {x: x + 0.25, y: 2.35, w: sw - 0.5, h: 0.95, fontSize: 14, color: C.grey});
     if (i < 3) s.addShape(pres.shapes.LINE, {x: x + sw + 0.05, y: 2.45, w: 0.35, h: 0, line: {color: C.deep, width: 2, endArrowType: 'triangle'}});
   });
-  stat(s, M, 3.9, 2.9, '17 kB', 'flash cho 10 cây (1 016 nút)');
-  stat(s, M + 3.1, 3.9, 2.9, '656 B', 'RAM lúc chạy');
-  stat(s, M + 6.2, 3.9, 2.9, '0', 'lệch lớp C ↔ Python', C.green);
-  stat(s, M + 9.3, 3.9, 2.9, '48,9 %', 'flash firmware (RAM 14,9 %)');
-  text(s, 'Feature quan trọng: Rs/R0 0,33 · dtemp/phút 0,21 · ppm 0,17 · độ lệch nền 0,12 · độ dốc 10 s 0,11',
+  stat(s, M, 3.9, 3.8, '0', 'lệch lớp C ↔ Python (unit test bộ xuất, cây và rừng)', C.green);
+  stat(s, M + 4.1, 3.9, 3.8, 'rule', 'chế độ hiện tại: chưa có dữ liệu khí đo thật', C.orange);
+  stat(s, M + 8.2, 3.9, 3.6, '48,0 %', 'flash firmware (RAM 14,9 %)');
+  text(s, 'Khi chưa có model: gas_model.h đặt GAS_MODEL_AVAILABLE = 0 → firmware tự chạy rule, không dùng số liệu giả',
     {x: M, y: 6.0, w: W - 2 * M, h: 0.4, fontSize: 14, italic: true, color: C.grey});
-  s.addNotes('Bộ xuất C tự viết thay cho emlearn. Unity test chạy cả native lẫn trên ESP32 thật để đo micro-giây.');
+  s.addNotes('Bộ xuất C tự viết thay cho emlearn. Unity test test_gas_model chạy cả native lẫn ESP32 sau khi có model.');
 }
 
 // =============================================================== 10. Backend
@@ -290,14 +289,14 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   card(s, M, 1.45, 5.95, 3.5);
   text(s, 'Alert service', {x: M + 0.3, y: 1.6, w: 5, h: 0.4, fontFace: HEAD, fontSize: 18, bold: true, color: C.deep});
   bullets(s, ['Cấp 1: log · cấp 2: Telegram · cấp 3: Telegram + Email', 'Cooldown theo (thiết bị, cấp); nhắc lại cấp 3 mỗi phút tới khi ack',
-    'Leo thang: độ dốc ppm 10 phút, Isolation Forest → cmd escalate', 'Offline > 60 s hoặc LWT → cảnh báo device_offline',
+    'Leo thang: độ dốc ppm 10 phút → cmd escalate (Isolation Forest khi đủ dữ liệu trạm)', 'Offline > 60 s hoặc LWT → cảnh báo device_offline',
     'Ack qua dashboard hoặc nút inline Telegram'], {x: M + 0.3, y: 2.15, w: 5.4, h: 2.75, fontSize: 15});
   card(s, x2, 1.45, W - M - x2, 3.5);
   text(s, 'Forecast service (10 phút)', {x: x2 + 0.3, y: 1.6, w: 6, h: 0.4, fontFace: HEAD, fontSize: 18, bold: true, color: C.deep});
   bullets(s, ['Pretrain trên 5 năm Open-Meteo tại VKU', 'Bias correction trạm → Open-Meteo (Ridge; chỉ hiệu chỉnh độ lệch khi tương quan kém)',
     'Dự phòng: dữ liệu trạm → Open-Meteo 4 ngày → persistence', 'Khoảng tin cậy 95 %: ŷ ± 1,96 · RMSE_test',
     'Publish forecast (retain) → OLED; tin tóm tắt 6 giờ sáng'], {x: x2 + 0.3, y: 2.15, w: W - M - x2 - 0.6, h: 2.75, fontSize: 15});
-  stat(s, M, 5.1, 2.9, '≈ 0,45 s', 'thiết bị phát alert → backend gửi thông báo');
+  stat(s, M, 5.1, 2.9, '43 824', 'giờ dữ liệu Open-Meteo 2021–2025');
   stat(s, M + 3.1, 5.1, 2.9, '12', 'dự báo mỗi lượt (4 biến × 3 tầm)');
   stat(s, M + 6.2, 5.1, 2.9, '0,2 s', 'thời gian một lượt dự báo trong Docker');
   stat(s, M + 9.3, 5.1, 2.9, '15', 'test backend, gồm integration MQTT');
@@ -307,18 +306,21 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
 // =============================================================== 11. Dashboard
 {
   const s = slide('Dashboard: realtime, dự báo, cảnh báo, cấu hình', 'Hệ thống');
-  const iw = (W - 2 * M - 0.3) / 2;
-  const h1 = iw * 570 / 1250, h2 = iw * 630 / 1250;
-  img(s, 'slides/overview_crop.png', M, 1.4, iw, h1, 'Trang tổng quan dashboard');
-  img(s, 'slides/forecast_crop.png', M + iw + 0.3, 1.4, iw, h2, 'Trang dự báo dashboard');
-  s.addShape(pres.shapes.RECTANGLE, {x: M, y: 1.4, w: iw, h: h1, fill: {type: 'none'}, line: {color: C.light, width: 1}});
-  s.addShape(pres.shapes.RECTANGLE, {x: M + iw + 0.3, y: 1.4, w: iw, h: h2, fill: {type: 'none'}, line: {color: C.light, width: 1}});
-  text(s, 'Tổng quan: cấp cảnh báo, số đo, dự báo, cảnh báo gần đây', {x: M, y: 1.5 + h1, w: iw, h: 0.4, fontSize: 13, color: C.grey});
-  text(s, 'Dự báo: thực tế vs dự báo + khoảng tin cậy 95 %, xác suất mưa', {x: M + iw + 0.3, y: 1.5 + h2, w: iw, h: 0.4, fontSize: 13, color: C.grey});
-  card(s, M, 5.75, W - 2 * M, 0.75);
-  text(s, 'Streamlit 6 trang (Tổng quan · Biểu đồ · Dự báo · Cảnh báo + ack · Thiết bị: lệnh & cấu hình · Mô hình) + Grafana provision sẵn đọc TimescaleDB',
-    {x: M + 0.25, y: 5.75, w: W - 2 * M - 0.5, h: 0.75, fontSize: 15, valign: 'middle'});
-  s.addNotes('Ảnh chụp từ stack Docker chạy với simulator. Trang Cảnh báo có nút xác nhận.');
+  const pages = [['Tổng quan', 'cấp cảnh báo hiện tại, số đo, dự báo mới nhất, cảnh báo gần đây'],
+    ['Biểu đồ', 'cửa sổ 1 giờ / 24 giờ / 7 ngày, tải CSV'], ['Dự báo', 'thực tế vs dự báo + khoảng tin cậy 95 %, xác suất mưa'],
+    ['Cảnh báo', 'dòng thời gian, lọc theo cấp/nguồn, nút xác nhận (ack)'], ['Thiết bị', 'lệnh thử còi · tắt còi · hiệu chuẩn R0 · cấu hình ngưỡng'],
+    ['Mô hình', 'model registry đang hoạt động và bảng kết quả']];
+  const cw = (W - 2 * M - 2 * 0.3) / 3;
+  pages.forEach(([t, d], i) => {
+    const x = M + (i % 3) * (cw + 0.3), y = 1.45 + Math.floor(i / 3) * 1.85;
+    card(s, x, y, cw, 1.6);
+    text(s, t, {x: x + 0.25, y: y + 0.15, w: cw - 0.5, h: 0.4, fontFace: HEAD, fontSize: 17, bold: true, color: C.deep});
+    text(s, d, {x: x + 0.25, y: y + 0.65, w: cw - 0.5, h: 0.85, fontSize: 14});
+  });
+  card(s, M, 5.35, W - 2 * M, 1.1);
+  text(s, 'Streamlit 6 trang, JWT, WebSocket realtime · Grafana provision sẵn đọc TimescaleDB · 7 smoke test dashboard',
+    {x: M + 0.25, y: 5.35, w: W - 2 * M - 0.5, h: 1.1, fontSize: 15, valign: 'middle'});
+  s.addNotes('Demo trực tiếp dashboard với dữ liệu từ trạm thật.');
 }
 
 // =============================================================== 12. Kết quả dự báo
@@ -357,44 +359,21 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   s.addNotes('Đường đen là thực tế, xanh lá là GBDT, cam là Ridge, chấm xanh là persistence.');
 }
 
-// =============================================================== 14. Rule/Model/Hybrid
+// =============================================================== 14. Cảnh báo khí: trạng thái
 {
-  const s = slide('Cảnh báo khí: Rule / Model / Hybrid', 'Kết quả');
-  const cats = ['Macro-F1', 'Recall ≥2 (mẫu)', 'Precision ≥2', 'Recall ≥2 (sự kiện)'];
-  s.addChart(pres.charts.BAR, [
-    {name: 'Rule', labels: cats, values: [0.569, 0.843, 0.615, 0.947]},
-    {name: 'Model', labels: cats, values: [0.827, 0.895, 0.821, 1.0]},
-    {name: 'Hybrid', labels: cats, values: [0.615, 0.920, 0.606, 1.0]}],
-  {x: M, y: 1.4, w: 7.4, h: 4.6, barDir: 'col', barGrouping: 'clustered', chartColors: ['9AA5B1', '3E7CB1', '0B6E4F'],
-    showLegend: true, legendPos: 'b', legendFontFace: BODY, legendFontSize: 12, valAxisMaxVal: 1, valAxisMinVal: 0,
-    showValue: true, dataLabelPosition: 'outEnd', dataLabelFontSize: 10, dataLabelFontFace: BODY, dataLabelFormatCode: '0.00', dataLabelColor: C.ink,
-    catAxisLabelFontFace: BODY, valAxisLabelFontFace: BODY, catAxisLabelColor: C.grey, valAxisLabelColor: C.grey,
-    catAxisLabelFontSize: 12, valAxisLabelFontSize: 11, valGridLine: {color: 'D9E2E8', size: 0.5}, catGridLine: {style: 'none'}});
-  const x2 = M + 7.8, w2 = W - M - x2;
-  stat(s, x2, 1.4, w2, '19 → 12,3 s', 'độ trễ phát hiện cấp ≥ 2 (P95): Rule → Hybrid', C.green);
-  stat(s, x2, 3.25, w2, '0,50', 'tỉ lệ báo động giả ≥ 2 trên sự kiện nhiễu (Hybrid) — đánh đổi để không bỏ sót', C.orange);
-  card(s, M, 6.1, W - 2 * M, 0.6, 'FDECEA');
-  text(s, '⚠ Dữ liệu MÔ PHỎNG (gas_sim.py, 151 324 mẫu 1 Hz) — sẽ huấn luyện lại với dữ liệu MQ-2 thật thu bằng label_logger.py',
-    {x: M + 0.25, y: 6.1, w: W - 2 * M - 0.5, h: 0.6, fontSize: 14, color: C.red, valign: 'middle', bold: true});
-  s.addNotes('Hybrid = max(rule, model) nên Recall cao nhất và trễ thấp nhất, nhưng gộp cả báo động giả. Cồn gây nhạy chéo MQ-2.');
-}
-
-// =============================================================== 15. Timeline
-{
-  const s = slide('End-to-end: kịch bản rò gas qua stack Docker', 'Kết quả');
-  const tw = 4.0 * 1500 / 540;
-  img(s, 'alert_timeline_sim.png', (W - tw) / 2, 1.3, tw, 4.0, 'Diễn biến ppm và cấp cảnh báo');
-  const y = 5.45;
-  const items = [['0→1→2→3→2→1', 'chuỗi cấp đúng thiết kế'], ['≈ 0,45 s', 'alert thiết bị → backend gửi thông báo'],
-    ['Hysteresis', 'ppm < 2 000 nhưng giữ cấp 3 thêm vài giây'], ['LWT', 'tắt đột ngột → offline + device_offline']];
-  const iw = (W - 2 * M - 3 * 0.3) / 4;
-  items.forEach(([a, b], i) => {
-    const x = M + i * (iw + 0.3);
-    card(s, x, y, iw, 1.3);
-    text(s, a, {x: x + 0.2, y: y + 0.12, w: iw - 0.4, h: 0.5, fontFace: HEAD, fontSize: 17, bold: true, color: C.deep});
-    text(s, b, {x: x + 0.2, y: y + 0.65, w: iw - 0.4, h: 0.6, fontSize: 13, color: C.grey});
-  });
-  s.addNotes('Simulator chạy đúng logic edge (gas_edge.py giống hệt edge_ai.cpp). Dữ liệu đi qua Mosquitto, backend, TimescaleDB trong Docker.');
+  const s = slide('Cảnh báo khí: chỉ dùng dữ liệu đo thật', 'Kết quả');
+  card(s, M, 1.45, 5.95, 4.9);
+  text(s, 'Hiện tại', {x: M + 0.3, y: 1.6, w: 5, h: 0.4, fontFace: HEAD, fontSize: 18, bold: true, color: C.deep});
+  bullets(s, ['Chưa có dữ liệu MQ-2 đo thật → chưa huấn luyện model', 'Edge chạy rule 4 cấp: 300 / 1 000 / 2 000 ppm, dốc ≥ 15 ppm/s, nhiệt ≥ 1 °C/phút',
+    'Hysteresis 15 %, debounce 3 / 5 mẫu — kiểm thử native', 'Random Forest, Isolation Forest, CUSUM đã cài trong mlcore, pipeline sẵn sàng'],
+  {x: M + 0.3, y: 2.15, w: 5.4, h: 4.1, fontSize: 15});
+  const x2 = M + 6.3;
+  card(s, x2, 1.45, W - M - x2, 4.9, 'FFF4E0');
+  text(s, 'Kế hoạch thu dữ liệu', {x: x2 + 0.3, y: 1.6, w: 6, h: 0.4, fontFace: HEAD, fontSize: 18, bold: true, color: C.orange});
+  bullets(s, ['label_logger.py ghi 1 Hz kèm nhãn', 'Gas bật lửa xả, không đốt: 50 / 20 / 5 cm → nhãn 1 / 2 / 3',
+    'Khói nhang trong hộp → 2 · hơi nước, cồn, nước hoa → 0 (đo báo động giả)', 'Chia train/test theo buổi; so sánh Rule / Model / Hybrid',
+    'Isolation Forest: sau ≥ 3 tuần telemetry trạm'], {x: x2 + 0.3, y: 2.15, w: W - M - x2 - 0.6, h: 4.1, fontSize: 15});
+  s.addNotes('Thí nghiệm ở nơi thoáng, lượng nhỏ, có người giám sát. Mọi số liệu cảnh báo khí sẽ đo trên phần cứng thật.');
 }
 
 // =============================================================== 16. Hiệu năng
@@ -421,7 +400,7 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   const s = slide('Kết luận', 'Kết luận');
   const rows = [[th('KPI'), th('Kết quả'), th('')],
     ['Dự báo vượt persistence', '12/12 cặp biến × tầm', '✔'], ['MAE T 1h · H 1h · F1 mưa 3h', '0,30 °C · 1,86 % · 0,839', '✔'],
-    ['Cảnh báo 4 cấp tại edge, chạy offline', 'rule + RF 17 kB, khớp C/Python', '✔'], ['Recall cấp ≥ 2 theo sự kiện', '1,00 (mô phỏng)', '◐'],
+    ['Cảnh báo 4 cấp tại edge, chạy offline', 'rule, kiểm thử native', '✔'], ['Model ML cảnh báo khí', 'chờ dữ liệu khí đo thật', '⚙'],
     ['≥ 50 thiết bị, mất gói ≈ 0', '0 %', '✔'], ['ML tự viết, Docker, README', 'mlcore + 76 test', '✔'],
     ['72 h ổn định, độ trễ end-to-end thật', 'cần phần cứng', '⚙']];
   s.addTable(rows, tableOpts(M, 1.4, 7.4, [3.6, 3.1, 0.7], 0.6));
@@ -440,7 +419,6 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   s.addText('Demo và hỏi đáp', {placeholder: 'title'});
   s.addText([
     {text: 'Dashboard → xả gas gần MQ-2 → LED/còi đổi cấp → Telegram → ack → rút Wi-Fi: edge vẫn cảnh báo', options: {breakLine: true}},
-    {text: 'Không có phần cứng: python tools/simulator.py --events "5:lpg_mid"', options: {color: C.amber, breakLine: true}},
     {text: 'github.com/danhle396/pythonnhung', options: {fontSize: 14}},
   ], {placeholder: 'body'});
   [0, 1, 2, 3].forEach(i => dot(s, M + i * 0.55, 1.4, 0.38, LV[i]));

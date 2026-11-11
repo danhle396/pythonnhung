@@ -15,7 +15,8 @@ Feature (lấy mẫu 1 Hz):
     x9 lux_rel   : (lux − lux_base) / (lux_base + 10), lux_base = EWMA α=0.005, chỉ cập nhật khi |lux_rel| < 0.08
                    (khói che sáng làm lux giảm so với nền chậm; nền không bị kéo theo khi đang có khói)
 Rule engine 4 cấp với hysteresis & debounce; fusion: level = max(rule_level, model_level)
-(model không bao giờ hạ cấp do rule đưa ra).
+(model không bao giờ hạ cấp do rule đưa ra). Không có model (chưa có dữ liệu đo thật để huấn luyện,
+GAS_MODEL_AVAILABLE = 0 trong firmware) -> mọi chế độ đều chạy như 'rule'.
 """
 from __future__ import annotations
 
@@ -167,13 +168,13 @@ class ModelLevelFilter:
 
 
 class EdgeEngine:
-    """Mô phỏng toàn bộ chuỗi xử lý tại ESP32. mode: 'rule' | 'model' | 'hybrid'."""
+    """Bản Python của toàn bộ chuỗi xử lý tại ESP32. mode: 'rule' | 'model' | 'hybrid' ('rule' nếu model=None)."""
 
     def __init__(self, model=None, mode="hybrid", rule_cfg: RuleConfig | None = None, warmup_s=0):
         self.fx = FeatureExtractor()
         self.rules = RuleEngine(rule_cfg)
         self.mfilter = ModelLevelFilter()
-        self.model, self.mode = model, mode
+        self.model, self.mode = model, (mode if model is not None else "rule")
         self.warmup_s, self.t = warmup_s, 0
 
     def step(self, ppm, rs_r0, temp, hum, lux):

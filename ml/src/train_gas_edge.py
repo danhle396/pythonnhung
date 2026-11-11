@@ -1,9 +1,10 @@
 """Huấn luyện mô hình cảnh báo khí/khói cho ESP32, so sánh Rule / Model / Hybrid, xuất sang C.
 
-    python -m aiot_ml.train_gas_edge                    # dùng dữ liệu mô phỏng (gas_sim.py)
-    python -m aiot_ml.train_gas_edge --data ml/data/raw/gas_labeled.csv   # dữ liệu thật đã gán nhãn
+    python -m aiot_ml.train_gas_edge --data data/raw/gas_labeled.csv
 
-CSV thật cần các cột: t (giây), gas_ppm, rs_r0, temp, hum, lux, label (0..3), event_id, scenario, stream_seed.
+Chỉ huấn luyện trên dữ liệu ĐO THẬT từ MQ-2, thu bằng tools/label_logger.py trong các buổi thí nghiệm có gán nhãn.
+Chưa có dữ liệu -> không có model, firmware chạy rule (firmware/include/gas_model.h với GAS_MODEL_AVAILABLE = 0).
+CSV cần các cột: t (giây), gas_ppm, rs_r0, temp, hum, lux, label (0..3), event_id, scenario, stream_seed.
 Chia theo chuỗi (stream) để tập test là các buổi thí nghiệm khác hẳn tập train.
 """
 from __future__ import annotations
@@ -23,25 +24,26 @@ from mlcore import ensemble, explain, metrics, tree
 from mlcore.export_c import export_forest_c, export_test_vectors_c, forest_to_arrays, predict_c_like
 from mlcore.serialize import dataset_hash, save_model
 
-from .config import DATA_DIR, EXPERIMENTS_DIR, FIRMWARE_INCLUDE, MODELS_DIR, REPO_DIR, SEED
+from .config import EXPERIMENTS_DIR, FIRMWARE_INCLUDE, MODELS_DIR, REPO_DIR, SEED
 from .gas_edge import EDGE_FEATURES, LEVEL_NAMES, RuleConfig, extract_features_stream, run_levels_vectorized
-from .gas_sim import generate_stream
 from .tracking import ModelRegistry, log_experiment
 
 CLASS_WEIGHT = {0: 1.0, 1: 1.5, 2: 4.0, 3: 6.0}  # phạt nặng khi bỏ sót cấp 2, 3 (ưu tiên Recall)
 
 
+REQUIRED_COLUMNS = ["t", "gas_ppm", "rs_r0", "temp", "hum", "lux", "label", "scenario", "event_id", "stream_seed"]
+
+
 def build_dataset(args):
-    if args.data:
-        df = pd.read_csv(args.data)
-    else:
-        streams = []
-        for i, s in enumerate(range(100, 100 + args.n_streams)):
-            streams.append(generate_stream(args.sessions_per_stream, seed=s))
-        df = pd.concat(streams, ignore_index=True)
-        out = DATA_DIR / "processed" / "gas_simulated.csv"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(out, index=False)
+    path = Path(args.data)
+    if not path.exists():
+        raise SystemExit(f"Không tìm thấy {path}. Thu dữ liệu đo thật bằng tools/label_logger.py trước khi huấn luyện.")
+    df = pd.read_csv(path)
+    missing = [c for c in REQUIRED_COLUMNS if c not in df]
+    if missing:
+        raise SystemExit(f"CSV thiếu cột {missing}")
+    if df["stream_seed"].nunique() < 3:
+        raise SystemExit("Cần ít nhất 3 buổi thí nghiệm (stream_seed khác nhau) để chia train/val/test theo buổi.")
     feats = []
     for seed, g in df.groupby("stream_seed", sort=True):
         F = extract_features_stream(g)
@@ -126,9 +128,7 @@ int main() {{
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default=None)
-    ap.add_argument("--n-streams", type=int, default=10)
-    ap.add_argument("--sessions-per-stream", type=int, default=60)
+    ap.add_argument("--data", required=True, help="CSV đo thật có gán nhãn (tools/label_logger.py)")
     ap.add_argument("--model-ver", default="gas-v1")
     a = ap.parse_args(argv)
     t0 = time.perf_counter()
@@ -138,7 +138,7 @@ def main(argv=None):
     s_tr, s_va, s_te = seeds[:int(n * 0.6)], seeds[int(n * 0.6):int(n * 0.8)], seeds[int(n * 0.8):]
     m_tr, m_va, m_te = (df["stream_seed"].isin(s).to_numpy() for s in (s_tr, s_va, s_te))
     X, y = F.to_numpy(), df["label"].to_numpy().astype(int)
-    print(f"Dữ liệu {'THẬT' if a.data else 'MÔ PHỎNG'}: {len(df)} mẫu 1 Hz, {df.groupby(['stream_seed', 'event_id']).ngroups} "
+    print(f"Dữ liệu đo thật {a.data}: {len(df)} mẫu 1 Hz, {df.groupby(['stream_seed', 'event_id']).ngroups} "
           f"sự kiện | phân bố nhãn {np.bincount(y, minlength=4).tolist()} | train/val/test streams {len(s_tr)}/{len(s_va)}/{len(s_te)}")
 
     # ------------------------------------------------ chọn model trên tập val
@@ -194,7 +194,7 @@ def main(argv=None):
     header = export_forest_c(model, EDGE_FEATURES, prefix=P, model_ver=a.model_ver,
                              class_names=LEVEL_NAMES)
     rng = np.random.default_rng(SEED)
-    pick = np.sort(np.r_[rng.choice(np.flatnonzero(yte == 0), 250, replace=False),
+    pick = np.sort(np.r_[rng.choice(np.flatnonzero(yte == 0), min(250, int((yte == 0).sum())), replace=False),
                          *[np.flatnonzero(yte == k)[:: max(1, (yte == k).sum() // 80)][:80] for k in (1, 2, 3)]])
     cls_idx, proba = predict_c_like(model, Xte[pick])
     python_match = float((model.classes_[cls_idx] == model.predict(Xte[pick])).mean())
@@ -216,12 +216,12 @@ def main(argv=None):
     dh = dataset_hash(X[m_tr], y[m_tr])
     path = save_model({"model": model, "features": EDGE_FEATURES, "class_weight": CLASS_WEIGHT,
                        "rule_config": RuleConfig().__dict__}, MODELS_DIR / "gas_edge", model_ver=a.model_ver,
-                      data_hash=dh, meta={"synthetic": a.data is None})
+                      data_hash=dh, meta={"data": str(a.data)})
     imp = explain.split_gain_importance(model, EDGE_FEATURES)
     perm = explain.permutation_importance(lambda Z: model.predict(Z), Xte[:20000], yte[:20000],
                                           lambda yy, pp: metrics.recall_binary(yy >= 2, pp >= 2), n_repeats=3,
                                           greater_is_better=True, feature_names=EDGE_FEATURES)
-    res = {"data": "real" if a.data else "simulated", "n_samples": int(len(df)),
+    res = {"data": str(a.data), "n_samples": int(len(df)),
            "label_counts": np.bincount(y, minlength=4).tolist(), "selection": sel_log,
            "chosen": {"model": best_name, **best_params}, "test_raw_model": raw_model, "test_comparison": comp,
            "edge_resources": {"nodes": n_nodes, "leaves": n_leaves, "trees": len(A["roots"]),
@@ -234,8 +234,7 @@ def main(argv=None):
     ModelRegistry().propose("gas_edge", {"model_ver": a.model_ver, "path": str(path.name), "model": best_name,
                                          "metric_name": "event_recall_ge2_hybrid",
                                          "metric_value": comp["hybrid"]["event_recall_ge2"],
-                                         "greater_is_better": True, "data_hash": dh,
-                                         "synthetic": a.data is None}, force=True)
+                                         "greater_is_better": True, "data_hash": dh}, force=True)
     log_experiment("gas_edge", {"model": best_name, **best_params, "class_weight": CLASS_WEIGHT},
                    {m: {"recall_ge2": comp[m]["recall_ge2"], "event_recall_ge2": comp[m]["event_recall_ge2"],
                         "macro_f1": comp[m]["macro_f1"]} for m in comp}, SEED, time.perf_counter() - t0)
@@ -246,9 +245,7 @@ def main(argv=None):
 def write_report(res):
     c = res["test_comparison"]
     L = ["# Kết quả cảnh báo khí/khói tại edge", "",
-         f"> Dữ liệu: **{'MÔ PHỎNG (gas_sim.py)' if res['data'] == 'simulated' else 'THẬT'}**, {res['n_samples']} mẫu 1 Hz. "
-         + ("Số liệu dưới đây minh hoạ pipeline; cần chạy lại với dữ liệu thí nghiệm thật trước khi đưa vào báo cáo."
-            if res["data"] == "simulated" else ""), "",
+         f"> Dữ liệu đo thật: `{res['data']}`, {res['n_samples']} mẫu 1 Hz.", "",
          f"Model chọn: **{res['chosen']}**", "",
          "## Rule / Model / Hybrid (tập test)", "",
          "| Chỉ số | Rule | Model | Hybrid |", "|---|---|---|---|"]

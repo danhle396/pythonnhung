@@ -15,7 +15,7 @@ ml/         mlcore (CART, RF, GBDT, Logistic/Ridge, Holt-Winters, Isolation Fore
 backend/    FastAPI + SQLAlchemy + MQTT ingest + alert/forecast service + Telegram
 dashboard/  Streamlit (6 trang) + smoke test · grafana/  dashboard Grafana provision sẵn (tuỳ chọn)
 broker/     cấu hình Mosquitto (auth + ACL theo thiết bị, TLS tuỳ chọn)
-tools/      simulator.py (giả lập ESP32), load_test.py, label_logger.py, make_report_figures.py, render_mermaid.js,
+tools/      label_logger.py (thu dữ liệu khí có nhãn), load_test.py, make_report_figures.py, render_mermaid.js,
             md_to_docx.py, slides/build_slides.js
 docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, báo cáo + slide (docs/report/)
 ```
@@ -29,11 +29,9 @@ docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, báo cá
    (Grafana: `docker compose --profile monitoring up -d` → `http://localhost:3000`, admin/admin).
    Trùng cổng với dịch vụ có sẵn trên máy (vd. Mosquitto Windows ở 1883): đặt `MQTT_HOST_PORT=11883` (tương tự
    `API_HOST_PORT`, `DASHBOARD_HOST_PORT`, `DB_HOST_PORT`, `GRAFANA_HOST_PORT`) trong `.env`.
-4. Chưa có phần cứng: `pip install paho-mqtt numpy pandas && pip install -e ml` rồi
-   `python tools/simulator.py --backfill-hours 48 --events "30:lpg_mid" --password <MQTT_DEVICE_PASS>`.
-5. Nạp firmware: `cd firmware && cp include/secrets.h.example include/secrets.h` (điền Wi-Fi, IP broker, mật khẩu thiết bị)
+4. Nạp firmware: `cd firmware && cp include/secrets.h.example include/secrets.h` (điền Wi-Fi, IP broker, mật khẩu thiết bị)
    → `pio run -e esp32dev -t upload` → `pio device monitor`.
-6. Sau 24–48 h burn-in MQ-2 trong không khí sạch: dashboard → Thiết bị → **Hiệu chuẩn R0**.
+5. Sau 24–48 h burn-in MQ-2 trong không khí sạch: dashboard → Thiết bị → **Hiệu chuẩn R0**.
 
 **Cách 2 — chạy trực tiếp (dev, SQLite):**
 1. `python -m venv .venv` và kích hoạt; `pip install -r backend/requirements.txt -r dashboard/requirements.txt && pip install -e ml`
@@ -41,7 +39,7 @@ docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, báo cá
    `password_file`/`acl_file` trỏ tới file passwd và `acl` trên máy, `persistence_location` tới thư mục có quyền ghi).
 3. `cd backend && uvicorn app.main:app --port 8000`
 4. `streamlit run dashboard/app.py`
-5. `python tools/simulator.py --backfill-hours 48 --events "30:lpg_mid"`
+5. Cấp nguồn trạm ESP32 (dữ liệu chỉ lấy từ cảm biến thật)
 
 Windows: đặt `PYTHONUTF8=1` để log tiếng Việt hiển thị đúng.
 
@@ -71,12 +69,13 @@ python tools/load_test.py --devices 50 --duration 60 --api http://localhost:8000
 | MAE độ ẩm 1h | < 5 %RH | **1.86 %RH** |
 | F1 mưa 3h tới | > 0.75 | **0.839** |
 | Mất gói MQTT (50 thiết bị × 1 msg/s, QoS 1) | < 1 % | **0 %** |
-| Độ trễ cảm biến → gửi thông báo (simulator) | < 5 s | **≈ 0.45 s** |
+| Độ trễ cảm biến → gửi thông báo | < 5 s | ⚙ chờ đo trên trạm thật |
 | Mất gói, Docker + TimescaleDB (50 thiết bị) | < 1 % | **0 %**, P95 broker 3.4 ms, CPU backend ≈ 10 % |
-| Firmware ESP32 (có OTA) | — | RAM 14.9 %, Flash 48.9 %, model edge ≈ 17 kB |
+| Firmware ESP32 (có OTA) | — | RAM 14.9 %, Flash 48.0 % (chế độ rule) |
 
-Chi tiết: `docs/report/results_*.md`. Số liệu cảnh báo khí hiện dùng **dữ liệu mô phỏng** (`ml/src/gas_sim.py`) cho tới
-khi có thí nghiệm MQ-2 thật (`tools/label_logger.py`).
+Chi tiết: `docs/report/results_*.md`. Dự án **chỉ dùng số liệu đo thật**. Chưa có dữ liệu khí MQ-2 đo thật nên chưa có mô
+hình ML cảnh báo khí: firmware chạy luật ngưỡng (`gas_model.h`: `GAS_MODEL_AVAILABLE 0`). Thu dữ liệu bằng
+`tools/label_logger.py` rồi `python -m aiot_ml.train_gas_edge --data <csv>`.
 
 ## Tài liệu
 - Kế hoạch: `task.md` · Tiến độ: `PROGRESS.md`

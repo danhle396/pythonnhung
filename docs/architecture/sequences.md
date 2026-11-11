@@ -27,7 +27,7 @@ sequenceDiagram
     I->>AS: on_edge_alert (lưu DB, chống trùng)
     AS->>T: cấp 2: Telegram · cấp 3: Telegram + Email
     loop mỗi 30 s
-        AS->>AS: ngữ cảnh 10 phút: độ dốc ppm, Isolation Forest
+        AS->>AS: ngữ cảnh 10 phút: độ dốc ppm (+ Isolation Forest khi có model)
         opt leo thang
             AS->>B: cmd escalate {level}
             B->>E: cmd

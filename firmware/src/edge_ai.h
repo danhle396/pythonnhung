@@ -1,4 +1,5 @@
-// Edge AI cảnh báo khí/khói: chuyển đổi MQ-2, trích feature cửa sổ trượt, model cây (gas_model.h),
+// Edge AI cảnh báo khí/khói: chuyển đổi MQ-2, trích feature cửa sổ trượt, model cây (gas_model.h; khi
+// GAS_MODEL_AVAILABLE = 0 — chưa có dữ liệu đo thật để huấn luyện — chỉ chạy rule engine),
 // debounce model, hợp nhất với rule engine, phát hiện lỗi cảm biến. Thuần C++ (test được trên PC).
 // Feature và công thức GIỐNG HỆT ml/src/gas_edge.py.
 #pragma once

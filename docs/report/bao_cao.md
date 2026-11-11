@@ -11,8 +11,9 @@
 | Mã nguồn | https://github.com/danhle396/pythonnhung |
 
 > **Lưu ý quan trọng.** Hệ thống là **nguyên mẫu học thuật**, không thay thế thiết bị báo cháy/báo gas đã được chứng nhận.
-> Tại thời điểm viết báo cáo, mọi số liệu về **cảnh báo khí** (chương 5.2, 5.3) được tính trên **dữ liệu mô phỏng**
-> (`ml/src/gas_sim.py`) vì chưa có dữ liệu thí nghiệm MQ-2 thật; các mục cần đo trên phần cứng được đánh dấu ⚙.
+> Báo cáo **chỉ dùng số liệu đo thật**: dự báo thời tiết huấn luyện trên dữ liệu quan trắc lịch sử Open-Meteo tại VKU.
+> Tại thời điểm viết, **chưa có dữ liệu khí MQ-2 đo thật** nên mô hình học máy cho cảnh báo khí chưa được huấn luyện —
+> trạm cảnh báo bằng luật ngưỡng; các mục cần đo trên phần cứng được đánh dấu ⚙.
 
 ---
 
@@ -24,9 +25,9 @@ truyền dữ liệu qua MQTT về một backend Python (FastAPI + TimescaleDB).
 (2) **cảnh báo sớm khí gas/khói 4 cấp** (Bình thường – Chú ý – Cảnh báo – Nguy hiểm).
 
 Điểm chính của thiết kế là **AI lai edge–cloud**: quyết định an toàn (cảnh báo khí) chạy ngay trên ESP32 bằng luật có
-hysteresis/debounce kết hợp một Random Forest 10 cây đã biên dịch sang C, nên vẫn hoạt động khi mất mạng; cloud đảm nhận
-các tác vụ cần ngữ cảnh dài và tài nguyên lớn: xác nhận/leo thang cảnh báo bằng Isolation Forest, dự báo thời tiết bằng
-Gradient Boosting, thông báo Telegram/Email, lưu trữ và dashboard.
+hysteresis/debounce, nên vẫn hoạt động khi mất mạng; firmware có sẵn khung nạp mô hình cây (Random Forest biên dịch sang
+C) để kết hợp với luật khi có dữ liệu khí đo thật. Cloud đảm nhận các tác vụ cần ngữ cảnh dài và tài nguyên lớn:
+xác nhận/leo thang cảnh báo, dự báo thời tiết bằng Gradient Boosting, thông báo Telegram/Email, lưu trữ và dashboard.
 
 Toàn bộ thuật toán học máy (CART, Random Forest, Gradient Boosting, Logistic/Ridge, Holt-Winters, Isolation Forest,
 CUSUM, MLP, GRU + BPTT, Adam, các độ đo) được **tự cài đặt bằng NumPy** trong thư viện `mlcore`, không dùng scikit-learn,
@@ -92,7 +93,8 @@ thường chỉ có một ngưỡng cố định, dễ báo động giả và kh
    to_dict / from_dict`, huấn luyện cây trên histogram, early stopping, GRU + BPTT.
 3. **Quy trình xuất mô hình sang C** (`export_c.py` → `gas_model.h`) và kiểm chứng khớp 100 % giữa C (g++ và Unity test)
    và Python.
-4. **Đánh giá so sánh Rule / Model / Hybrid** cho cảnh báo tại edge, và đánh giá dự báo với 5 mô hình × 3 tầm.
+4. **Đánh giá dự báo** với 6 mô hình × 3 tầm trên dữ liệu thật; khung đánh giá Rule / Model / Hybrid cho cảnh báo tại
+   edge (chạy khi có dữ liệu khí đo thật).
 5. Hệ thống đầy đủ có thể triển khai: firmware, backend, dashboard, Docker Compose, kiểm thử tải và tích hợp.
 
 ---
@@ -247,9 +249,9 @@ Phân công edge–cloud:
 | Tác vụ | Nơi chạy | Lý do |
 |---|---|---|
 | Lọc tín hiệu, tính ppm | Edge | Cần tần số 1 Hz, dữ liệu thô không cần gửi đi |
-| Cảnh báo khí 4 cấp (rule + Random Forest) | Edge | Độ trễ < 1 s, phải chạy khi mất mạng |
+| Cảnh báo khí 4 cấp (rule; + Random Forest khi có dữ liệu đo thật) | Edge | Độ trễ < 1 s, phải chạy khi mất mạng |
 | Nowcast Zambretti | Edge | Hiển thị OLED ngay cả khi offline |
-| Xác nhận/leo thang cảnh báo (10 phút, Isolation Forest) | Cloud | Cần ngữ cảnh dài, mô hình lớn hơn |
+| Xác nhận/leo thang cảnh báo (độ dốc 10 phút; Isolation Forest khi đủ dữ liệu trạm) | Cloud | Cần ngữ cảnh dài, mô hình lớn hơn |
 | Dự báo 1/3/6 giờ (GBDT) | Cloud | Cần ≥ 30 giờ lịch sử + Open-Meteo, 2 700+ cây |
 | Thông báo Telegram/Email, lưu trữ, dashboard | Cloud | Cần Internet và lưu trữ |
 
@@ -367,13 +369,15 @@ round-trip lưu/nạp; kiểm tra feature không rò rỉ tương lai; rule engi
 
 ### 4.3 Xuất mô hình sang C
 
-`export_c.py` sinh `firmware/include/gas_model.h` gồm các mảng `const` (feature, threshold, left, right, xác suất lá) cho
-10 cây và hàm `gas_model_predict_proba()` duyệt cây bằng vòng lặp (không đệ quy). Kiểm chứng:
-1. Biên dịch header bằng g++ trên PC, chạy trên 490 mẫu test (250 mẫu bình thường + 80 mẫu mỗi cấp 1–3), so với
-   `predict_proba` của Python: **lệch lớp 0, lệch xác suất tối đa 0,0**.
-2. Unity test `firmware/test/test_gas_model` chạy được cả trên PC (`native`) và ESP32 thật (⚙ đo µs/lần suy luận).
+`export_c.py` sinh `firmware/include/gas_model.h` gồm các mảng `const` (feature, threshold, left, right, xác suất lá)
+và hàm `gas_model_predict_proba()` duyệt cây bằng vòng lặp (không đệ quy). Tính đúng đắn của bộ xuất được kiểm chứng bằng
+unit test (`ml/tests/test_export_c.py`): biên dịch header bằng g++, so dự đoán C với Python trên cùng dữ liệu kiểm thử —
+**lệch lớp 0, lệch xác suất < 1e-6** cho cả cây đơn và Random Forest.
 
-Mô hình: 10 cây, 1 016 nút, 513 lá ⇒ **≈ 17 kB flash**, RAM lúc chạy ≈ 656 B.
+Hiện **chưa có dữ liệu khí đo thật** nên `gas_model.h` ở trạng thái `GAS_MODEL_AVAILABLE = 0`: firmware tự chuyển sang
+chế độ `rule`. Khi thu được dữ liệu thí nghiệm có gán nhãn (`tools/label_logger.py`), lệnh
+`python -m aiot_ml.train_gas_edge --data <csv>` huấn luyện, chọn mô hình, sinh lại `gas_model.h` và vector kiểm thử cho
+Unity test `firmware/test/test_gas_model` (chạy trên PC và ESP32, đo µs/lần suy luận).
 
 ### 4.4 Backend (`backend/`)
 
@@ -381,7 +385,7 @@ Mô hình: 10 cây, 1 016 nút, 513 lá ⇒ **≈ 17 kB flash**, RAM lúc chạy
 - **Ingest MQTT** (paho-mqtt v2): validate Pydantic, loại giá trị ngoài dải vật lý (ghi vào `extra.rejected`),
   chống trùng, ghi theo lô, đẩy WebSocket `/ws/live`.
 - **Alert service**: chính sách thông báo theo cấp, cooldown theo (thiết bị, cấp), nhắc lại cấp 3, leo thang
-  (độ dốc 10 phút, Isolation Forest), phát hiện offline (> 60 s hoặc LWT), ack qua API hoặc nút inline Telegram.
+  (độ dốc 10 phút; Isolation Forest khi đã huấn luyện trên dữ liệu trạm), phát hiện offline (> 60 s hoặc LWT), ack qua API hoặc nút inline Telegram.
 - **Forecast service** (APScheduler 10 phút): lấy 60 giờ telemetry → resample giờ → **bias correction trạm→Open-Meteo**
   (Ridge, có cơ chế dự phòng chỉ hiệu chỉnh độ lệch khi tương quan kém) → feature → GBDT → khoảng tin cậy 95 %
   ŷ ± 1,96·RMSE_test. Thứ tự dự phòng: dữ liệu trạm → Open-Meteo 4 ngày gần nhất → persistence. Bản tin tóm tắt 6 giờ sáng.
@@ -394,41 +398,26 @@ Mô hình: 10 cây, 1 016 nút, 513 lá ⇒ **≈ 17 kB flash**, RAM lúc chạy
 
 Streamlit 6 trang, tự đăng nhập JWT, có thể mở thẳng một trang bằng `?page=` (dùng cho link trong tin nhắn Telegram):
 
-![Tổng quan](figures/dashboard/overview.png)
+- **Tổng quan:** cấp cảnh báo hiện tại, số đo, dự báo mới nhất, cảnh báo gần đây.
+- **Biểu đồ:** cửa sổ 1 giờ / 24 giờ / 7 ngày, tải CSV.
+- **Dự báo:** thực tế và dự báo kèm khoảng tin cậy 95 %, xác suất mưa.
+- **Cảnh báo:** dòng thời gian, lọc theo cấp/nguồn, nút xác nhận.
+- **Thiết bị:** lệnh (thử còi, tắt còi, hiệu chuẩn R0, khởi động lại) và form cấu hình ngưỡng.
+- **Mô hình:** model registry đang hoạt động và các bảng kết quả.
 
-*Hình 4.1 — Trang Tổng quan: cấp cảnh báo hiện tại, số đo, dự báo mới nhất, cảnh báo gần đây.*
+Dashboard có 7 smoke test (`dashboard/tests/`) render cả 6 trang, bấm xác nhận cảnh báo và gửi cấu hình trên API giả
+(fixture kiểm thử). Ngoài ra có dashboard **Grafana** được provision sẵn (profile `monitoring`) đọc trực tiếp TimescaleDB:
+nhiệt độ, độ ẩm, áp suất, ppm với vùng ngưỡng, cấp rủi ro edge, bảng cảnh báo.
 
-![Biểu đồ](figures/dashboard/charts.png)
-
-*Hình 4.2 — Trang Biểu đồ: cửa sổ 1 giờ / 24 giờ / 7 ngày, tải CSV.*
-
-![Dự báo](figures/dashboard/forecast.png)
-
-*Hình 4.3 — Trang Dự báo: thực tế (xanh) và dự báo (cam) kèm khoảng tin cậy 95 %, xác suất mưa.*
-
-![Cảnh báo](figures/dashboard/alerts.png)
-
-*Hình 4.4 — Trang Cảnh báo: dòng thời gian, lọc theo cấp/nguồn, nút xác nhận.*
-
-![Thiết bị](figures/dashboard/device.png)
-
-*Hình 4.5 — Trang Thiết bị: lệnh (thử còi, tắt còi, hiệu chuẩn R0, khởi động lại) và form cấu hình ngưỡng.*
-
-Trang Mô hình hiển thị model registry đang hoạt động và các bảng kết quả. Dashboard có 7 smoke test (`dashboard/tests/`) render cả 6 trang, bấm
-xác nhận cảnh báo và gửi cấu hình trên dữ liệu API ghi lại từ hệ thống thật. Ngoài ra có dashboard **Grafana** được
-provision sẵn (profile `monitoring`) đọc trực tiếp TimescaleDB:
-
-![Grafana](figures/dashboard/grafana.png)
-
-*Hình 4.6 — Grafana: nhiệt độ, độ ẩm, áp suất, ppm với vùng ngưỡng, cấp rủi ro edge, bảng cảnh báo.*
+⚙ *Ảnh chụp màn hình dashboard/Grafana: chụp khi trạm thật đã gửi dữ liệu.*
 
 ### 4.6 Triển khai Docker
 
 `docker compose up -d --build` dựng 4 dịch vụ (Mosquitto 2.0.20, TimescaleDB 2.17/PG16, backend, dashboard) và Grafana
 tuỳ chọn; mọi dịch vụ có healthcheck và thứ tự khởi động theo `depends_on: service_healthy`. Broker tự sinh file mật
 khẩu từ biến môi trường mỗi lần khởi động; backend chạy `alembic upgrade head` trước khi phục vụ. Đã chạy thử thành công
-trên Docker Desktop (Windows 11/WSL2): migration tạo hypertable, 3 continuous aggregate và chính sách retention; simulator
-gửi dữ liệu qua broker trong container, forecast service chạy được với model mlcore.
+trên Docker Desktop (Windows 11/WSL2): migration tạo hypertable, 3 continuous aggregate và chính sách retention; broker,
+ingest và forecast service (nạp model mlcore) chạy trong container.
 
 ---
 
@@ -485,63 +474,34 @@ giờ trong ngày và ngày trong năm, cos góc thiên đỉnh mặt trời. M�
   Open-Meteo trước khi dự báo và đổi ngược sau đó. ⚙ *Cần ≥ 2 tuần dữ liệu trạm thật để đánh giá độ lệch cảm biến
   (so sánh trạm với Open-Meteo, task.md §12.2).*
 
-### 5.2 Cảnh báo khí/khói tại edge — Rule / Model / Hybrid
+### 5.2 Cảnh báo khí/khói tại edge
 
-> ⚠ **Dữ liệu mô phỏng.** 151 324 mẫu 1 Hz sinh bởi `gas_sim.py` (rò LPG nhanh/chậm, khói, các nhiễu: hơi nước, cồn,
-> nấu ăn, thay đổi ánh sáng). Số liệu minh hoạ pipeline; phải chạy lại với dữ liệu thí nghiệm thật thu bằng
-> `tools/label_logger.py` trước khi kết luận.
+**Trạng thái.** Chưa có dữ liệu MQ-2 đo thật ⇒ chưa huấn luyện mô hình; trạm chạy **chế độ rule**: ngưỡng 300 / 1 000 /
+2 000 ppm (2 000 ppm ≈ 10 % LEL của LPG), tăng cấp khi ppm tăng nhanh (≥ 15 ppm/s) hoặc nhiệt độ tăng ≥ 1 °C/phút,
+hysteresis 15 %, debounce 3 mẫu khi tăng (cấp 3 tăng ngay) và 5 mẫu khi giảm. Logic này được kiểm thử bằng unit test
+native (`firmware/test/test_rules`) và bản Python tương ứng (`ml/tests/test_pipeline.py`).
 
-Mô hình chọn: Random Forest 10 cây, độ sâu 6, trọng số lớp cân bằng.
-
-| Chỉ số (tập test) | Rule | Model | Hybrid |
-|---|---|---|---|
-| Macro-F1 (theo mẫu) | 0,569 | **0,827** | 0,615 |
-| Recall cấp ≥ 2 (theo mẫu) | 0,843 | 0,895 | **0,920** |
-| Precision cấp ≥ 2 (theo mẫu) | 0,615 | **0,821** | 0,606 |
-| Recall cấp ≥ 2 (theo sự kiện) | 0,947 | **1,000** | **1,000** |
-| Báo động giả ≥ 2 trên sự kiện nhiễu | **0,17** | 0,42 | 0,50 |
-| Độ trễ phát hiện cấp ≥ 2 — trung vị / P95 (s) | 8,0 / 19,0 | 8,0 / 19,3 | **7,0 / 12,3** |
-
-![Gas edge](figures/gas_edge_compare.png)
-
-*Hình 5.4 — So sánh Rule / Model / Hybrid (dữ liệu mô phỏng).*
-
-**Thảo luận.**
-- Hybrid đạt Recall cấp ≥ 2 cao nhất và **giảm độ trễ P95 từ 19 s xuống 12,3 s**: mô hình nhận ra sớm các mẫu tăng
-  nhanh/khói (độ dốc, độ lệch so với nền, nhiệt tăng, ánh sáng giảm) trước khi ppm vượt ngưỡng.
-- Đổi lại, Hybrid kế thừa báo động giả của cả hai thành phần (0,50 trên các sự kiện nhiễu cấp ≥ 2) vì fusion lấy max —
-  đây là lựa chọn có chủ đích "thà báo nhầm còn hơn bỏ sót" cho bài toán an toàn. Feature quan trọng nhất là `rs_r0`,
-  `dtemp_min`, `gas_ppm`, `dev_base`, `slope10`.
-- Hướng giảm báo động giả: thêm cảm biến MQ-135/MQ-5 để phân biệt cồn, dùng chế độ `model` cho môi trường bếp, hoặc nâng
-  debounce khi chỉ model kích hoạt. Chế độ chạy có thể đổi từ xa qua cấu hình (`mode: rule|model|hybrid`).
-
-**Kiểm thử end-to-end bằng simulator** (chạy logic edge Python giống hệt firmware) trên stack Docker:
-
-![Timeline](figures/alert_timeline_sim.png)
-
-*Hình 5.5 — Kịch bản rò gas `lpg_mid`: cấp cảnh báo 0 → 1 → 2 → 3 → 2 → 1. Khi ppm giảm xuống dưới 2000, cấp 3 vẫn
-được giữ thêm vài giây nhờ hysteresis + debounce, tránh nhấp nháy quanh ngưỡng.*
-
-Trong lần chạy đầu tiên (Mosquitto thật + backend + simulator), độ trễ từ lúc thiết bị phát cảnh báo tới lúc backend gửi
-thông báo ≈ **0,45 s**; nhắc lại cấp 3 mỗi phút cho tới khi ack; khi tắt simulator đột ngột, LWT chuyển thiết bị sang
-offline và sinh cảnh báo `device_offline`.
+**Kế hoạch thu dữ liệu và đánh giá** (⚙ chờ thực hiện):
+1. Thu dữ liệu 1 Hz bằng `tools/label_logger.py`: không khí sạch ở nhiều mức nhiệt/ẩm (nhãn 0); bật lửa gas xả, không
+   đốt, ở 50 / 20 / 5 cm (nhãn 1/2/3); khói nhang/giấy trong hộp kín (nhãn 2); các nguồn nhiễu hơi nước, cồn, nước hoa
+   (nhãn 0, dùng để đo báo động giả). Mỗi kịch bản lặp 10–20 lần qua nhiều buổi.
+2. `python -m aiot_ml.train_gas_edge --data <csv>`: chia train/val/test **theo buổi thí nghiệm**, chọn giữa Decision Tree
+   và Random Forest nhỏ với trọng số lớp ưu tiên Recall cấp ≥ 2.
+3. So sánh Rule / Model / Hybrid trên tập test: Macro-F1, Recall/Precision cấp ≥ 2 (theo mẫu và theo sự kiện), tỉ lệ báo
+   động giả trên sự kiện nhiễu, độ trễ phát hiện trung vị/P95. Kết quả ghi tự động vào `docs/report/results_gas_edge.md`.
 
 ### 5.3 Phát hiện bất thường ở cloud
 
-> ⚠ Dữ liệu mô phỏng: 20 ngày bình thường để huấn luyện, 10 ngày kiểm tra có 4 sự cố rò rỉ chậm được cài vào.
-
-| Phương pháp | ROC-AUC | Precision | Recall | Sự cố phát hiện | Trễ trung vị | Cửa sổ báo nhầm/ngày |
-|---|---|---|---|---|---|---|
-| Isolation Forest | **0,935** | **0,46** | 0,33 | 4/4 | 90 phút | **2,61** |
-| z-score theo giờ | 0,836 | 0,08 | 0,92 | 4/4 | 10 phút | 72,85 |
-
-Isolation Forest phát hiện đủ 4/4 sự cố rò rỉ chậm (loại mà rule edge có thể bỏ sót vì ppm chưa vượt ngưỡng) với số
-cửa sổ báo nhầm thấp hơn ~28 lần so với z-score. CUSUM trên R_0 hằng ngày phát hiện trôi bắt đầu ngày 18 và báo động
-ngày 20 ⇒ hệ thống đề xuất hiệu chuẩn lại MQ-2.
+**Trạng thái.** Isolation Forest (cửa sổ 10 phút: trung bình/độ lệch/độ dốc ppm, nhiệt, ẩm, giờ trong ngày), z-score theo
+giờ và CUSUM trên R_0 hằng ngày đã được cài đặt trong `mlcore` và có pipeline `train_anomaly.py`, nhưng **cần vài tuần
+telemetry thật của trạm** để học trạng thái bình thường. Khi chưa có mô hình, backend bỏ qua bước này và leo thang cảnh
+báo dựa trên độ dốc ppm 10 phút. ⚙ Sau khi trạm chạy ≥ 3 tuần: xuất telemetry, chạy
+`python -m aiot_ml.train_anomaly --data <csv>`, đánh giá trên các sự cố được ghi nhận.
 
 ### 5.4 Hiệu năng hệ thống
 
-**Kiểm thử tải** (`tools/load_test.py`, mỗi thiết bị ảo gửi 1 bản tin/giây, QoS 1, 30 s):
+**Kiểm thử tải** (`tools/load_test.py`, mỗi thiết bị ảo gửi 1 bản tin/giây, QoS 1, 30 s; nội dung bản tin chỉ dùng để
+tạo tải — số liệu đo ở đây là độ trễ và tài nguyên thật của hệ thống):
 
 | Kịch bản | Gửi / nhận | Mất gói | P50 / P95 / P99 broker | Vào CSDL | CPU backend TB |
 |---|---|---|---|---|---|
@@ -551,7 +511,7 @@ ngày 20 ⇒ hệ thống đề xuất hiệu chuẩn lại MQ-2.
 
 ![Load](figures/load_latency.png)
 
-*Hình 5.6 — Độ trễ broker khi tải.*
+*Hình 5.4 — Độ trễ broker khi tải.*
 
 Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương đương ~500 trạm. Với TimescaleDB, CPU backend trung bình chỉ
 ≈ 10 % một lõi, RAM các container: backend 133 MB, DB 97 MB, Mosquitto 18 MB.
@@ -560,7 +520,7 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 
 | Đoạn | Phương pháp | Kết quả |
 |---|---|---|
-| Thiết bị phát alert → backend gửi thông báo | simulator + Mosquitto thật | ≈ 0,45 s |
+| Thiết bị phát alert → backend gửi thông báo | ⚙ trạm thật + Mosquitto | *chờ đo* |
 | Xả gas → còi kêu (edge) | ⚙ đo bằng video/đồng hồ, ≥ 10 lần | *chờ đo* |
 | Xả gas → tin Telegram (end-to-end) P50/P95 | ⚙ bảng `notifications.latency_ms` | *chờ đo* |
 
@@ -568,10 +528,9 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 
 | Hạng mục | Giá trị |
 |---|---|
-| Flash firmware | 48,9 % (của 1,25 MB phân vùng app) |
+| Flash firmware | 48,0 % (943 kB / 1,9 MB phân vùng app, bản chỉ có rule) |
 | RAM tĩnh | 14,9 % (của 320 kB) |
-| Mô hình Random Forest | ≈ 17 kB flash, ≈ 656 B RAM |
-| Thời gian suy luận | 0,092 µs/lần trên PC; ⚙ trên ESP32: `pio test -e esp32dev -f test_gas_model` |
+| Mô hình khí | Chưa có (chờ dữ liệu đo thật); ⚙ đo kích thước và µs/lần suy luận sau khi huấn luyện: `pio test -e esp32dev -f test_gas_model` |
 | Công suất tiêu thụ | ⚙ đo dòng bằng USB meter (MQ-2 đốt nóng ≈ 150 mA) |
 
 ### 5.6 Độ bền và tình huống lỗi
@@ -582,7 +541,7 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 | LWT khi mất kết nối đột ngột → offline + cảnh báo `device_offline` | ✔ integration test + Docker |
 | Cảnh báo edge khi mất Wi-Fi, đệm offline, gửi bù | ✔ logic trong firmware + test native; ⚙ kiểm tra trên thiết bị |
 | Chạy liên tục ≥ 72 giờ (heap, số lần reconnect, WDT reset) | ⚙ chờ đo (topic `status` có `free_heap`, `uptime_s`) |
-| Báo động giả: hơi nước, cồn, nước hoa | ⚙ chờ đo; mô phỏng cho thấy cồn gây báo động giả (nhạy chéo MQ-2) |
+| Báo động giả: hơi nước, cồn, nước hoa | ⚙ chờ đo (theo datasheet MQ-2 nhạy chéo với cồn) |
 
 ---
 
@@ -594,9 +553,9 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 |---|---|---|
 | Dự báo 1/3/6 giờ vượt persistence | GBDT tốt hơn ở 9/9 cặp hồi quy và 3/3 tầm mưa | ✔ Đạt |
 | MAE nhiệt độ 1 giờ, độ ẩm 1 giờ, F1 mưa 3 giờ | 0,30 °C; 1,86 %RH; 0,839 | ✔ Đạt |
-| Cảnh báo 4 cấp tại edge, hysteresis/debounce, chạy offline | Có, kiểm thử native + simulator | ✔ Đạt (⚙ xác nhận trên phần cứng) |
-| Mô hình edge nhỏ gọn, khớp C/Python | 17 kB, lệch 0 | ✔ Đạt |
-| Recall cấp ≥ 2 theo sự kiện | 1,00 (Hybrid, mô phỏng) | ◐ Chờ dữ liệu thật |
+| Cảnh báo 4 cấp tại edge, hysteresis/debounce, chạy offline | Có (rule), kiểm thử native | ✔ Đạt (⚙ xác nhận trên phần cứng) |
+| Bộ xuất mô hình sang C khớp Python | Lệch 0 (unit test) | ✔ Đạt |
+| Mô hình ML cảnh báo khí, Recall cấp ≥ 2 | Chưa có dữ liệu khí đo thật | ⚙ Chờ dữ liệu thật |
 | Cloud xác nhận/leo thang, Telegram/Email, ack | Có | ✔ Đạt |
 | Chịu tải ≥ 50 thiết bị, mất gói ≈ 0 | 0 % ở 50 thiết bị | ✔ Đạt |
 | Toàn bộ ML tự viết, không thư viện ML | `mlcore` + 42 test | ✔ Đạt |
@@ -605,7 +564,8 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 
 ### 6.2 Hạn chế
 
-- Mô hình cảnh báo khí và Isolation Forest đang huấn luyện trên dữ liệu mô phỏng.
+- Chưa có dữ liệu khí MQ-2 đo thật: edge mới chạy luật ngưỡng; Random Forest (edge) và Isolation Forest (cloud) đã cài
+  đặt, có pipeline huấn luyện nhưng chưa huấn luyện.
 - MQ-2 nhạy chéo (cồn, H₂) và trôi theo thời gian; ppm chỉ mang tính tương đối.
 - Dự báo dựa trên một điểm đo, không có thông tin quy mô lớn (ảnh vệ tinh, mô hình số trị) nên giới hạn ở vài giờ.
 - PubSubClient chỉ hỗ trợ QoS 0 khi publish; TLS (cổng 8883) đã chuẩn bị nhưng chưa thử trên thiết bị.
@@ -653,10 +613,11 @@ cd backend && ../.venv/Scripts/python -m pytest -q tests # 15 test
 cd firmware && pio test -e native                        # 12 test
 pytest -q dashboard/tests                                # 7 test
 # huấn luyện lại
-cd ml && python -m aiot_ml.train_forecast && python -m aiot_ml.train_gas_edge && python -m aiot_ml.train_anomaly
-# toàn hệ thống
+cd ml && python -m aiot_ml.train_forecast
+python -m aiot_ml.train_gas_edge --data data/raw/gas_labeled.csv   # khi có dữ liệu khí đo thật (label_logger.py)
+python -m aiot_ml.train_anomaly --data <telemetry.csv>             # khi trạm đã chạy vài tuần
+# toàn hệ thống (dữ liệu từ trạm ESP32 thật)
 docker compose up -d --build
-python tools/simulator.py --backfill-hours 48 --events "20:lpg_mid"
 # hình cho báo cáo
 python tools/make_report_figures.py --api http://localhost:8000
 ```

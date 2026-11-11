@@ -28,7 +28,7 @@ export PYTHONUTF8=1                                 # bắt buộc trên Windows
 ```bash
 cd ml && ../.venv/Scripts/python -m pytest -q                 # 42 test mlcore + pipeline
 cd backend && ../.venv/Scripts/python -m pytest -q tests      # 15 test backend (gồm integration với Mosquitto nếu có)
-cd firmware && ../.venv/Scripts/pio test -e native            # 12 test firmware trên PC (cần g++)
+cd firmware && ../.venv/Scripts/pio test -e native            # 12 test firmware trên PC (cần g++; test_gas_model bỏ qua khi chưa có model)
 .venv/Scripts/python -m pytest -q dashboard/tests              # 7 smoke test dashboard (API giả)
 cd firmware && cp -n include/secrets.h.example include/secrets.h && ../.venv/Scripts/pio run -e esp32dev
 ```
@@ -49,8 +49,7 @@ docker compose --profile monitoring up -d grafana
 # 1. broker: mosquitto với broker/mosquitto/acl + passwd (make_passwd.sh); user backend/backend-pass, station01/change-me
 # 2. backend
 cd backend && MQTT_PORT=1883 ../.venv/Scripts/python -m uvicorn app.main:app --port 8000
-# 3. thiết bị giả lập (48h lịch sử + kịch bản rò gas)
-.venv/Scripts/python tools/simulator.py --backfill-hours 48 --events "5:lpg_mid" --period 5
+# 3. cấp nguồn trạm ESP32 thật (không có bộ giả lập — chỉ dùng số liệu đo thật)
 ```
 
 ## Huấn luyện lại
@@ -58,8 +57,8 @@ cd backend && MQTT_PORT=1883 ../.venv/Scripts/python -m uvicorn app.main:app --p
 cd ml
 ../.venv/Scripts/python -m aiot_ml.fetch_open_meteo --start 2021-01-01 --end 2025-12-31
 ../.venv/Scripts/python -m aiot_ml.train_forecast        # ~5 phút
-../.venv/Scripts/python -m aiot_ml.train_gas_edge        # mô phỏng; thêm --data <csv> khi có dữ liệu thật
-../.venv/Scripts/python -m aiot_ml.train_anomaly
+../.venv/Scripts/python -m aiot_ml.train_gas_edge --data data/raw/gas_labeled.csv   # cần dữ liệu MQ-2 đo thật (label_logger.py)
+../.venv/Scripts/python -m aiot_ml.train_anomaly --data <telemetry.csv>              # cần vài tuần telemetry trạm
 ```
 
 ## Lưu ý kỹ thuật
@@ -67,4 +66,6 @@ cd ml
 - PubSubClient chỉ publish QoS 0; độ tin cậy dựa vào `seq` + đệm offline + chống trùng ở backend.
 - Telemetry DB khoá chính (device_id, ts, seq) — phù hợp hypertable TimescaleDB.
 - `ml/models/registry.json` phải lưu đường dẫn kiểu POSIX (`models/forecast/...`) — backend chạy trong Linux container.
-- Dữ liệu khí hiện là mô phỏng: mọi số liệu cảnh báo khí trong báo cáo phải ghi rõ cho tới khi có dữ liệu thật.
+- **Chỉ dùng số liệu đo thật** (Open-Meteo + cảm biến trạm). Không sinh/giả lập dữ liệu để huấn luyện hay đưa vào báo cáo.
+  Chưa có dữ liệu khí đo thật ⇒ `firmware/include/gas_model.h` để `GAS_MODEL_AVAILABLE 0`, edge chạy rule; không có
+  `ml/models/gas_edge.json`, `gas_anomaly.json` (backend tự bỏ qua bước Isolation Forest).

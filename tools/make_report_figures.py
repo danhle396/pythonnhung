@@ -86,7 +86,11 @@ def fig_rain():
 
 
 def fig_gas_edge():
-    t = md_tables(REP / "results_gas_edge.md")[0]
+    p = REP / "results_gas_edge.md"  # chỉ có sau khi train_gas_edge chạy trên dữ liệu đo thật
+    if not p.exists():
+        print("bỏ qua hình gas edge: chưa có results_gas_edge.md (chưa có dữ liệu khí đo thật)")
+        return
+    t = md_tables(p)[0]
     rows = ["Macro-F1 (theo mẫu)", "Recall cấp ≥2 (theo mẫu)", "Precision cấp ≥2 (theo mẫu)",
             "Recall cấp ≥2 (theo sự kiện)"]
     labels = ["Macro-F1", "Recall ≥2\n(mẫu)", "Precision ≥2\n(mẫu)", "Recall ≥2\n(sự kiện)"]
@@ -103,7 +107,7 @@ def fig_gas_edge():
     axes[1].set_xticks(range(2), ["Trung vị", "P95"])
     axes[1].set_ylabel("giây")
     axes[1].set_title("Độ trễ phát hiện cấp ≥ 2", fontweight="bold")
-    fig.suptitle("Rule / Model / Hybrid tại edge — dữ liệu MÔ PHỎNG (gas_sim.py)", color="#b00020")
+    fig.suptitle("Rule / Model / Hybrid tại edge — dữ liệu đo thật")
     fig.tight_layout()
     fig.savefig(FIG / "gas_edge_compare.png")
     plt.close(fig)
@@ -160,9 +164,9 @@ def fig_alert_timeline(api: str, device: str, minutes: int, user: str, pw: str, 
     ax2.set_ylabel("cấp cảnh báo edge")
     ax2.grid(False)
     ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%H:%M:%S", tz=tel.ts.dt.tz))
-    ax.set_title(f"Kịch bản rò gas (simulator → Docker stack) — {device}", fontweight="bold")
+    ax.set_title(f"Diễn biến cảnh báo khí (telemetry thật trong DB) — {device}", fontweight="bold")
     fig.tight_layout()
-    fig.savefig(FIG / "alert_timeline_sim.png")
+    fig.savefig(FIG / "alert_timeline.png")
     plt.close(fig)
 
 

@@ -106,6 +106,7 @@ def export_forest_c(model, feature_names, prefix="gas_model", model_ver="v1", cl
     out.append(f"// Thời điểm: {_dt.datetime.now().isoformat(timespec='seconds')}")
     out.append(f"// Model: {type(model).__name__}, {len(A['roots'])} cây, {n_nodes} nút, {len(leaf_vals)} lá")
     out.append(f"#ifndef {guard}\n#define {guard}\n\n#include <stdint.h>\n")
+    out.append(f"#define {P}_AVAILABLE 1")
     out.append(f'#define {P}_VERSION "{model_ver}"')
     out.append(f"#define {P}_N_FEATURES {F}")
     out.append(f"#define {P}_N_CLASSES {K}")

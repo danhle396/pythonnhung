@@ -5,7 +5,13 @@
 #include <unity.h>
 
 #include "gas_model.h"
+// gas_model_testvec.h do train_gas_edge.py sinh cùng model; chưa có model (chưa có dữ liệu đo thật) -> bỏ qua test.
+#if GAS_MODEL_AVAILABLE && __has_include("gas_model_testvec.h")
+#define HAVE_TESTVEC 1
 #include "gas_model_testvec.h"
+#else
+#define HAVE_TESTVEC 0
+#endif
 
 #ifdef ARDUINO
 #include <Arduino.h>
@@ -14,6 +20,9 @@
 void setUp() {}
 void tearDown() {}
 
+#if !HAVE_TESTVEC
+static void test_c_matches_python() { TEST_IGNORE_MESSAGE("Chưa có model khí (chưa có dữ liệu đo thật)"); }
+#else
 static void test_c_matches_python() {
   int bad = 0;
   float maxdiff = 0;
@@ -29,8 +38,12 @@ static void test_c_matches_python() {
   TEST_ASSERT_EQUAL_INT(0, bad);
   TEST_ASSERT_TRUE(maxdiff < 1e-5f);
 }
+#endif
 
 #ifdef ARDUINO
+#if !HAVE_TESTVEC
+static void test_inference_time() { TEST_IGNORE_MESSAGE("Chưa có model khí"); }
+#else
 static void test_inference_time() {
   float p[GAS_MODEL_N_CLASSES];
   uint32_t t0 = micros();
@@ -42,6 +55,7 @@ static void test_inference_time() {
   TEST_MESSAGE(msg);
   TEST_ASSERT_TRUE(us < 1000.0f);
 }
+#endif
 
 void setup() {
   delay(2000);

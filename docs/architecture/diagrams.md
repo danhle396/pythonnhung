@@ -11,7 +11,7 @@ flowchart TB
         SEN["DHT22 · BMP280 · BH1750<br/>YL-83 · MQ-2"] --> FIL["Lọc median-5 + EWMA<br/>Rs/R0 → ppm"]
         FIL --> FEAT["10 feature<br/>cửa sổ 10–60 s"]
         FEAT --> RULE["Rule 4 cấp<br/>hysteresis + debounce"]
-        FEAT --> TREE["Random Forest 10 cây<br/>gas_model.h (~17 kB)"]
+        FEAT --> TREE["Model cây gas_model.h<br/>(khi có dữ liệu đo thật)"]
         RULE --> FUS{"max(rule, model)"}
         TREE --> FUS
         FUS --> ACT["LED · còi · quạt · OLED"]
@@ -23,7 +23,7 @@ flowchart TB
     subgraph CLOUD["Cloud — Docker Compose"]
         direction LR
         ING["Ingest<br/>validate · chống trùng · ghi lô"] --> DB[("TimescaleDB<br/>hypertable + aggregate")]
-        ING --> ALS["Alert service<br/>leo thang · Isolation Forest<br/>offline/LWT · nhắc lại · ack"]
+        ING --> ALS["Alert service<br/>leo thang (độ dốc 10 phút)<br/>offline/LWT · nhắc lại · ack"]
         OM["Open-Meteo API"] --> FCS["Forecast service 10 phút<br/>GBDT mlcore + bias correction"]
         FCS --> DB
         DB --> API["REST API + JWT<br/>WebSocket"] --> DASH["Dashboard Streamlit<br/>Grafana"]

@@ -87,7 +87,9 @@ EdgeOutput EdgeAI::step(const EdgeInput& in) {
   o.f = f;
   o.ruleLevel = rules.update(f[0], f[2], f[6]);
   o.cause = rules.cause();
-  if (mode != EdgeMode::RULE) {
+  // Chưa có model huấn luyện trên dữ liệu đo thật (GAS_MODEL_AVAILABLE = 0) -> chỉ chạy rule.
+  const EdgeMode m = GAS_MODEL_AVAILABLE ? mode : EdgeMode::RULE;
+  if (m != EdgeMode::RULE) {
     float p[GAS_MODEL_N_CLASSES];
     uint32_t t0 = nowUs();
     int k = gas_model_predict_proba(f, p);
@@ -97,11 +99,11 @@ EdgeOutput EdgeAI::step(const EdgeInput& in) {
   }
   o.warmingUp = t_ <= warmupSamples || !in.gasOk;
   if (o.warmingUp) { o.level = 0; return o; }
-  switch (mode) {
+  switch (m) {
     case EdgeMode::RULE: o.level = o.ruleLevel; break;
     case EdgeMode::MODEL: o.level = o.modelLevel; break;
     default: o.level = o.ruleLevel > o.modelLevel ? o.ruleLevel : o.modelLevel;  // model không hạ cấp rule
   }
-  if (o.modelLevel > o.ruleLevel && mode != EdgeMode::RULE) o.cause |= CAUSE_MODEL;
+  if (o.modelLevel > o.ruleLevel && m != EdgeMode::RULE) o.cause |= CAUSE_MODEL;
   return o;
 }

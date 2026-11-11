@@ -204,7 +204,7 @@ final/
 │   └── models/                 # *.json (cây), *.npz (trọng số) + model card
 ├── dashboard/                  # Streamlit hoặc React + Vite
 └── tools/
-    ├── simulator.py            # giả lập ESP32 publish MQTT
+    ├── label_logger.py         # ghi dữ liệu khí đo thật có nhãn
     └── load_test.py
 ```
 
@@ -261,7 +261,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 - [ ] Cài Mosquitto (Docker), bật xác thực username/password và ACL theo thiết bị.
 - [ ] Cấu hình LWT: topic `.../status`, payload `offline`, retain.
 - [ ] (Nâng cao) Bật TLS cổng 8883 với self-signed CA và nhúng CA vào firmware.
-- [ ] Viết `tools/simulator.py` để giả lập thiết bị (kể cả kịch bản rò gas) nhằm phát triển backend khi chưa có phần cứng.
+- [x] ~~`tools/simulator.py`~~ — đã bỏ (2026-11-11): đề tài chỉ dùng số liệu đo thật.
 - [ ] Viết tài liệu topic/payload trong `docs/architecture/mqtt.md`.
 
 ---
@@ -533,7 +533,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 ### 12.1 Phần mềm
 - [ ] Unit test cho `mlcore` (pytest): dữ liệu đồ chơi có đáp án, gradient check, tính khớp giữa C và Python, `to_dict()`/`from_dict()` khôi phục model cho ra cùng kết quả dự đoán.
 - [ ] Unit test Python (pytest): validate schema, feature engineering, logic cảnh báo (hysteresis, debounce, leo thang), API.
-- [ ] Integration test: simulator → broker → ingest → DB → API.
+- [ ] Integration test: test client MQTT → broker → ingest → DB → API.
 - [ ] Load test: giả lập 20–50 thiết bị, mỗi thiết bị gửi 1 msg/giây, đo độ trễ và CPU.
 - [ ] Unit test firmware (PlatformIO `test/`, Unity) cho filter và rule engine.
 
@@ -604,7 +604,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 | YL-83 bị ăn mòn khi để ngoài trời lâu | Chỉ cấp nguồn khi đọc, phủ lớp bảo vệ, có module dự phòng |
 | DHT22 đọc lỗi hoặc NaN | Retry, dùng nhiệt độ BMP280 làm dự phòng, gắn cờ `sensor_ok` |
 | Wi-Fi không ổn định | Đệm offline, tự kết nối lại, cảnh báo edge độc lập với mạng |
-| Không có phần cứng khi phát triển backend | `tools/simulator.py` |
+| Không có phần cứng khi phát triển backend | Integration test MQTT (`backend/tests/`); dữ liệu thật chờ phần cứng |
 | Báo động giả gây phiền | Hysteresis, debounce, model hybrid, cooldown thông báo |
 | Code ML tự viết có bug khó phát hiện | Test bằng dữ liệu đồ chơi, gradient check, so khớp kết quả C/Python, (tuỳ chọn) đối chiếu với scikit-learn chỉ trong báo cáo |
 | Code tự viết huấn luyện chậm | Vector hoá bằng NumPy, histogram binning, resample về 1 giờ, giới hạn số cây và độ sâu, early stopping |
