@@ -266,7 +266,13 @@ Phân công edge–cloud:
 | Nút tắt còi | GPIO 13 | INPUT_PULLUP |
 | Relay quạt | GPIO 23 | Bật ở cấp ≥ 2 |
 
-Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế và sơ đồ Fritzing: bổ sung sau khi lắp hộp.*
+![Sơ đồ đấu dây — cảm biến](figures/wiring-1.png)
+
+![Sơ đồ đấu dây — cảnh báo và điều khiển](figures/wiring-2.png)
+
+*Hình 3.2 — Sơ đồ đấu dây: (a) cảm biến, (b) cảnh báo và điều khiển (`docs/hardware/wiring.drawio`, 2 trang, mở bằng draw.io; chấm tròn = nối, vòng cung = dây cắt qua không nối; bảng chi tiết ở `docs/hardware/README.md`).*
+
+Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ sung sau khi lắp hộp.*
 
 ### 3.3 Thiết kế MQTT
 
@@ -285,7 +291,7 @@ Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế và sơ 
 
 ![ERD](figures/diagrams/luoc_do_csdl_erd.png)
 
-*Hình 3.2 — Lược đồ CSDL (`backend/app/db/models.py`).*
+*Hình 3.3 — Lược đồ CSDL (`backend/app/db/models.py`).*
 
 - `telemetry` là **hypertable** TimescaleDB theo `ts`, khoá chính (device_id, ts, seq) đồng thời dùng chống trùng khi
   thiết bị gửi bù.
@@ -297,15 +303,15 @@ Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế và sơ 
 
 ![Luồng cảnh báo](figures/diagrams/luong_canh_bao_khi_khoi_edge_quyet_dinh.png)
 
-*Hình 3.3 — Luồng cảnh báo: edge quyết định, cloud xác nhận và leo thang.*
+*Hình 3.4 — Luồng cảnh báo: edge quyết định, cloud xác nhận và leo thang.*
 
 ![Luồng dự báo](figures/diagrams/luong_du_bao_thoi_tiet.png)
 
-*Hình 3.4 — Luồng dự báo thời tiết.*
+*Hình 3.5 — Luồng dự báo thời tiết.*
 
 ![Luồng cấu hình](figures/diagrams/luong_cau_hinh_thiet_bi.png)
 
-*Hình 3.5 — Luồng cấu hình thiết bị (có phiên bản và xác nhận).*
+*Hình 3.6 — Luồng cấu hình thiết bị (có phiên bản và xác nhận).*
 
 ### 3.6 Thiết kế cảnh báo đa cấp
 

@@ -84,6 +84,8 @@ Cập nhật lần cuối: 2026-11-10
 - [x] **Báo cáo đầy đủ 6 chương**: `docs/report/bao_cao.md` → `bao_cao.docx` (33 trang, `tools/md_to_docx.py` qua MS Word).
 - [x] **Slide 18 trang**: `docs/report/slides_bao_ve.pptx` (sinh bằng `tools/slides/build_slides.js`, có speaker notes, biểu đồ native).
 - [x] Kịch bản demo + video 4 phút + câu hỏi bảo vệ: `docs/report/kich_ban_demo.md`.
+- [x] Sơ đồ đấu dây draw.io: `docs/hardware/wiring.drawio` (2 trang: cảm biến / cảnh báo; + `wiring-1.png`, `wiring-2.png`, bảng đấu dây `docs/hardware/README.md`,
+      sinh từ `gen_wiring_drawio.py`, xuất PNG bằng `tools/render_drawio.js`); đã chèn vào báo cáo mục 3.2.
 
 ## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
 - [ ] Điền họ tên, MSSV, GVHD ở đầu `docs/report/bao_cao.md` rồi chạy lại `python tools/md_to_docx.py docs/report/bao_cao.md`.
