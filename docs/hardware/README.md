@@ -19,17 +19,18 @@ Chấm tròn = nối · vòng cung = dây cắt qua, **không** nối · nét đ
 
 | Linh kiện | Chân linh kiện | Nối tới | Ghi chú |
 |---|---|---|---|
-| Nguồn 5 V / 2 A | +5V / GND | VIN / GND của ESP32, MQ-2, relay, còi | GND chung toàn mạch |
+| Nguồn 5 V / 2 A | +5V / GND | VIN / GND của ESP32, MQ-2 | GND chung toàn mạch |
 | BMP280 | VCC / GND / SCL / SDA / SDO | 3V3 / GND / GPIO22 / GPIO21 / GND | địa chỉ 0x76 |
 | BH1750 | VCC / GND / SCL / SDA / ADDR | 3V3 / GND / GPIO22 / GPIO21 / GND | địa chỉ 0x23 |
 | OLED SSD1306 | VCC / GND / SCL / SDA | 3V3 / GND / GPIO22 / GPIO21 | 0x3C |
 | DHT22 | VCC / DATA / GND | 3V3 / GPIO4 / GND | trở kéo lên 10 kΩ DATA → 3V3 |
 | YL-83 (LM393) | VCC / GND / AO / DO | **GPIO18** / GND / GPIO34 / GPIO35 | GPIO18 chỉ cấp nguồn khi đọc (giảm ăn mòn) |
 | MQ-2 | VCC / GND / AO / DO | 5V / GND / **R1 10 kΩ → GPIO32**, R2 20 kΩ GPIO32 → GND / *để trống* | AO tối đa 5 V → 3,33 V |
-| Còi active 5 V | + / − | 5V / collector Q1 (S8050) | B ← R3 1 kΩ ← GPIO25, E → GND |
-| LED xanh / vàng / đỏ | anode / cathode | 220 Ω ← GPIO26 / 27 / 14 · GND | |
+| Còi active (2 chân) | + / − | GPIO25 / GND | nối thẳng, không cần transistor (còi 3,3 V ≈ 20 mA) |
+| Module còi 3 chân | I/O / VCC / GND | GPIO25 / 3V3 / GND | có transistor sẵn; kêu khi I/O = LOW ⇒ `BUZZER_ACTIVE_LOW 1` |
+| LED xanh / đỏ | anode / cathode | 220 Ω ← GPIO26 / 14 · GND | cấp 1 = xanh nháy 1 Hz (không có LED vàng) |
 | Nút tắt còi | 2 chân | GPIO13 / GND | INPUT_PULLUP nội |
-| Relay 5 V | VCC / GND / IN | 5V / GND / GPIO23 | loại **kích mức CAO**; COM/NO → quạt |
+| *(không dùng)* LED vàng, transistor S8050, relay/quạt | — | GPIO27, GPIO23 để trống | `config.h`: `HAS_LED_YELLOW 0`, `HAS_RELAY 0` |
 
 ## Kiểm tra trước khi cấp điện
 1. Đo thông mạch GND chung; không chập 5V–GND, 3V3–GND.

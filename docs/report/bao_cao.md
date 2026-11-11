@@ -263,16 +263,19 @@ Phân công edge–cloud:
 | DHT22 | GPIO 4 | Điện trở kéo lên 10 kΩ |
 | YL-83 | AO 34, DO 35, nguồn 18 | Chỉ cấp nguồn khi đọc |
 | MQ-2 | AO 32 (qua cầu phân áp 10k/20k), DO 33 | 5 V → 3,33 V cho ADC |
-| Còi | GPIO 25 | |
-| LED xanh / vàng / đỏ | GPIO 26 / 27 / 14 | |
+| Còi active | GPIO 25 | Nối thẳng GPIO, không cần transistor |
+| LED xanh / đỏ | GPIO 26 / 14 | Không có LED vàng: cấp 1 = LED xanh nhấp nháy 1 Hz |
 | Nút tắt còi | GPIO 13 | INPUT_PULLUP |
-| Relay quạt | GPIO 23 | Bật ở cấp ≥ 2 |
+
+Nhóm không dùng LED vàng, transistor S8050 và module relay/quạt; firmware chọn cấu hình bằng cờ trong `config.h`
+(`HAS_LED_YELLOW 0`, `HAS_RELAY 0`, `BUZZER_ACTIVE_LOW` cho module còi kích mức thấp). Bật quạt hút tự động là hướng
+phát triển.
 
 ![Sơ đồ đấu dây — cảm biến](figures/wiring-1.png)
 
-![Sơ đồ đấu dây — cảnh báo và điều khiển](figures/wiring-2.png)
+![Sơ đồ đấu dây — cảnh báo](figures/wiring-2.png)
 
-*Hình 3.2 — Sơ đồ đấu dây: (a) cảm biến, (b) cảnh báo và điều khiển (`docs/hardware/wiring.drawio`, 2 trang, mở bằng draw.io; chấm tròn = nối, vòng cung = dây cắt qua không nối; bảng chi tiết ở `docs/hardware/README.md`).*
+*Hình 3.2 — Sơ đồ đấu dây: (a) cảm biến, (b) cảnh báo (còi, LED, nút) (`docs/hardware/wiring.drawio`, 2 trang, mở bằng draw.io; chấm tròn = nối, vòng cung = dây cắt qua không nối; bảng chi tiết ở `docs/hardware/README.md`).*
 
 Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ sung sau khi lắp hộp.*
 
@@ -320,9 +323,9 @@ Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ su
 | Cấp | Tên | Điều kiện rule (mặc định) | Hành động tại edge | Thông báo cloud |
 |---|---|---|---|---|
 | 0 | Bình thường | ppm < 300 | LED xanh | — |
-| 1 | Chú ý | ppm ≥ 300 hoặc độ dốc ≥ 15 ppm/s | LED vàng | Log + dashboard |
-| 2 | Cảnh báo | ppm ≥ 1000 | LED đỏ nháy, còi ngắt quãng, bật quạt | Telegram |
-| 3 | Nguy hiểm | ppm ≥ 2000 hoặc (ppm ≥ 1000 và nhiệt tăng ≥ 1 °C/phút) | LED đỏ, còi liên tục, quạt | Telegram + Email, nhắc lại mỗi phút tới khi ack |
+| 1 | Chú ý | ppm ≥ 300 hoặc độ dốc ≥ 15 ppm/s | LED xanh nhấp nháy | Log + dashboard |
+| 2 | Cảnh báo | ppm ≥ 1000 | LED đỏ nháy, còi ngắt quãng | Telegram |
+| 3 | Nguy hiểm | ppm ≥ 2000 hoặc (ppm ≥ 1000 và nhiệt tăng ≥ 1 °C/phút) | LED đỏ, còi liên tục | Telegram + Email, nhắc lại mỗi phút tới khi ack |
 
 - **Hysteresis 15 %:** chỉ hạ cấp khi ppm < ngưỡng × 0,85, tránh dao động quanh ngưỡng.
 - **Debounce:** tăng cấp khi điều kiện đúng 3 mẫu liên tiếp (cấp 3 tăng ngay), hạ cấp sau 5 mẫu.
@@ -338,7 +341,7 @@ Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ su
 ### 4.1 Firmware ESP32 (`firmware/`)
 
 - PlatformIO + Arduino framework; **FreeRTOS 3 task**: `TaskSensors` (1 Hz, lọc median-5 + EWMA), `TaskEdgeAI`
-  (feature, rule, Random Forest, fusion, điều khiển còi/LED/relay), `TaskNetwork` (Wi-Fi, MQTT, NTP, đệm offline, OTA).
+  (feature, rule, Random Forest, fusion, điều khiển còi/LED), `TaskNetwork` (Wi-Fi, MQTT, NTP, đệm offline, OTA).
 - **Watchdog** 30 s cho mọi task; tự kết nối lại Wi-Fi/MQTT với backoff; LWT.
 - **Đệm offline** LittleFS tối đa 2 000 bản ghi JSONL, gửi bù khi có mạng (backend chống trùng theo seq).
 - **Cấu hình NVS**: ngưỡng, chế độ (rule/model/hybrid), R_0 sau `calibrate`; nhận qua topic `config` và gửi ack.
@@ -573,7 +576,7 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 ### 6.3 Hướng phát triển
 
 - Thu dữ liệu khí thật, huấn luyện lại và cập nhật mô hình xuống thiết bị qua OTA.
-- Thêm MQ-135/MQ-5 để giảm nhạy chéo; cảm biến bụi PM2.5.
+- Thêm MQ-135/MQ-5 để giảm nhạy chéo; cảm biến bụi PM2.5; relay + quạt hút bật tự động ở cấp ≥ 2.
 - Truyền thông LoRa/NB-IoT, nguồn pin + năng lượng mặt trời, nhiều trạm (mesh) để dự báo theo không gian.
 - Federated learning giữa các trạm; lượng tử hoá mô hình (int8) để chạy mô hình lớn hơn trên edge.
 - Gửi mô hình qua MQTT (OTA model) thay vì cập nhật toàn bộ firmware.

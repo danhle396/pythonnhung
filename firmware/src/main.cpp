@@ -1,7 +1,7 @@
 // Trạm AIoT VKU — ESP32: thu thập cảm biến, Edge AI cảnh báo khí/khói 4 cấp, nowcast, MQTT, đệm offline.
 // Kiến trúc FreeRTOS (task.md 6.1):
 //   TaskSensors (core 1, 1 Hz) --qSamples--> TaskEdgeAI (core 1) --qOut--> TaskNetwork (core 0) --MQTT-->
-//   Cảnh báo tại edge KHÔNG phụ thuộc mạng: TaskEdgeAI điều khiển còi/LED/relay trực tiếp.
+//   Cảnh báo tại edge KHÔNG phụ thuộc mạng: TaskEdgeAI điều khiển còi/LED trực tiếp.
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -151,14 +151,22 @@ static void onMessage(const char* suffix, const uint8_t* payload, unsigned int l
 }
 
 // ------------------------------------------------------------------ cơ cấu chấp hành
+// Logic cảnh báo (alert.cpp) giữ nguyên 4 trạng thái LED; chỉ ánh xạ ra phần cứng đang có ở đây.
 static void driveActuators(const Actions& a, uint32_t now) {
-  bool blink = (now / 250) % 2;
+  bool blink = (now / 250) % 2;       // đỏ nháy 2 Hz (cấp 2)
+  bool slowBlink = (now / 500) % 2;   // xanh nháy 1 Hz (cấp 1 khi không có LED vàng)
+#if HAS_LED_YELLOW
   digitalWrite(PIN_LED_GREEN, a.led == LedMode::GREEN);
   digitalWrite(PIN_LED_YELLOW, a.led == LedMode::YELLOW);
+#else
+  digitalWrite(PIN_LED_GREEN, a.led == LedMode::GREEN || (a.led == LedMode::YELLOW && slowBlink));
+#endif
   digitalWrite(PIN_LED_RED, a.led == LedMode::RED_SOLID || (a.led == LedMode::RED_BLINK && blink));
   bool buzz = a.buzzer == BuzzerMode::CONTINUOUS || (a.buzzer == BuzzerMode::INTERMITTENT && (now % 1000) < 200);
-  digitalWrite(PIN_BUZZER, buzz);
+  digitalWrite(PIN_BUZZER, buzz != (bool)BUZZER_ACTIVE_LOW);
+#if HAS_RELAY
   digitalWrite(PIN_RELAY, a.relay);
+#endif
 }
 
 // ------------------------------------------------------------------ TASK: cảm biến
@@ -225,11 +233,13 @@ static void TaskEdgeAI(void*) {
         JsonArray a = j["action"].to<JsonArray>();
         if (act.led == LedMode::RED_SOLID) a.add("led_red_solid");
         else if (act.led == LedMode::RED_BLINK) a.add("led_red_blink");
-        else if (act.led == LedMode::YELLOW) a.add("led_yellow");
+        else if (act.led == LedMode::YELLOW) a.add(HAS_LED_YELLOW ? "led_yellow" : "led_green_blink");
         else a.add("led_green");
         if (act.buzzer == BuzzerMode::CONTINUOUS) a.add("buzzer_continuous");
         if (act.buzzer == BuzzerMode::INTERMITTENT) a.add("buzzer_intermittent");
+#if HAS_RELAY
         if (act.relay) a.add("fan_on");
+#endif
         j["edge_latency_ms"] = millis() - now;
         enqueue("alert", j, false, true);
       }
@@ -394,10 +404,20 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   Serial.println("\n[BOOT] VKU AIoT Station fw " FW_VERSION ", model " GAS_MODEL_VERSION);
-  for (int p : std::initializer_list<int>{PIN_LED_GREEN, PIN_LED_YELLOW, PIN_LED_RED, PIN_BUZZER, PIN_RELAY}) {
+  for (int p : std::initializer_list<int>{PIN_LED_GREEN, PIN_LED_RED}) {
     pinMode(p, OUTPUT);
     digitalWrite(p, LOW);
   }
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, BUZZER_ACTIVE_LOW ? HIGH : LOW);  // còi tắt khi khởi động
+#if HAS_LED_YELLOW
+  pinMode(PIN_LED_YELLOW, OUTPUT);
+  digitalWrite(PIN_LED_YELLOW, LOW);
+#endif
+#if HAS_RELAY
+  pinMode(PIN_RELAY, OUTPUT);
+  digitalWrite(PIN_RELAY, LOW);
+#endif
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   storage.begin();
   storage.loadConfig(cfg);

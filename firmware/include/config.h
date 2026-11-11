@@ -28,6 +28,17 @@
 #define PIN_BUTTON 13    // INPUT_PULLUP, nhấn = LOW
 #define PIN_RELAY 23
 
+// ---- Phần cứng thực tế của nhóm (đổi 0/1 cho khớp linh kiện đang có)
+#ifndef HAS_LED_YELLOW
+#define HAS_LED_YELLOW 0     // 0: không có LED vàng -> cấp 1 "Chú ý" = LED xanh nhấp nháy chậm (1 Hz)
+#endif
+#ifndef HAS_RELAY
+#define HAS_RELAY 0          // 0: không có module relay/quạt -> GPIO23 bỏ trống
+#endif
+#ifndef BUZZER_ACTIVE_LOW
+#define BUZZER_ACTIVE_LOW 0  // 1: module còi 3 chân kêu khi I/O = LOW (loại "low level trigger")
+#endif
+
 // ---- Địa chỉ I2C
 #define BMP280_ADDR 0x76
 #define BH1750_ADDR 0x23

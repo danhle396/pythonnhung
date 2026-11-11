@@ -46,7 +46,7 @@
                 <mxCell id="zamb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Nowcast Zambretti&lt;/b&gt;&lt;br&gt;xu hướng áp suất 3h&lt;br&gt;(mỗi 10 phút)" vertex="1">
                     <mxGeometry height="80" width="150" x="470" y="150" as="geometry"/>
                 </mxCell>
-                <mxCell id="p2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Trích xuất feature&lt;/b&gt;&lt;br&gt;cửa sổ trượt 10–30 s" vertex="1">
+                <mxCell id="p2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Trích xuất feature&lt;/b&gt;&lt;br&gt;cửa sổ trượt 10–60 s" vertex="1">
                     <mxGeometry height="55" width="190" x="260" y="265" as="geometry"/>
                 </mxCell>
                 <mxCell id="gEdgeAI" parent="1" style="rounded=1;arcSize=4;dashed=1;fillColor=none;strokeColor=#9673a6;verticalAlign=top;fontStyle=1;html=1;fontColor=#6a4c7a;" value="EDGE AI — chỉ suy luận (không train)" vertex="1">
@@ -55,19 +55,19 @@
                 <mxCell id="rule" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Rule engine&lt;/b&gt;&lt;br&gt;ngưỡng ppm + tốc độ tăng" vertex="1">
                     <mxGeometry height="55" width="160" x="265" y="390" as="geometry"/>
                 </mxCell>
-                <mxCell id="tree" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Decision Tree&lt;/b&gt;&lt;br&gt;gas_model.h (C)" vertex="1">
+                <mxCell id="tree" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Model cây&lt;/b&gt; gas_model.h (C)&lt;br&gt;&lt;i&gt;khi có dữ liệu khí đo thật&lt;/i&gt;" vertex="1">
                     <mxGeometry height="55" width="160" x="445" y="390" as="geometry"/>
                 </mxCell>
-                <mxCell id="fuse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Hợp nhất&lt;/b&gt;&lt;br&gt;cấp = max(rule, model)&lt;br&gt;hysteresis + debounce" vertex="1">
+                <mxCell id="fuse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Hợp nhất&lt;/b&gt; (hiện: rule)&lt;br&gt;cấp = max(rule, model)&lt;br&gt;hysteresis + debounce" vertex="1">
                     <mxGeometry height="62" width="180" x="345" y="478" as="geometry"/>
                 </mxCell>
-                <mxCell id="act" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;Còi • LED 3 màu&lt;/b&gt;&lt;br&gt;OLED • Quạt/Relay&lt;br&gt;&lt;i&gt;dưới 1 s, không cần mạng&lt;/i&gt;" vertex="1">
+                <mxCell id="act" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;Còi • LED xanh/đỏ&lt;/b&gt;&lt;br&gt;OLED&lt;br&gt;&lt;i&gt;dưới 1 s, không cần mạng&lt;/i&gt;" vertex="1">
                     <mxGeometry height="75" width="180" x="40" y="470" as="geometry"/>
                 </mxCell>
                 <mxCell id="btn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="Nút nhấn (tắt còi)" vertex="1">
                     <mxGeometry height="40" width="180" x="40" y="580" as="geometry"/>
                 </mxCell>
-                <mxCell id="mqttc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;MQTT client&lt;/b&gt;&lt;br&gt;JSON: telemetry mỗi 5–10 s&lt;br&gt;alert khi đổi cấp" vertex="1">
+                <mxCell id="mqttc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;MQTT client&lt;/b&gt;&lt;br&gt;JSON: telemetry 10 s&lt;br&gt;(1 s khi đang cảnh báo)&lt;br&gt;alert khi đổi cấp" vertex="1">
                     <mxGeometry height="75" width="180" x="345" y="620" as="geometry"/>
                 </mxCell>
                 <mxCell id="buf" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;b&gt;Đệm offline&lt;/b&gt;&lt;br&gt;LittleFS" vertex="1">
@@ -85,16 +85,16 @@
                 <mxCell id="db" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;b&gt;PostgreSQL / TimescaleDB&lt;/b&gt;&lt;br&gt;telemetry • alerts • forecasts" vertex="1">
                     <mxGeometry height="95" width="220" x="1230" y="100" as="geometry"/>
                 </mxCell>
-                <mxCell id="alert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Alert service&lt;/b&gt;&lt;br&gt;xác nhận / leo thang&lt;br&gt;(gửi cmd xuống ESP32)" vertex="1">
+                <mxCell id="alert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Alert service&lt;/b&gt;&lt;br&gt;leo thang: độ dốc ppm 10 phút&lt;br&gt;nhắc lại cấp 3 tới khi ack&lt;br&gt;(gửi cmd xuống ESP32)" vertex="1">
                     <mxGeometry height="80" width="210" x="940" y="250" as="geometry"/>
                 </mxCell>
-                <mxCell id="iforest" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Isolation Forest + CUSUM&lt;/b&gt;&lt;br&gt;rò gas chậm, drift cảm biến" vertex="1">
+                <mxCell id="iforest" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Isolation Forest + CUSUM&lt;/b&gt;&lt;br&gt;rò gas chậm, drift cảm biến&lt;br&gt;&lt;i&gt;khi đủ dữ liệu trạm&lt;/i&gt;" vertex="1">
                     <mxGeometry height="70" width="220" x="1230" y="255" as="geometry"/>
                 </mxCell>
-                <mxCell id="fc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Forecast service&lt;/b&gt;&lt;br&gt;chạy mỗi 10–15 phút" vertex="1">
+                <mxCell id="fc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Forecast service&lt;/b&gt;&lt;br&gt;chạy mỗi 10 phút" vertex="1">
                     <mxGeometry height="80" width="210" x="940" y="400" as="geometry"/>
                 </mxCell>
-                <mxCell id="gbdt" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;GBDT hồi quy&lt;/b&gt;&lt;br&gt;T / H / P (1h · 3h · 6h)&lt;br&gt;&lt;b&gt;GBDT phân loại&lt;/b&gt;&lt;br&gt;xác suất mưa (1h · 3h)" vertex="1">
+                <mxCell id="gbdt" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;GBDT hồi quy&lt;/b&gt;&lt;br&gt;T / H / P (1h · 3h · 6h)&lt;br&gt;&lt;b&gt;GBDT phân loại&lt;/b&gt;&lt;br&gt;xác suất mưa (1h · 3h · 6h)" vertex="1">
                     <mxGeometry height="100" width="220" x="1230" y="390" as="geometry"/>
                 </mxCell>
                 <mxCell id="api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;FastAPI&lt;/b&gt;&lt;br&gt;REST API + WebSocket" vertex="1">
@@ -151,7 +151,7 @@
                 <mxCell id="d2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Dữ liệu trạm&lt;/b&gt; (export từ DB)" vertex="1">
                     <mxGeometry height="45" width="220" x="50" y="960" as="geometry"/>
                 </mxCell>
-                <mxCell id="d3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Thí nghiệm gas&lt;/b&gt; có gán nhãn" vertex="1">
+                <mxCell id="d3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Thí nghiệm gas&lt;/b&gt; có gán nhãn&lt;br&gt;label_logger.py · MQ-2 đo thật" vertex="1">
                     <mxGeometry height="45" width="220" x="50" y="1020" as="geometry"/>
                 </mxCell>
                 <mxCell id="t1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Tiền xử lý &amp;amp; feature&lt;/b&gt;&lt;br&gt;resample • lag • rolling&lt;br&gt;sin/cos • chuẩn hoá" vertex="1">
@@ -166,7 +166,7 @@
                 <mxCell id="t4" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;b&gt;Model&lt;/b&gt; JSON / .npz" vertex="1">
                     <mxGeometry height="60" width="220" x="950" y="985" as="geometry"/>
                 </mxCell>
-                <mxCell id="tnote" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;whiteSpace=wrap;" value="Train lại hằng tuần khi có dữ liệu mới.&lt;br&gt;Chỉ thay model khi tốt hơn model cũ trên tập test.&lt;br&gt;&lt;b&gt;ESP32 không train&lt;/b&gt; — chỉ nhận model đã xuất sang C." vertex="1">
+                <mxCell id="tnote" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;whiteSpace=wrap;" value="&lt;b&gt;Chỉ dùng số liệu đo thật&lt;/b&gt; (Open-Meteo + cảm biến trạm).&lt;br&gt;Train lại khi có dữ liệu mới; chỉ thay model khi tốt hơn trên tập test.&lt;br&gt;&lt;b&gt;ESP32 không train&lt;/b&gt; — chỉ nhận model đã xuất sang C." vertex="1">
                     <mxGeometry height="80" width="470" x="1240" y="930" as="geometry"/>
                 </mxCell>
                 <mxCell id="e1" edge="1" parent="1" source="gSensors" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;" target="p1">
@@ -335,7 +335,7 @@
                 <mxCell id="e33" edge="1" parent="1" source="t1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;" target="t2">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e34" edge="1" parent="1" source="t2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.25;entryX=0;entryY=0.5;fontSize=10;labelBackgroundColor=#ffffff;" target="t3" value="cây cảnh báo khí">
+                <mxCell id="e34" edge="1" parent="1" source="t2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.25;entryX=0;entryY=0.5;fontSize=10;labelBackgroundColor=#ffffff;" target="t3" value="gas_model.h (khi có model)">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="e35" edge="1" parent="1" source="t2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.75;entryX=0;entryY=0.5;fontSize=10;labelBackgroundColor=#ffffff;" target="t4" value="GBDT • IForest">

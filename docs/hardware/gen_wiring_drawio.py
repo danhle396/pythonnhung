@@ -156,25 +156,26 @@ p1.legend([(P5V, "5 V (VIN)", False), (P3V3, "3,3 V", False), (GND, "GND", False
            (SCL, "I2C SCL", False), (DHT, "DHT22 data", False)])
 
 # =================================================================== Trang 2: cảnh báo & điều khiển
-p2 = Page("a", "<b>ESP32 DevKit V1</b> · Trang 2/2 — <b>Cảnh báo &amp; điều khiển</b>", [
-    ("G25", "GPIO25", "Còi", "#6D4C41"), ("G26", "GPIO26", "LED xanh", "#2E9D47"), ("G27", "GPIO27", "LED vàng", "#C9A400"),
-    ("G14", "GPIO14", "LED đỏ", "#E53935"), ("G13", "GPIO13", "Nút", "#455A64"), ("G23", "GPIO23", "Relay", "#00897B"),
-    ("5V", "VIN", "5V", P5V), ("GND", "GND", "", GND),
+p2 = Page("a", "<b>ESP32 DevKit V1</b> · Trang 2/2 — <b>Cảnh báo</b> (còi · LED xanh/đỏ · nút)", [
+    ("G25", "GPIO25", "Còi", "#6D4C41"), ("G26", "GPIO26", "LED xanh", "#2E9D47"),
+    ("G14", "GPIO14", "LED đỏ", "#E53935"), ("G13", "GPIO13", "Nút", "#455A64"), ("GND", "GND", "", GND),
 ], pin_x=1050)
 p2.title_short = "2 - Canh bao"
-yb = p2.comp(f"<b>Còi active 5 V</b><br>{g}(−) nối collector Q1</font>", [("+", "5V"), ("−", ("custom",))], gap=40)
-yq = p2.comp(f"<b>Q1 S8050</b> (NPN)<br>{g}R3 1 kΩ vào base<br>GPIO25 = 1 → còi kêu<br>(GPIO chỉ chịu ~20 mA)</font>",
-             [("C", ("custom",)), ("B", ("via", "R3 1 kΩ", "G25")), ("E", "GND")], min_h=120)
-x0 = p2.pin_x - 30
-p2.line([(p2.pin_x, yb["−"]), (x0, yb["−"]), (x0, yq["C"]), (p2.pin_x, yq["C"])], "#6D4C41", jump=False)
-for key, name, state in [("G26", "LED xanh", "Bình thường"), ("G27", "LED vàng", "Chú ý"), ("G14", "LED đỏ", "Cảnh báo / Nguy hiểm")]:
+# Không dùng transistor: còi nối thẳng GPIO25 (còi 3,3 V ~20 mA, hoặc module còi 3 chân có transistor sẵn).
+p2.comp(f"<b>Còi active</b> (nối thẳng GPIO, không cần transistor)<br>{g}Còi 2 chân: (+) → GPIO25, (−) → GND<br>"
+        f"Module 3 chân: I/O → GPIO25, VCC → 3V3, GND → GND<br>"
+        f"kêu khi I/O = LOW ⇒ đặt BUZZER_ACTIVE_LOW 1</font>",
+        [("+ / I/O", "G25"), ("− / GND", "GND"), ("VCC*", None)], min_h=130, gap=40)
+for key, name, state in [("G26", "LED xanh", "Bình thường · nháy 1 Hz = Chú ý"), ("G14", "LED đỏ", "nháy = Cảnh báo · sáng = Nguy hiểm")]:
     p2.comp(f"<b>{name}</b><br>{g}{state}</font>", [("A (+)", ("via", "220 Ω", key)), ("K (−)", "GND")], gap=30)
 p2.y += 20
-p2.comp(f"<b>Nút tắt còi</b><br>{g}INPUT_PULLUP nội · nhấn = LOW<br>→ tắt còi 5 phút</font>", [("1", "G13"), ("2", "GND")])
-p2.comp(f"<b>Module relay 5 V</b> (kích mức CAO)<br>{g}COM/NO → quạt hút<br>bật ở cấp cảnh báo ≥ 2</font>",
-        [("VCC", "5V"), ("GND", "GND"), ("IN", "G23")], min_h=120, gap=70)
-p2.legend([(P5V, "5 V (VIN)", False), (GND, "GND", False), ("#6D4C41", "Còi", False), ("#455A64", "Nút", False),
-           ("#00897B", "Relay", False)])
+p2.comp(f"<b>Nút tắt còi</b><br>{g}INPUT_PULLUP nội · nhấn = LOW<br>→ tắt còi 5 phút</font>", [("1", "G13"), ("2", "GND")], gap=70)
+p2.legend([(GND, "GND", False), ("#6D4C41", "Còi", False), ("#2E9D47", "LED xanh", False), ("#E53935", "LED đỏ", False),
+           ("#455A64", "Nút", False)])
+p2.box(40, p2.height - 20, 1100, 26, "* VCC chỉ có ở module còi 3 chân (nối 3V3). Không dùng LED vàng, transistor S8050, relay "
+       "(GPIO27, GPIO23 để trống; firmware: HAS_LED_YELLOW 0, HAS_RELAY 0).",
+       f"text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor={GREY};")
+p2.height += 30
 
 OUT.write_text('<mxfile host="Electron" agent="gen_wiring_drawio.py">\n' + p1.xml() + p2.xml() + "</mxfile>\n", encoding="utf-8")
 print("Đã ghi", OUT)

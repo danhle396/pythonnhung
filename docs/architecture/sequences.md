@@ -7,7 +7,7 @@ sequenceDiagram
     autonumber
     participant S as MQ-2 + cảm biến
     participant E as ESP32 (TaskEdgeAI)
-    participant A as Còi/LED/Relay
+    participant A as Còi/LED
     participant B as Mosquitto
     participant I as Backend ingest
     participant AS as Alert service
@@ -18,7 +18,7 @@ sequenceDiagram
     E->>E: median-5 + EWMA → feature cửa sổ 10–60 s
     E->>E: rule (hysteresis, debounce) ∥ cây quyết định (gas_model.h)
     E->>E: level = max(rule, model)
-    E->>A: đổi LED/còi/quạt (< 1 s, không cần mạng)
+    E->>A: đổi LED/còi (< 1 s, không cần mạng)
     E->>B: alert {level, cause, seq}
     alt mất mạng
         E->>E: ghi đệm LittleFS, gửi bù khi kết nối lại

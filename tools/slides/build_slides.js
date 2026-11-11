@@ -139,7 +139,7 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   card(s, M, 1.4, 4.6, 5.1, C.mist, 'edge');
   text(s, 'EDGE — ESP32', {x: M + 0.25, y: 1.55, w: 4, h: 0.4, fontFace: HEAD, fontSize: 16, bold: true, color: C.deep});
   const eb = ['5 cảm biến · lọc median + EWMA', '10 feature cửa sổ 10–60 s', 'Rule 4 cấp (+ RF khi có dữ liệu thật)',
-    'level = max(rule, model)', 'LED · còi · quạt · OLED', 'Đệm offline LittleFS · seq'];
+    'level = max(rule, model)', 'LED xanh/đỏ · còi · OLED', 'Đệm offline LittleFS · seq'];
   eb.forEach((t, i) => {
     s.addShape(pres.shapes.ROUNDED_RECTANGLE, {x: M + 0.25, y: 2.05 + i * 0.7, w: 4.1, h: 0.56, rectRadius: 0.08,
       fill: {color: i === 3 ? C.amber : C.paper}, line: {color: C.light}});
@@ -177,8 +177,8 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
     ['DHT22', 'GPIO 4', 'chu kỳ 2 s'],
     ['YL-83', 'AO 34 · nguồn 18', 'cấp nguồn khi đọc'],
     ['MQ-2', 'AO 32 · DO 33', 'phân áp 10k/20k'],
-    ['Còi · LED X/V/Đ', '25 · 26/27/14', ''],
-    ['Nút · relay quạt', '13 · 23', 'mute 5 phút']];
+    ['Còi active', '25', 'nối thẳng GPIO'], ['LED xanh · đỏ', '26 · 14', '220 Ω'],
+    ['Nút tắt còi', '13', 'mute 5 phút']];
   s.addTable(rows, tableOpts(M, 1.45, 6.2, [2.4, 1.9, 1.9], 0.52));
   const r2 = [[th('Topic vku/aiot/{id}/…'), th('QoS'), th('Retain')],
     ['telemetry (10 s, 1 s khi cảnh báo)', '0', ''], ['alert · nowcast', '0', 'nowcast'], ['status (LWT offline)', '0', '✔'],
@@ -193,8 +193,8 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
 // =============================================================== 6. Cảnh báo 4 cấp
 {
   const s = slide('Cảnh báo 4 cấp tại edge', 'Thiết kế');
-  const lv = [['0', 'Bình thường', 'ppm < 300', 'LED xanh'], ['1', 'Chú ý', 'ppm ≥ 300 hoặc dốc ≥ 15 ppm/s', 'LED vàng · log'],
-    ['2', 'Cảnh báo', 'ppm ≥ 1 000', 'đỏ nháy · còi · quạt · Telegram'],
+  const lv = [['0', 'Bình thường', 'ppm < 300', 'LED xanh'], ['1', 'Chú ý', 'ppm ≥ 300 hoặc dốc ≥ 15 ppm/s', 'LED xanh nháy · log'],
+    ['2', 'Cảnh báo', 'ppm ≥ 1 000', 'đỏ nháy · còi · Telegram'],
     ['3', 'Nguy hiểm', 'ppm ≥ 2 000 hoặc ≥ 1 000 + nhiệt tăng ≥ 1 °C/phút', 'còi liên tục · Telegram + Email · nhắc mỗi phút']];
   lv.forEach(([n, name, cond, act], i) => {
     const y = 1.45 + i * 1.1;

@@ -1,4 +1,4 @@
-// Rule engine cảnh báo khí 4 cấp + quản lý hành động (còi/LED/relay/mute). Thuần C++, test được trên PC.
+// Rule engine cảnh báo khí 4 cấp + quản lý hành động (còi/LED/mute; relay tuỳ chọn HAS_RELAY). Thuần C++, test được trên PC.
 // Logic GIỐNG HỆT ml/src/gas_edge.py (RuleEngine) để bản Python dùng khi huấn luyện/đánh giá phản ánh đúng thiết bị.
 #pragma once
 #include <stdint.h>

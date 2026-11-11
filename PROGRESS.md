@@ -98,7 +98,9 @@ Cập nhật lần cuối: 2026-11-10
       µs suy luận trên ESP32, công suất; chụp ảnh lắp ráp.
 
 ## VIỆC CẦN NGƯỜI LÀM (phần cứng — Claude không làm được)
-- Mua MQ-2, buzzer, LED, nút, điện trở phân áp 10k/20k; lắp theo `firmware/include/config.h`; đo lại `MQ2_RL_KOHM` trên module.
+- Phần cứng của nhóm: còi active, LED xanh/đỏ (không có LED vàng, S8050, relay — `config.h`: `HAS_LED_YELLOW 0`, `HAS_RELAY 0`).
+  **Báo loại còi** (2 chân hay module 3 chân, 3V/5V; module kêu khi I/O = LOW ⇒ `BUZZER_ACTIVE_LOW 1`).
+- Mua MQ-2, nút, điện trở phân áp 10k/20k; lắp theo `firmware/include/config.h`; đo lại `MQ2_RL_KOHM` trên module.
 - Copy `firmware/include/secrets.h.example` → `secrets.h`, điền Wi-Fi/MQTT. Nạp: `pio run -e esp32dev -t upload`.
 - Burn-in MQ-2 24–48 h → lệnh `calibrate` (đo R0). Hiệu chuẩn YL-83 (`RAIN_MV_*`).
 - `pio test -e esp32dev -f test_gas_model` trên ESP32 thật để đo µs suy luận và xác nhận khớp C/Python.

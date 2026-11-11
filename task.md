@@ -67,10 +67,10 @@
 | 4 | BH1750 | Cường độ ánh sáng (lux) | I2C `0x23` | Có sẵn |
 | 5 | YL-83 (+ module LM393) | Phát hiện / mức độ mưa | Analog + Digital | Có sẵn |
 | 6 | **MQ-2** | Khí dễ cháy, khói | Analog + Digital | **Cần mua** |
-| 7 | Buzzer active 5V/3.3V | Còi cảnh báo | GPIO | Cần mua |
-| 8 | LED xanh / vàng / đỏ (+ điện trở 220Ω) | Đèn báo cấp cảnh báo | GPIO | Cần mua |
+| 7 | Buzzer active 5V/3.3V | Còi cảnh báo (nối thẳng GPIO) | GPIO | Có sẵn |
+| 8 | LED xanh / đỏ (+ điện trở 220Ω) | Đèn báo cấp cảnh báo (không có LED vàng: cấp 1 = xanh nhấp nháy) | GPIO | Cần mua |
 | 9 | OLED SSD1306 0.96" (tuỳ chọn) | Hiển thị tại chỗ | I2C `0x3C` | Khuyến nghị |
-| 10 | Relay 5V hoặc quạt nhỏ (tuỳ chọn) | Hành động tự động (bật quạt hút) | GPIO | Tuỳ chọn |
+| 10 | ~~Relay 5V hoặc quạt nhỏ~~ | Không dùng (nhóm không có) — hướng phát triển | GPIO | Không dùng |
 | 11 | Nút nhấn | Tắt còi / xác nhận cảnh báo | GPIO (pull-up) | Cần mua |
 | 12 | Điện trở 10kΩ + 20kΩ | Phân áp cho MQ-2 AO | — | Cần mua |
 | 13 | Nguồn 5V/2A, breadboard, dây | Cấp nguồn | — | MQ-2 tiêu thụ khoảng 150mA do có bộ gia nhiệt |
@@ -84,9 +84,8 @@
 | YL-83 | AO / DO | GPIO34 / GPIO35 |
 | MQ-2 | AO (qua phân áp) / DO | GPIO32 / GPIO33 |
 | Buzzer | + | GPIO25 |
-| LED xanh / vàng / đỏ | Anode | GPIO26 / GPIO27 / GPIO14 |
+| LED xanh / đỏ | Anode | GPIO26 / GPIO14 |
 | Nút nhấn | — | GPIO13 (INPUT_PULLUP) |
-| Relay/quạt | IN | GPIO23 |
 
 ### 2.3 Công việc phần cứng
 - [ ] Vẽ sơ đồ nguyên lý (Fritzing hoặc KiCad) và lưu vào `docs/hardware/`.
