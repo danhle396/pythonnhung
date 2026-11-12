@@ -24,7 +24,7 @@ docker compose up -d --build                 # hoặc chạy backend + mosquitto
 | 1:10–1:40 | **Dự báo**: đường thực tế vs dự báo + khoảng tin cậy, xác suất mưa | "GBDT tự viết bằng NumPy, MAE nhiệt độ 1 giờ 0,30 °C." | Biểu đồ dự báo |
 | 1:40–2:40 | Xả gas gần MQ-2 | "Edge tăng cấp 1 → 2 → 3 trong vài giây, không chờ cloud." | LED xanh nháy → đỏ, còi; màn TFT chuyển trang khí/khói nền đỏ; dashboard đổi màu |
 | 2:40–3:10 | Telegram nhận tin cấp 2, cấp 3 (nhắc lại mỗi phút) → bấm **✅ Đã xử lý** | "Cloud gửi thông báo theo cấp, nhắc lại tới khi có người xác nhận." | Tin nhắn + nút ack; trang Cảnh báo hiện ✅ |
-| 3:10–3:40 | Rút Wi-Fi/tắt router rồi xả gas lần nữa | "Mất mạng: còi vẫn kêu vì quyết định ở edge; dữ liệu vào đệm LittleFS, gửi bù khi có mạng. Broker phát LWT, dashboard báo offline." | Còi vẫn kêu; dashboard Offline + cảnh báo `device_offline` |
+| 3:10–3:40 | Rút Wi-Fi/tắt router rồi xả gas lần nữa | "Mất mạng: còi vẫn kêu vì quyết định ở edge; dữ liệu vào đệm offline trên flash, gửi bù khi có mạng. Broker phát LWT, dashboard báo offline." | Còi vẫn kêu; dashboard Offline + cảnh báo `device_offline` |
 | 3:40–4:10 | Bật lại mạng → dữ liệu gửi bù xuất hiện liền mạch trên Biểu đồ; trang **Thiết bị**: đổi ngưỡng, thiết bị ack | "Cấu hình có phiên bản, thiết bị xác nhận." | Biểu đồ không bị hở; config acked |
 | 4:10–4:30 | Trang **Mô hình** + kết luận | "Toàn bộ ML tự viết, 42 + 15 + 12 + 7 test, Docker một lệnh." | Bảng registry |
 
@@ -37,11 +37,11 @@ docker compose up -d --build                 # hoặc chạy backend + mosquitto
 
 ## Câu hỏi thường gặp khi bảo vệ (chuẩn bị trả lời)
 
-1. *Vì sao không dùng scikit-learn?* — Yêu cầu đề tài; tự viết giúp hiểu thuật toán và xuất sang C dễ; tính đúng được kiểm
+1. *Vì sao không dùng scikit-learn?* — Yêu cầu đề tài; tự viết giúp hiểu thuật toán và xuất sang MicroPython dễ; tính đúng được kiểm
    chứng bằng gradient check, dữ liệu đồ chơi và so khớp C/Python.
 2. *Vì sao fusion lấy max?* — Bài toán an toàn ưu tiên Recall; model chỉ được báo sớm hơn, không được hạ cấp mà rule đưa ra.
    *Sao chưa có model khí?* — Đề tài chỉ dùng số liệu đo thật; chưa đủ dữ liệu thí nghiệm MQ-2 có nhãn nên edge đang chạy
-   rule, pipeline huấn luyện + xuất C đã sẵn sàng (`train_gas_edge --data`).
+   rule, pipeline huấn luyện + xuất MicroPython đã sẵn sàng (`train_gas_edge --data`).
 3. *MQ-2 có đo chính xác ppm không?* — Không; ppm tương đối theo đường cong datasheet, phụ thuộc R₀, nhiệt, ẩm. Vì vậy dùng
    thêm xu hướng (độ dốc, độ lệch nền) và hiệu chuẩn R₀ định kỳ, CUSUM phát hiện trôi.
 4. *QoS 0 có mất dữ liệu không?* — Có thể; bù bằng `seq`, đệm offline, chống trùng (device_id, ts, seq) ở backend;

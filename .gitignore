@@ -9,13 +9,12 @@ dist/
 
 # Bí mật
 .env
-firmware/include/secrets.h
+firmware/src/credentials.py
 broker/mosquitto/passwd
 broker/mosquitto/certs/
 
 # PlatformIO
-firmware/.pio/
-.pio_build.log
+firmware/build/
 
 # Dữ liệu & model lớn (tái tạo bằng script)
 ml/data/raw/

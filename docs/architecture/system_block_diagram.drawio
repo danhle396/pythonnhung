@@ -7,7 +7,7 @@
                 <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;" value="&lt;b&gt;SƠ ĐỒ KHỐI HỆ THỐNG&lt;/b&gt; — AIoT Environmental Monitoring Station (Hybrid Edge–Cloud AI, ESP32 + MQTT) — VKU, Đà Nẵng" vertex="1">
                     <mxGeometry height="40" width="1720" x="20" y="10" as="geometry"/>
                 </mxCell>
-                <mxCell id="zEdge" parent="1" style="swimlane;startSize=30;html=1;fontStyle=1;fontSize=14;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#F6FBF4;rounded=1;arcSize=2;" value="EDGE — ESP32 (trạm đặt tại VKU)" vertex="1">
+                <mxCell id="zEdge" parent="1" style="swimlane;startSize=30;html=1;fontStyle=1;fontSize=14;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#F6FBF4;rounded=1;arcSize=2;" value="EDGE — ESP32 + MicroPython (trạm đặt tại VKU)" vertex="1">
                     <mxGeometry height="760" width="620" x="20" y="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="zNet" parent="1" style="swimlane;startSize=30;html=1;fontStyle=1;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#FFFAF3;rounded=1;arcSize=2;" value="MẠNG (Wi-Fi + MQTT)" vertex="1">
@@ -55,7 +55,7 @@
                 <mxCell id="rule" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Rule engine&lt;/b&gt;&lt;br&gt;ngưỡng ppm + tốc độ tăng" vertex="1">
                     <mxGeometry height="55" width="160" x="265" y="390" as="geometry"/>
                 </mxCell>
-                <mxCell id="tree" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Model cây&lt;/b&gt; gas_model.h (C)&lt;br&gt;&lt;i&gt;khi có dữ liệu khí đo thật&lt;/i&gt;" vertex="1">
+                <mxCell id="tree" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Model cây&lt;/b&gt; gas_model.py&lt;br&gt;&lt;i&gt;khi có dữ liệu khí đo thật&lt;/i&gt;" vertex="1">
                     <mxGeometry height="55" width="160" x="445" y="390" as="geometry"/>
                 </mxCell>
                 <mxCell id="fuse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Hợp nhất&lt;/b&gt; (hiện: rule)&lt;br&gt;cấp = max(rule, model)&lt;br&gt;hysteresis + debounce" vertex="1">
@@ -67,10 +67,10 @@
                 <mxCell id="btn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="Nút nhấn (tắt còi)" vertex="1">
                     <mxGeometry height="40" width="180" x="40" y="580" as="geometry"/>
                 </mxCell>
-                <mxCell id="mqttc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;MQTT client&lt;/b&gt;&lt;br&gt;JSON: telemetry 10 s&lt;br&gt;(1 s khi đang cảnh báo)&lt;br&gt;alert khi đổi cấp" vertex="1">
+                <mxCell id="mqttc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;MQTT client&lt;/b&gt; (tự viết)&lt;br&gt;JSON: telemetry 10 s&lt;br&gt;(1 s khi đang cảnh báo)&lt;br&gt;alert khi đổi cấp" vertex="1">
                     <mxGeometry height="75" width="180" x="345" y="620" as="geometry"/>
                 </mxCell>
-                <mxCell id="buf" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;b&gt;Đệm offline&lt;/b&gt;&lt;br&gt;LittleFS" vertex="1">
+                <mxCell id="buf" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;b&gt;Đệm offline&lt;/b&gt;&lt;br&gt;file trên flash" vertex="1">
                     <mxGeometry height="65" width="120" x="375" y="735" as="geometry"/>
                 </mxCell>
                 <mxCell id="broker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" value="&lt;b&gt;Mosquitto&lt;br&gt;MQTT Broker&lt;/b&gt;&lt;br&gt;auth • ACL • LWT" vertex="1">
@@ -160,13 +160,13 @@
                 <mxCell id="t2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;mlcore (tự viết)&lt;/b&gt;&lt;br&gt;train CART / Random Forest&lt;br&gt;GBDT • Isolation Forest&lt;br&gt;đánh giá • so sánh baseline" vertex="1">
                     <mxGeometry height="110" width="250" x="620" y="920" as="geometry"/>
                 </mxCell>
-                <mxCell id="t3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;export_c.py&lt;/b&gt; → gas_model.h" vertex="1">
+                <mxCell id="t3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;export_micropython.py&lt;/b&gt; → gas_model.py" vertex="1">
                     <mxGeometry height="50" width="220" x="950" y="900" as="geometry"/>
                 </mxCell>
                 <mxCell id="t4" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;b&gt;Model&lt;/b&gt; JSON / .npz" vertex="1">
                     <mxGeometry height="60" width="220" x="950" y="985" as="geometry"/>
                 </mxCell>
-                <mxCell id="tnote" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;whiteSpace=wrap;" value="&lt;b&gt;Chỉ dùng số liệu đo thật&lt;/b&gt; (Open-Meteo + cảm biến trạm).&lt;br&gt;Train lại khi có dữ liệu mới; chỉ thay model khi tốt hơn trên tập test.&lt;br&gt;&lt;b&gt;ESP32 không train&lt;/b&gt; — chỉ nhận model đã xuất sang C." vertex="1">
+                <mxCell id="tnote" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;whiteSpace=wrap;" value="&lt;b&gt;Chỉ dùng số liệu đo thật&lt;/b&gt; (Open-Meteo + cảm biến trạm).&lt;br&gt;Train lại khi có dữ liệu mới; chỉ thay model khi tốt hơn trên tập test.&lt;br&gt;&lt;b&gt;ESP32 không train&lt;/b&gt; — chỉ nhận model đã xuất sang module MicroPython." vertex="1">
                     <mxGeometry height="80" width="470" x="1240" y="930" as="geometry"/>
                 </mxCell>
                 <mxCell id="e1" edge="1" parent="1" source="gSensors" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;" target="p1">
@@ -335,7 +335,7 @@
                 <mxCell id="e33" edge="1" parent="1" source="t1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;" target="t2">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e34" edge="1" parent="1" source="t2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.25;entryX=0;entryY=0.5;fontSize=10;labelBackgroundColor=#ffffff;" target="t3" value="gas_model.h (khi có model)">
+                <mxCell id="e34" edge="1" parent="1" source="t2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.25;entryX=0;entryY=0.5;fontSize=10;labelBackgroundColor=#ffffff;" target="t3" value="gas_model.py (khi có model)">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="e35" edge="1" parent="1" source="t2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.75;entryX=0;entryY=0.5;fontSize=10;labelBackgroundColor=#ffffff;" target="t4" value="GBDT • IForest">

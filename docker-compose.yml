@@ -16,13 +16,16 @@ services:
       MQTT_DEVICE_PASS: ${MQTT_DEVICE_PASS:-change-me}
       MQTT_DASHBOARD_PASS: ${MQTT_DASHBOARD_PASS:-dashboard-pass}
       MQTT_DEVICES: ${MQTT_DEVICES:-station01 station02 station03}
-    # mỗi lần khởi động: sinh passwd từ biến môi trường + chép acl vào /mosquitto/auth (chủ mosquitto, 0700) rồi chạy broker
+    # mỗi lần khởi động: sinh passwd từ biến môi trường (cùng tài khoản như broker/mosquitto/make_passwd.py) + chép acl vào /mosquitto/auth (chủ mosquitto, 0700) rồi chạy broker
     command:
       - sh
       - -c
       - |
         mkdir -p /mosquitto/auth
-        sh /mosquitto/config/make_passwd.sh /mosquitto/auth/passwd
+        : > /mosquitto/auth/passwd
+        mosquitto_passwd -b /mosquitto/auth/passwd backend "$$MQTT_BACKEND_PASS"
+        mosquitto_passwd -b /mosquitto/auth/passwd dashboard "$$MQTT_DASHBOARD_PASS"
+        for dev in $$MQTT_DEVICES; do mosquitto_passwd -b /mosquitto/auth/passwd "$$dev" "$$MQTT_DEVICE_PASS"; done
         cp /mosquitto/config/acl /mosquitto/auth/acl
         chown mosquitto:mosquitto /mosquitto/auth/passwd /mosquitto/auth/acl
         chmod 0700 /mosquitto/auth/passwd /mosquitto/auth/acl

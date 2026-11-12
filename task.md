@@ -8,6 +8,17 @@
 
 ## 0. Ghi chú quan trọng trước khi bắt đầu
 
+> **NGUYÊN TẮC BẮT BUỘC — CHỈ DÙNG PYTHON.** Đề tài thuộc môn *Python cho hệ thống nhúng*: **mọi mã nguồn của dự án
+> phải viết bằng Python**.
+> - Firmware ESP32 viết bằng **MicroPython** (`firmware/src/*.py`), nạp bằng `mpremote` (hoặc Thonny). **Không** dùng
+>   C/C++, Arduino, PlatformIO, ESP-IDF.
+> - Backend, ML, dashboard, công cụ (vẽ sơ đồ, sinh slide, tạo mật khẩu/chứng chỉ broker, kiểm thử tải) đều là Python.
+>   **Không** viết script JavaScript/Node.js, shell, PowerShell trong repo.
+> - Mô hình edge xuất sang **module Python** (`firmware/src/gas_model.py`), không sinh header C.
+> - Kiểm thử firmware bằng **pytest** trên PC (logic thuần Python chạy được cả CPython lẫn MicroPython).
+> - Ngoại lệ duy nhất là file cấu hình không phải mã chương trình: `docker-compose.yml`, `Dockerfile`, `mosquitto.conf`,
+>   `acl`, `.env`, JSON/YAML provisioning của Grafana.
+
 - [ ] **Bổ sung cảm biến khí/khói.** Danh sách phần cứng hiện có (YL-83, BH1750, DHT22, BMP280) **không có cảm biến nào đo khí dễ cháy hoặc khói**, mà đây là một nửa đề tài. Cần mua thêm tối thiểu **MQ-2** (LPG, propane, H₂, CH₄, khói). Tuỳ chọn thêm: MQ-5 (LPG/khí thiên nhiên), MQ-135 (chất lượng không khí) để cảnh báo chính xác hơn.
 - [ ] Danh sách có ghi BH1750 hai lần. Một module BH1750 là đủ. Nếu có hai module thì cái thứ hai phải đổi địa chỉ I2C (ADDR nối VCC → `0x5C`) hoặc để làm dự phòng.
 - [ ] MQ-2 xuất tín hiệu analog tới 5V, còn ADC của ESP32 chỉ chịu được **3.3V**, nên phải dùng cầu phân áp (ví dụ 10kΩ/20kΩ).
@@ -50,7 +61,7 @@
 | Múi giờ | `Asia/Ho_Chi_Minh` (UTC+7) | NTP, Open-Meteo, feature giờ trong ngày |
 | Khí hậu | Nhiệt đới gió mùa. **Mùa mưa tháng 9–12** (cao điểm tháng 10–11, có bão và áp thấp nhiệt đới), mùa khô tháng 1–8. Gần biển, độ ẩm trung bình khoảng 80% | Tập test phải bao trọn mùa mưa. Nhãn mưa mất cân bằng theo mùa |
 
-- [ ] Đặt các giá trị trên vào `firmware/include/config.h` (`STATION_LAT`, `STATION_LON`, `STATION_ALT_M`) và `.env` của backend.
+- [ ] Đặt các giá trị trên vào `firmware/src/config.py` (`STATION_LAT`, `STATION_LON`, `STATION_ALT_M`) và `.env` của backend.
 - [ ] Đề tài đang triển khai **giữa mùa mưa (tháng 11/2026)**, rất thuận lợi để thu dữ liệu mưa thật. Nên đặt trạm ngoài trời và thu liên tục càng sớm càng tốt.
 - [ ] Vị trí đặt: nơi thoáng, không bị mái che chắn mưa, tránh phản xạ nhiệt từ tường bê tông và máy lạnh. Tấm YL-83 nghiêng 30–45°.
 
@@ -153,20 +164,20 @@ final/
 │   ├── hardware/               # sơ đồ, ảnh lắp ráp
 │   ├── architecture/           # sơ đồ kiến trúc, sequence, MQTT topics
 │   └── report/                 # báo cáo, slide
-├── firmware/                   # PlatformIO project (ESP32, Arduino framework)
-│   ├── platformio.ini
-│   ├── include/
-│   │   ├── config.h            # pin, Wi-Fi, MQTT, ngưỡng mặc định
-│   │   └── gas_model.h         # model edge sinh từ ml/mlcore/export_c.py
-│   └── src/
-│       ├── main.cpp
-│       ├── sensors.cpp/.h
-│       ├── filters.cpp/.h
-│       ├── edge_ai.cpp/.h
-│       ├── alert.cpp/.h
-│       ├── nowcast.cpp/.h
-│       ├── mqtt_client.cpp/.h
-│       └── storage.cpp/.h      # đệm offline SPIFFS/LittleFS
+├── firmware/                   # MicroPython cho ESP32 (chỉ Python)
+│   ├── deploy.py               # biên dịch .mpy (mpy-cross) + chép lên board bằng mpremote; tạo gói OTA
+│   ├── bench_device.py         # chạy trên ESP32: đo thời gian suy luận
+│   ├── src/                    # các file được chép vào thư mục gốc của ESP32
+│   │   ├── boot.py, main.py    # khởi động: dựng phần cứng, luồng mạng + vòng lặp chính
+│   │   ├── config.py           # pin, chu kỳ, ngưỡng mặc định
+│   │   ├── credentials_example.py  # mẫu Wi-Fi/MQTT -> credentials.py (gitignore)
+│   │   ├── compat.py           # ticks/thời gian/khoá chạy được cả MicroPython lẫn CPython (test)
+│   │   ├── filters.py, edge_ai.py, alert.py, nowcast.py   # logic thuần Python (test trên PC)
+│   │   ├── gas_model.py        # model edge sinh từ ml/mlcore/export_micropython.py
+│   │   ├── station.py, payloads.py, storage.py            # điều phối, JSON, đệm offline + cấu hình
+│   │   ├── sensors.py, drivers.py, st7735.py, display.py  # driver cảm biến, màn TFT
+│   │   └── mqtt.py, net.py, ota.py                        # MQTT client tự viết, Wi-Fi/NTP, OTA
+│   └── tests/                  # pytest
 ├── broker/
 │   └── mosquitto/
 │       ├── mosquitto.conf
@@ -191,7 +202,7 @@ final/
 │   │   ├── preprocessing.py, model_selection.py, metrics.py
 │   │   ├── linear.py, smoothing.py, tree.py, ensemble.py
 │   │   ├── anomaly.py, nn.py, optim.py, explain.py
-│   │   └── serialize.py, export_c.py
+│   │   └── serialize.py, export_micropython.py
 │   ├── tests/                  # unit test + gradient check cho mlcore
 │   ├── src/
 │   │   ├── fetch_open_meteo.py
@@ -208,7 +219,7 @@ final/
 ```
 
 - [ ] Khởi tạo cấu trúc thư mục trên.
-- [ ] `git init`, thêm `.gitignore` (bỏ qua `.env`, `__pycache__`, `.pio`, `ml/data/raw`, `ml/models/*.npz`).
+- [ ] `git init`, thêm `.gitignore` (bỏ qua `.env`, `__pycache__`, `firmware/build`, `firmware/src/credentials.py`, `ml/data/raw`, `ml/models/*.npz`).
 
 ---
 
@@ -267,24 +278,26 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 
 ## 6. Firmware ESP32 (Edge)
 
-**Nền tảng:** PlatformIO + Arduino framework (hoặc ESP-IDF). Thư viện: `PubSubClient` hoặc `AsyncMqttClient`, `DHT sensor library`, `Adafruit BMP280`, `BH1750` (claws), `ArduinoJson`, `Adafruit ST7735 and ST7789`, `LittleFS`.
+**Nền tảng:** **MicroPython** (bản ESP32_GENERIC chính thức, nạp bằng `esptool`). Chỉ dùng module có sẵn của
+MicroPython (`machine`, `network`, `dht`, `framebuf`, `ntptime`, `_thread`, `json`, `socket`); driver BMP280, BH1750,
+ST7735 và MQTT client **tự viết bằng Python**. Nạp code bằng `python firmware/deploy.py` (mpremote) hoặc Thonny.
 
 ### 6.1 Nền tảng
-- [ ] Tạo project PlatformIO, cấu hình `platformio.ini` (board `esp32dev`, monitor 115200, partition có LittleFS).
-- [ ] `config.h`: pin, ngưỡng mặc định, chu kỳ đọc. Tách thông tin Wi-Fi/MQTT ra `secrets.h` (đưa vào .gitignore).
+- [ ] Nạp MicroPython lên ESP32, chép `firmware/src/` (biên dịch `.mpy` để tiết kiệm RAM), xem log bằng `mpremote repl` (115200).
+- [ ] `config.py`: pin, ngưỡng mặc định, chu kỳ đọc. Tách thông tin Wi-Fi/MQTT ra `credentials.py` (đưa vào .gitignore).
 - [ ] Kết nối Wi-Fi có tự kết nối lại; (tuỳ chọn) WiFiManager để cấu hình qua captive portal.
 - [ ] Đồng bộ thời gian NTP (`pool.ntp.org`, GMT+7).
-- [ ] Bật watchdog (Task WDT).
-- [ ] Dùng FreeRTOS tasks:
-  - `TaskSensors` (core 1): đọc cảm biến mỗi 1 giây (DHT22 mỗi 2 giây).
-  - `TaskEdgeAI` (core 1): tính feature, chạy rule và model, điều khiển còi/LED.
-  - `TaskNetwork` (core 0): MQTT publish/subscribe, đệm offline.
-  - Giao tiếp giữa các task bằng Queue và Mutex.
+- [ ] Bật watchdog (`machine.WDT`, 30 s).
+- [ ] Hai luồng:
+  - **Luồng chính:** đọc cảm biến mỗi 1 giây (DHT22 mỗi 2 giây), tính feature, chạy rule và model, điều khiển còi/LED,
+    vẽ màn hình. Không phụ thuộc mạng.
+  - **Luồng mạng** (`_thread`): Wi-Fi, NTP, MQTT publish/subscribe, đệm offline, OTA.
+  - Giao tiếp giữa hai luồng bằng hàng đợi có khoá (`_thread.allocate_lock`).
 
 ### 6.2 Đọc và tiền xử lý cảm biến
 - [ ] Driver từng cảm biến, xử lý lỗi (NaN, timeout I2C) và đánh dấu `sensor_ok`.
 - [ ] Lọc median (cửa sổ 5) để loại spike, rồi EWMA (α = 0.2–0.3).
-- [ ] ADC: dùng `analogReadMilliVolts()` (đã hiệu chỉnh), lấy trung bình 16 mẫu.
+- [ ] ADC: dùng `ADC.read_uv()` (đã hiệu chỉnh eFuse), suy giảm 11 dB, lấy trung bình 16 mẫu.
 - [ ] MQ-2: tính `Rs = RL·(Vc − Vout)/Vout`, `Rs/R0` và ppm. Sau khi bật nguồn, đợi warm-up khoảng 60 giây (trạng thái `warming_up`, chưa cảnh báo).
 - [ ] YL-83: ánh xạ ADC sang `rain_level` 0–3. Chỉ cấp nguồn cho module lúc đọc (qua GPIO) để giảm ăn mòn bản mạch.
 - [ ] Tính áp suất quy về mực nước biển (độ cao trạm tại VKU ≈ 5–10 m, xem mục 1.3) để so sánh được với `pressure_msl` của Open-Meteo.
@@ -302,7 +315,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 | 3 | Danger (Nguy hiểm) | > 2000 ppm (≈ 10% LEL của LPG) **hoặc** cấp 2 kèm nhiệt độ tăng nhanh (> 1°C/phút) | LED đỏ sáng liên tục, còi liên tục, relay |
 
 - [ ] **Rule engine:** ngưỡng ppm, rate-of-change, có **hysteresis** (ví dụ phải xuống dưới ngưỡng − 15% mới hạ cấp) và **debounce** (thoả điều kiện N mẫu liên tiếp mới tăng cấp, riêng cấp 3 tăng ngay).
-- [ ] **Model nhẹ** (chạy trên ESP32): Decision Tree, Random Forest nhỏ hoặc Logistic Regression **tự build** trong `ml/mlcore`, huấn luyện ở `ml/src/train_gas_edge.py`, xuất sang C header bằng `mlcore/export_c.py` tự viết. Firmware chỉ cần duyệt mảng node, không dùng thư viện suy luận nào. (Nâng cao: MLP nhỏ tự viết, xuất trọng số thành mảng C, suy luận bằng vòng lặp nhân ma trận.)
+- [ ] **Model nhẹ** (chạy trên ESP32): Decision Tree, Random Forest nhỏ hoặc Logistic Regression **tự build** trong `ml/mlcore`, huấn luyện ở `ml/src/train_gas_edge.py`, xuất sang module MicroPython bằng `mlcore/export_micropython.py` tự viết (mảng node đóng gói `bytes`, hàm `predict_proba()` duyệt cây). Firmware chỉ cần duyệt mảng node, không dùng thư viện suy luận nào. (Nâng cao: MLP nhỏ tự viết, xuất trọng số thành mảng, suy luận bằng vòng lặp nhân ma trận.)
 - [ ] **Hợp nhất (fusion):** `level = max(rule_level, model_level)`. Quy tắc an toàn: model không được phép hạ cấp do rule đưa ra.
 - [ ] Tắt còi 5 phút bằng lệnh `mute` từ dashboard (không có nút vật lý) nhưng vẫn giữ cấp và LED. Nếu cấp tăng thêm thì còi kêu lại.
 - [ ] Publish `alert` mỗi khi cấp thay đổi, kèm `cause`.
@@ -316,8 +329,8 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 
 ### 6.5 Truyền thông và độ tin cậy
 - [ ] Publish telemetry mỗi 5–10 giây (cấu hình được). Khi đang có cảnh báo thì tăng lên 1 giây.
-- [ ] Đệm offline: khi mất MQTT, ghi bản ghi vào LittleFS (vòng đệm khoảng 2000 bản ghi). Khi kết nối lại, gửi bù (có `seq` để chống trùng).
-- [ ] Subscribe `cmd`, `config`, `forecast`. Kiểm tra hợp lệ JSON, áp dụng config, lưu config vào NVS (Preferences) và gửi `ack`.
+- [ ] Đệm offline: khi mất MQTT, ghi bản ghi vào file trên flash (hệ thống file LittleFS của MicroPython, vòng đệm khoảng 2000 bản ghi). Khi kết nối lại, gửi bù (có `seq` để chống trùng).
+- [ ] Subscribe `cmd`, `config`, `forecast`. Kiểm tra hợp lệ JSON, áp dụng config, lưu config vào `/config.json` trên flash và gửi `ack`.
 - [ ] Gửi `status` định kỳ: RSSI, uptime, free heap, phiên bản firmware và model.
 - [ ] (Nâng cao) OTA firmware qua HTTP (`HTTPUpdate`) khi nhận lệnh `cmd: ota`.
 
@@ -382,7 +395,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 
 ## 8. Machine Learning (tự xây dựng từ đầu)
 
-> **Ràng buộc:** Không dùng thư viện ML, deep learning hay thống kê dựng sẵn: scikit-learn, XGBoost, LightGBM, TensorFlow, Keras, PyTorch, statsmodels, Prophet, SHAP, emlearn, micromlgen. Mọi thuật toán (huấn luyện, suy luận, metric, chia dữ liệu, tối ưu, xuất sang C) đều tự cài đặt trong package `ml/mlcore/`.
+> **Ràng buộc:** Không dùng thư viện ML, deep learning hay thống kê dựng sẵn: scikit-learn, XGBoost, LightGBM, TensorFlow, Keras, PyTorch, statsmodels, Prophet, SHAP, emlearn, micromlgen. Mọi thuật toán (huấn luyện, suy luận, metric, chia dữ liệu, tối ưu, xuất mô hình sang MicroPython) đều tự cài đặt trong package `ml/mlcore/`.
 >
 > **Được phép dùng:** NumPy (phép toán mảng/ma trận), pandas (đọc ghi dữ liệu, resample chuỗi thời gian), matplotlib (vẽ hình cho báo cáo), thư viện chuẩn của Python (`json`, `math`, `random`, `pickle`...). Nếu giảng viên cấm cả NumPy, xem mục 8.9.
 
@@ -401,7 +414,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 | `optim.py` | SGD, Momentum, Adam |
 | `explain.py` | Feature importance theo split gain, permutation importance (thay cho SHAP) |
 | `serialize.py` | Lưu và tải model: cây ở dạng JSON, trọng số ở dạng `.npz`, kèm `model_ver` và hash dữ liệu huấn luyện |
-| `export_c.py` | Sinh `gas_model.h` từ cây/rừng: mảng node `const` (feature, threshold, left, right, value) và hàm `predict()` viết bằng C |
+| `export_micropython.py` | Sinh `firmware/src/gas_model.py` từ cây/rừng: mảng node (feature, threshold, left, right, value) đóng gói `bytes` và hàm `predict_proba()` thuần Python |
 
 - [ ] Cài đặt từng module, docstring ghi công thức toán (dùng lại cho chương 2 của báo cáo).
 - [ ] Vector hoá bằng NumPy, tránh vòng lặp Python trên từng mẫu. Cây dùng histogram binning (64–256 bin) để huấn luyện đủ nhanh.
@@ -470,9 +483,9 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 - [ ] Tự build Decision Tree CART (Gini, `max_depth ≤ 6`) hoặc Random Forest nhỏ (≤ 10 cây) trên feature cửa sổ trượt.
 - [ ] Dùng **trọng số lớp** trong Gini (phạt nặng hơn khi bỏ sót cấp 2 và 3) để ưu tiên Recall.
 - [ ] Metric: Precision/Recall/F1 theo từng cấp, ma trận nhầm lẫn. **Ưu tiên Recall** cho cấp ≥ 2.
-- [ ] Xuất sang C bằng `mlcore/export_c.py` thành `firmware/include/gas_model.h`. Tuỳ chọn lượng tử hoá ngưỡng sang số nguyên (ví dụ ppm × 10) để tránh tính toán số thực.
+- [ ] Xuất sang MicroPython bằng `mlcore/export_micropython.py` thành `firmware/src/gas_model.py` (ngưỡng lưu float32 giống số thực trên ESP32).
 - [ ] Đo kích thước model (kB flash), RAM và thời gian suy luận trên ESP32 (µs).
-- [ ] Kiểm tra kết quả trên Python và trên ESP32 khớp nhau (mục 8.2).
+- [ ] Kiểm tra `gas_model.py` (mô phỏng float32) khớp `mlcore` 100 % (mục 8.2); đo thời gian suy luận trên ESP32 bằng `firmware/bench_device.py`.
 - [ ] So sánh 3 phương án: chỉ rule, chỉ model, rule + model (hybrid). Đây là kết quả chính chứng minh giá trị của hybrid.
 
 ### 8.7 Phát hiện bất thường ở cloud
@@ -530,11 +543,11 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 ## 12. Kiểm thử
 
 ### 12.1 Phần mềm
-- [ ] Unit test cho `mlcore` (pytest): dữ liệu đồ chơi có đáp án, gradient check, tính khớp giữa C và Python, `to_dict()`/`from_dict()` khôi phục model cho ra cùng kết quả dự đoán.
+- [ ] Unit test cho `mlcore` (pytest): dữ liệu đồ chơi có đáp án, gradient check, tính khớp giữa module MicroPython sinh ra và `mlcore`, `to_dict()`/`from_dict()` khôi phục model cho ra cùng kết quả dự đoán.
 - [ ] Unit test Python (pytest): validate schema, feature engineering, logic cảnh báo (hysteresis, debounce, leo thang), API.
 - [ ] Integration test: test client MQTT → broker → ingest → DB → API.
 - [ ] Load test: giả lập 20–50 thiết bị, mỗi thiết bị gửi 1 msg/giây, đo độ trễ và CPU.
-- [ ] Unit test firmware (PlatformIO `test/`, Unity) cho filter và rule engine.
+- [ ] Unit test firmware (pytest, `firmware/tests/`) cho filter, rule engine, nowcast, đệm offline, driver BMP280, MQTT client.
 
 ### 12.2 Phần cứng / hệ thống
 - [ ] Đo độ trễ cảnh báo tại edge (từ lúc xả gas đến khi còi kêu) và độ trễ end-to-end (đến Telegram).
@@ -572,8 +585,8 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 | 1 | Mua MQ-2 và linh kiện phụ, test từng cảm biến, I2C scan, dựng cấu trúc repo, Docker Mosquitto | Ảnh test cảm biến, repo |
 | 2 | Firmware: đọc + lọc + MQTT telemetry + NTP + LWT. Burn-in MQ-2 | Thiết bị gửi telemetry ổn định |
 | 3 | Backend: ingest + DB + API cơ bản. **Bắt đầu thu dữ liệu 24/7.** Tải dữ liệu Open-Meteo. `mlcore` phần nền tảng: preprocessing, model_selection, metrics, linear + unit test | Dữ liệu vào DB, `/docs` chạy, test `mlcore` pass |
-| 4 | Hiệu chuẩn MQ-2 và YL-83. Rule engine đa cấp + còi/LED/nút. Đệm offline. `mlcore`: CART, Random Forest, `export_c.py` | Cảnh báo edge hoạt động, cây xuất được sang C |
-| 5 | Thu dữ liệu khí có gán nhãn. Huấn luyện model edge bằng `mlcore`, xuất C, nhúng vào firmware, kiểm tra khớp C/Python | `gas_model.h`, bảng so sánh rule/model/hybrid |
+| 4 | Hiệu chuẩn MQ-2 và YL-83. Rule engine đa cấp + còi/LED/nút. Đệm offline. `mlcore`: CART, Random Forest, `export_micropython.py` | Cảnh báo edge hoạt động, cây xuất được sang MicroPython |
+| 5 | Thu dữ liệu khí có gán nhãn. Huấn luyện model edge bằng `mlcore`, xuất MicroPython, nạp vào ESP32, kiểm tra khớp | `gas_model.py`, bảng so sánh rule/model/hybrid |
 | 6 | EDA và feature. Tự build Holt-Winters và Gradient Boosting (MSE, log-loss). Huấn luyện baseline + GBDT trên Open-Meteo | Notebook, bảng metric |
 | 7 | Isolation Forest + CUSUM. (Nâng cao) GRU/LSTM bằng NumPy + gradient check. Fine-tune bằng dữ liệu trạm, chọn model. Forecast service + publish `forecast` | Dự báo chạy tự động |
 | 8 | Dashboard + Telegram + alert service (leo thang, ack). Nowcast edge + màn TFT | Hệ thống end-to-end |

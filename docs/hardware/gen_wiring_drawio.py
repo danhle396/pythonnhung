@@ -1,10 +1,10 @@
 """Sinh sơ đồ đấu dây docs/hardware/wiring.drawio (2 trang) — mở bằng draw.io / diagrams.net.
 
     python docs/hardware/gen_wiring_drawio.py
-    cd tools/slides && node ../render_drawio.js ../../docs/hardware/wiring.drawio   # → wiring-1.png, wiring-2.png
+    python tools/render_drawio.py docs/hardware/wiring.drawio   # → wiring-1.png, wiring-2.png
 
 Kiểu vẽ: hàng chân ESP32 ở trên, mỗi chân là một "thanh dọc" màu; linh kiện xếp bên phải, dây ngang từ thanh tới chân
-linh kiện. Chấm tròn = nối; vòng cung = dây cắt qua, KHÔNG nối. Chân lấy theo firmware/include/config.h —
+linh kiện. Chấm tròn = nối; vòng cung = dây cắt qua, KHÔNG nối. Chân lấy theo firmware/src/config.py —
 đổi chân thì sửa cả hai nơi.
 """
 from __future__ import annotations
@@ -182,10 +182,10 @@ p2.comp(f"<b>TFT 1.8\" ST7735S</b> 128×160 · SPI<br>Màn hình màu tại ch�
 p2.legend([(P3V3, "3,3 V", False), (GND, "GND", False), ("#6D4C41", "Còi", False), ("#2E9D47", "LED xanh", False),
            ("#E53935", "LED đỏ", False)])
 p2.box(40, p2.height - 20, 1300, 26, "Không dùng LED vàng, transistor S8050, relay, nút tắt còi "
-       "(GPIO27, GPIO23, GPIO13 để trống; firmware: HAS_LED_YELLOW 0, HAS_RELAY 0). Tắt còi: lệnh mute trên dashboard.",
+       "(GPIO27, GPIO23, GPIO13 để trống; firmware: HAS_LED_YELLOW = False, HAS_RELAY = False). Tắt còi: lệnh mute trên dashboard.",
        f"text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor={GREY};")
-p2.box(40, p2.height + 6, 1300, 26, "TFT: SPI bus HSPI qua GPIO matrix (firmware: PIN_TFT_* trong config.h); GPIO12 được core "
-       "gán làm MISO ảo — không nối gì vào GPIO12 (D12). Trên DevKit V1: GPIO16 in là RX2, GPIO17 in là TX2.",
+p2.box(40, p2.height + 6, 1300, 26, "TFT: SPI(1) = HSPI, chỉ ghi (firmware: PIN_TFT_* trong config.py); MicroPython gán GPIO12 làm MISO mặc định "
+       "(chỉ là chân vào) — không nối gì vào GPIO12 (D12). Trên DevKit V1: GPIO16 in là RX2, GPIO17 in là TX2.",
        f"text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor={GREY};")
 p2.height += 56
 

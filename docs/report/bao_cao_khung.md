@@ -9,7 +9,7 @@
 1.1 Bối cảnh: khí hậu Đà Nẵng (mùa mưa 9–12, bão, độ ẩm ~80 %; số liệu: tỉ lệ giờ có mưa theo tháng 2021–2025
     trong `ml/data/external/vku_hourly_2021_2025.csv`: tháng 10–12 ≈ 56–66 %), tai nạn cháy nổ gas gia đình ✍.
 1.2 Mục tiêu (task.md §1.1) và KPI (§1.2). 1.3 Phạm vi: nguyên mẫu học thuật, 1 trạm tại VKU (15.975°N, 108.253°E).
-1.4 Đóng góp: (a) AI lai edge–cloud; (b) thư viện ML tự xây dựng `mlcore`; (c) quy trình xuất model sang C kiểm chứng
+1.4 Đóng góp: (a) AI lai edge–cloud; (b) thư viện ML tự xây dựng `mlcore`; (c) quy trình xuất model sang MicroPython kiểm chứng
     khớp 100 %; (d) đánh giá Rule / Model / Hybrid.
 
 ## Chương 2 — Cơ sở lý thuyết
@@ -29,22 +29,23 @@
 | SGD / Momentum / Adam | `ml/mlcore/optim.py` |
 | MAE/RMSE/MAPE/R², P/R/F1, ROC-AUC Mann–Whitney, Brier | `ml/mlcore/metrics.py` |
 | Permutation importance | `ml/mlcore/explain.py` |
-| Zambretti | `firmware/src/nowcast.cpp` |
+| Zambretti | `firmware/src/nowcast.py` |
 2.5 Công trình liên quan ✍ (TinyML, dự báo thời tiết bằng GBDT/LSTM, cảnh báo gas IoT).
 
 ## Chương 3 — Thiết kế hệ thống
-3.1 Kiến trúc: `docs/architecture/system_block_diagram.drawio`, task.md §3. 3.2 Phần cứng & sơ đồ chân: task.md §2,
-    `firmware/include/config.h` ⚙ ảnh lắp ráp, sơ đồ Fritzing/KiCad. 3.3 MQTT: `docs/architecture/mqtt.md`.
-3.4 CSDL (ERD): `backend/app/db/models.py` (devices, telemetry-hypertable, alerts, forecasts, nowcasts, device_configs,
+3.1 Kiến trúc: sơ đồ Input – Xử lý – Output + `docs/architecture/system_block_diagram.drawio`, task.md §3.
+3.2 Phân rã IPO 6 phân hệ + vòng phản hồi: `docs/architecture/ipo.md`. 3.3 Phần cứng & sơ đồ chân: task.md §2,
+    `firmware/src/config.py` ⚙ ảnh lắp ráp, sơ đồ Fritzing/KiCad. 3.4 MQTT: `docs/architecture/mqtt.md`.
+3.5 CSDL (ERD): `backend/app/db/models.py` (devices, telemetry-hypertable, alerts, forecasts, nowcasts, device_configs,
     commands, model_registry, notifications); continuous aggregate 1m/10m/1h, retention 90 ngày (`migrations/versions/0001_initial.py`).
-3.5 Sơ đồ tuần tự cảnh báo / dự báo / cấu hình: `docs/architecture/sequences.md`.
-3.6 Cấp cảnh báo, hysteresis, debounce, quy tắc fusion `level = max(rule, model)`.
+3.6 Sơ đồ tuần tự cảnh báo / dự báo / cấu hình: `docs/architecture/sequences.md`.
+3.7 Cấp cảnh báo, hysteresis, debounce, quy tắc fusion `level = max(rule, model)`.
 
 ## Chương 4 — Hiện thực
-4.1 Firmware: FreeRTOS 3 task, WDT, đệm offline, màn TFT ST7735 (`firmware/src/*`). Build: RAM 15.2 %, Flash 48.3 %.
+4.1 Firmware MicroPython: 2 luồng, WDT, đệm offline, driver tự viết, màn TFT ST7735 (`firmware/src/*.py`), 35 test pytest.
 4.2 Thư viện `mlcore`: giao diện chung `fit/predict/predict_proba/to_dict/from_dict`, vector hoá NumPy, histogram
     binning + trừ histogram; kiểm chứng: 41 test (dữ liệu đồ chơi, gradient check < 1e-5, round-trip).
-4.3 Xuất model sang C: `ml/mlcore/export_c.py` → `firmware/include/gas_model.h`; kiểm chứng g++ và Unity (`firmware/test/test_gas_model`) 0 lệch.
+4.3 Xuất model sang MicroPython: `ml/mlcore/export_micropython.py` → `firmware/src/gas_model.py`; kiểm chứng khớp mlcore 0 lệch + mpy-cross.
 4.4 Backend: ingest, alert service (leo thang, Isolation Forest, offline, nhắc lại), forecast service (bias correction), API + JWT.
 4.5 Dashboard ✍ ảnh chụp 6 trang (`streamlit run dashboard/app.py`). 4.6 Triển khai Docker (`docker-compose.yml`).
 
@@ -56,7 +57,7 @@
 5.3 Bất thường ở cloud: ⚙ chờ vài tuần telemetry trạm (`train_anomaly --data` sinh `docs/report/results_anomaly.md`).
 5.4 Hiệu năng hệ thống: `docs/report/results_load_20.md`, `results_load_50.md` (mất gói 0 %, P95 broker ≈ 2 ms);
     ⚙ Độ trễ cảm biến → thông báo, độ trễ edge thật (xả gas → còi), end-to-end tới Telegram P50/P95.
-5.5 Tài nguyên edge ⚙: flash/RAM (đã có), thời gian suy luận trên ESP32 (`pio test -e esp32dev -f test_gas_model`), công suất.
+5.5 Tài nguyên edge ⚙: RAM trống (gc.mem_free), thời gian suy luận trên ESP32 (`firmware/bench_device.py`), công suất.
 5.6 Độ bền ⚙: chạy 72 h (heap, reconnect, WDT reset từ topic status), test mất Wi-Fi / mất broker, so sánh trạm với Open-Meteo.
 
 ## Chương 6 — Kết luận và hướng phát triển

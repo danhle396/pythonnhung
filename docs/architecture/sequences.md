@@ -6,7 +6,7 @@
 sequenceDiagram
     autonumber
     participant S as MQ-2 + cảm biến
-    participant E as ESP32 (TaskEdgeAI)
+    participant E as ESP32 (MicroPython)
     participant A as Còi/LED
     participant B as Mosquitto
     participant I as Backend ingest
@@ -16,12 +16,12 @@ sequenceDiagram
 
     S->>E: mẫu 1 Hz (ADC, T, H, lux)
     E->>E: median-5 + EWMA → feature cửa sổ 10–60 s
-    E->>E: rule (hysteresis, debounce) ∥ cây quyết định (gas_model.h)
+    E->>E: rule (hysteresis, debounce) ∥ cây quyết định (gas_model.py)
     E->>E: level = max(rule, model)
     E->>A: đổi LED/còi (< 1 s, không cần mạng)
     E->>B: alert {level, cause, seq}
     alt mất mạng
-        E->>E: ghi đệm LittleFS, gửi bù khi kết nối lại
+        E->>E: ghi đệm offline trên flash, gửi bù khi kết nối lại
     end
     B->>I: alert
     I->>AS: on_edge_alert (lưu DB, chống trùng)
@@ -89,7 +89,7 @@ sequenceDiagram
     API->>API: validate (th1 < th2 < th3), version += 1, lưu device_configs
     API->>B: config (retain, QoS 1)
     B->>E: config
-    E->>E: kiểm tra dải, áp dụng, lưu NVS
+    E->>E: kiểm tra dải, áp dụng, lưu /config.json
     E->>B: ack {ref: config, ok}
     B->>API: ack → device_configs.acked = true
 ```

@@ -1,22 +1,93 @@
 # Sơ đồ kiến trúc và CSDL
 
-Ảnh PNG sinh bằng `node tools/render_mermaid.js` → `docs/report/figures/diagrams/`.
+Ảnh PNG sinh bằng `python tools/render_mermaid.py` → `docs/report/figures/diagrams/`.
+
+## Sơ đồ hệ thống Input – Xử lý – Output
+
+```mermaid
+flowchart TB
+    subgraph IN["① INPUT — ĐẦU VÀO"]
+        direction LR
+        I1["<b>DHT22</b><br/>nhiệt độ, độ ẩm"]
+        I2["<b>BMP280</b><br/>áp suất"]
+        I3["<b>BH1750</b><br/>ánh sáng (lux)"]
+        I4["<b>YL-83</b><br/>mưa (AO + DO)"]
+        I5["<b>MQ-2</b><br/>khí gas / khói"]
+        I6["<b>Open-Meteo API</b><br/>lịch sử · 4 ngày gần nhất"]
+        I7["<b>Người dùng</b><br/>lệnh · cấu hình · ack"]
+        I1 ~~~ I2 ~~~ I3 ~~~ I4 ~~~ I5 ~~~ I6 ~~~ I7
+    end
+
+    subgraph PROC["② XỬ LÝ"]
+        direction LR
+        subgraph EDGE["Edge — ESP32 · MicroPython (1 Hz, cả khi mất mạng)"]
+            direction TB
+            P1["Tiền xử lý<br/>median-5 + EWMA<br/>Rs/R0 → ppm · kiểm tra lỗi"]
+            P2["Trích 10 feature<br/>cửa sổ 10–60 s"]
+            P3["Phân cấp khí/khói 0–3<br/>rule + hysteresis + debounce<br/>max(rule, model cây)"]
+            P4["Nowcast Zambretti<br/>xu hướng áp suất 3 h"]
+            P1 --> P2 --> P3
+            P1 --> P4
+        end
+        MQ(["MQTT · Mosquitto<br/>seq + đệm offline"])
+        subgraph CLOUD["Cloud — Docker Compose"]
+            direction TB
+            C1["Ingest<br/>validate · chống trùng<br/>lưu TimescaleDB"]
+            C2["Alert service<br/>xác nhận · leo thang<br/>offline/LWT · nhắc lại"]
+            C3["Forecast service<br/>bias correction + GBDT<br/>1/3/6 h · KTC 95 %"]
+            C4["REST API + JWT<br/>WebSocket"]
+            C1 --> C2
+            C1 --> C3
+            C1 --> C4
+        end
+        EDGE <== "→ telemetry · alert · nowcast<br/>← cmd · config · forecast" ==> MQ
+        MQ <==> CLOUD
+    end
+
+    subgraph OUT["③ OUTPUT — ĐẦU RA"]
+        direction LR
+        O1["<b>LED xanh/đỏ · còi</b><br/>cảnh báo tại chỗ < 1 s"]
+        O2["<b>Màn TFT 1.8&quot;</b><br/>số đo · cấp · dự báo"]
+        O3["<b>Dashboard · Grafana</b><br/>biểu đồ · dự báo · cảnh báo"]
+        O4["<b>Telegram · Email</b><br/>thông báo theo cấp"]
+        O5["<b>Dữ liệu</b><br/>CSDL · CSV · REST API"]
+        O1 ~~~ O2 ~~~ O3 ~~~ O4 ~~~ O5
+    end
+
+    IN ==> PROC ==> OUT
+
+    classDef inp fill:#FFF4E0,stroke:#D79B00,color:#222
+    classDef edge fill:#E8F5E1,stroke:#5C9E45,color:#222
+    classDef cloud fill:#E3EEFB,stroke:#4F7FBF,color:#222
+    classDef out fill:#F1E8F6,stroke:#8E63A8,color:#222
+    classDef bus fill:#FFFFFF,stroke:#D79B00,stroke-width:2px,color:#222
+    class I1,I2,I3,I4,I5,I6,I7 inp
+    class P1,P2,P3,P4 edge
+    class C1,C2,C3,C4 cloud
+    class O1,O2,O3,O4,O5 out
+    class MQ bus
+    style IN fill:#FFFBF3,stroke:#D79B00,stroke-width:2px
+    style PROC fill:#FAFAFA,stroke:#666,stroke-width:2px
+    style EDGE fill:#F6FBF4,stroke:#82B366
+    style CLOUD fill:#F5F9FF,stroke:#6C8EBF
+    style OUT fill:#FCF8FD,stroke:#9673A6,stroke-width:2px
+```
 
 ## Kiến trúc tổng thể (AI lai edge–cloud)
 
 ```mermaid
 flowchart TB
-    subgraph EDGE["Trạm ESP32 (edge, chạy cả khi mất mạng)"]
+    subgraph EDGE["Trạm ESP32 + MicroPython (edge, chạy cả khi mất mạng)"]
         direction LR
         SEN["DHT22 · BMP280 · BH1750<br/>YL-83 · MQ-2"] --> FIL["Lọc median-5 + EWMA<br/>Rs/R0 → ppm"]
         FIL --> FEAT["10 feature<br/>cửa sổ 10–60 s"]
         FEAT --> RULE["Rule 4 cấp<br/>hysteresis + debounce"]
-        FEAT --> TREE["Model cây gas_model.h<br/>(khi có dữ liệu đo thật)"]
+        FEAT --> TREE["Model cây gas_model.py<br/>(khi có dữ liệu đo thật)"]
         RULE --> FUS{"max(rule, model)"}
         TREE --> FUS
         FUS --> ACT["LED xanh/đỏ · còi · TFT"]
         FIL --> ZAM["Nowcast Zambretti"]
-        FUS --> TX["MQTT client<br/>seq + đệm LittleFS"]
+        FUS --> TX["MQTT client tự viết<br/>seq + đệm offline trên flash"]
         ZAM --> TX
     end
     TX <== "telemetry · alert · status · nowcast ⇅ cmd · config · forecast" ==> MQ(["Mosquitto 2<br/>auth + ACL · LWT · retain"])
