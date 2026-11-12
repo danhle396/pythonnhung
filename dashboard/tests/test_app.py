@@ -1,4 +1,5 @@
-"""Smoke test dashboard: render 6 trang với API giả (fixture kiểm thử api_fixture.json — không phải số liệu đo).
+"""Smoke test dashboard: render 6 trang, thay API bằng phản hồi đã chụp từ backend chạy với trạm thật
+(api_fixture.json, sinh lại bằng `python dashboard/tests/capture_fixture.py`).
 
     python -m pytest -q dashboard/tests
 """
@@ -14,12 +15,7 @@ st_testing = pytest.importorskip("streamlit.testing.v1")
 
 HERE = Path(__file__).resolve().parent
 APP = str(HERE.parent / "app.py")
-FIX = json.loads((HERE / "api_fixture.json").read_text(encoding="utf-8"))
-FIX.setdefault("/api/nowcast/station01", [])
-if not FIX["/api/nowcast/station01"]:
-    FIX["/api/nowcast/station01"] = [{"device_id": "station01", "ts": "2026-11-10T15:50:00+00:00", "code": 3,
-                                      "text": "Khá đẹp, có thể mưa rào", "trend": 0, "trend_3h": -0.4,
-                                      "zambretti": "E"}]
+FIX = json.loads((HERE / "api_fixture.json").read_text(encoding="utf-8"))  # chụp từ trạm thật: capture_fixture.py
 PAGES = ["overview", "charts", "forecast", "alerts", "device", "models"]
 
 
@@ -72,6 +68,21 @@ def test_page_renders_without_exception(page):
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert at.sidebar.radio[0].value == ["Tổng quan", "Biểu đồ", "Dự báo", "Cảnh báo", "Thiết bị", "Mô hình"][PAGES.index(page)]
+
+
+def test_overview_shows_sensor_status():
+    """Trang Tổng quan có khung tình trạng từng cảm biến; cảm biến lỗi không hiện con số."""
+    at = st_testing.AppTest.from_file(APP, default_timeout=60)
+    at.query_params["page"] = "overview"
+    at.run()
+    assert any(s.value == "Tình trạng cảm biến" for s in at.subheader)
+    html = " ".join(m.value for m in at.markdown)
+    for s in FIX["/api/sensors/station01"]["sensors"]:
+        assert s["name"] in html
+    bad = [s for s in FIX["/api/sensors/station01"]["sensors"] if s["status"] == "error"]
+    if bad:
+        assert any("Cảm biến đang lỗi" in e.value for e in at.error)
+        assert any(m.value == "⚠ Lỗi" for m in at.metric)
 
 
 def test_ack_and_config_submit():

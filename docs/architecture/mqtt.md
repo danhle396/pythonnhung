@@ -11,7 +11,7 @@ Broker: Mosquitto 2.x (`broker/mosquitto/`). Xác thực username/password, ACL 
 | `…/alert` | Edge → Cloud | 0* | ❌ | khi đổi cấp / lỗi cảm biến | Sự kiện cảnh báo khí/khói, `sensor_fault` |
 | `…/nowcast` | Edge → Cloud | 0 | ✅ | 10 phút | Nowcast Zambretti tại edge |
 | `…/status` | Edge → Cloud | 1 (LWT) | ✅ | 60 s + khi kết nối | `online` + RSSI, uptime, heap; LWT `{"state":"offline"}` |
-| `…/forecast` | Cloud → Edge | 1 | ✅ | 10 phút | Dự báo 1h/3h/6h + `summary` ASCII cho OLED |
+| `…/forecast` | Cloud → Edge | 1 | ✅ | 10 phút | Dự báo 1h/3h/6h + `summary` ASCII cho màn TFT |
 | `…/cmd` | Cloud → Edge | 1 | ❌ | theo yêu cầu | `mute`, `test_alarm`, `calibrate`, `reboot`, `escalate` |
 | `…/config` | Cloud → Edge | 1 | ✅ | khi đổi | Ngưỡng, chu kỳ, chế độ edge, R0, `version` |
 | `…/ack` | Edge → Cloud | 0* | ❌ | sau cmd/config | Xác nhận đã nhận/áp dụng |

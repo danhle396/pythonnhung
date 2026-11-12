@@ -35,3 +35,4 @@ backend/*.db-*
 Thumbs.db
 docs/architecture/*.bkp
 docs/architecture/.$*
+*.bkp

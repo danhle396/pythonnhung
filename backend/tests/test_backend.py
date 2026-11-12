@@ -71,11 +71,64 @@ def test_ingest_invalid_json_and_status(app_client):
     assert a[0]["type"] == "device_offline"
 
 
+def test_sensor_health_reports_each_sensor(app_client):
+    r = rt()
+    ok = {"dht": True, "bmp": True, "bh": True, "rain": True, "gas": True}
+    t0 = now_ts() - 50
+    rows = []
+    for i in range(5):
+        flags = dict(ok, gas=i < 3, bh=i != 1)  # MQ-2 lỗi từ mẫu 3; BH1750 lỗi 1 lần
+        kw = {"sensor_ok": flags, "gas_raw": 142}
+        if i == 4:
+            kw["temp_dht"] = None  # DHT22 mất dữ liệu ở mẫu mới nhất
+        rows.append(r.mqtt.handle("vku/aiot/station01/telemetry", tel(100 + i, t0 + i * 10, **kw)))
+    r.mqtt.flush(rows)
+    h = app_client.get("/api/sensors/station01").json()
+    st = {s["sensor"]: s for s in h["sensors"]}
+    assert h["online"] is True
+    assert st["dht"]["status"] == "error" and "Mất dữ liệu" in st["dht"]["message"]
+    assert st["gas"]["status"] == "error" and "142 mV" in st["gas"]["message"]
+    assert st["bh"]["status"] == "warn" and "1/5" in st["bh"]["message"]
+    assert st["bmp"]["status"] == st["rain"]["status"] == "ok"
+    assert st["gas"]["last_ok"] is not None  # biết lần cuối MQ-2 còn tốt
+    assert app_client.get("/api/sensors/khongco").json()["sensors"][0]["status"] == "unknown"
+
+
+def test_unsynced_device_time_replaced_by_server_time(app_client):
+    """ESP32 chưa có NTP gửi ts = giây từ lúc bật -> dùng giờ server, không lưu thành năm 1970."""
+    m = rt().mqtt
+    before = int(time.time())
+    row = m.handle("vku/aiot/station01/telemetry", tel(7, ts=74))
+    assert row is not None and int(row["ts"].timestamp()) >= before
+    assert row["extra"]["ts_server"] is True
+
+
+def test_empty_payload_is_retained_clear_not_status(app_client):
+    """Bản tin rỗng = xoá retained trên broker: không được tạo thiết bị / đếm là invalid."""
+    m = rt().mqtt
+    invalid = m.stats["invalid"]
+    for kind in ("status", "nowcast", "telemetry", "forecast"):
+        m.handle(f"vku/aiot/ghost99/{kind}", b"")
+    assert app_client.get("/api/devices/ghost99").status_code == 404
+    assert m.stats["invalid"] == invalid
+
+
 # ------------------------------------------------------------------ alerts
 def alert_payload(level, prev, seq, ppm=1200.0):
     return json.dumps({"device_id": "station01", "ts": now_ts(), "seq": seq, "type": "gas", "level": level,
                        "prev_level": prev, "cause": ["gas_ppm>1000"], "gas_ppm": ppm, "score": 0.9,
                        "action": ["buzzer_intermittent"]}).encode()
+
+
+def test_test_alarm_not_notified_or_reminded(app_client):
+    """Thử còi (type test, cấp 3) là thao tác của người dùng: không gửi Telegram/Email, không nhắc lại."""
+    r = rt()
+    p = json.loads(alert_payload(3, 0, 900))
+    p.update(type="test", cause=["test_alarm"])
+    r.mqtt.handle("vku/aiot/station01/alert", json.dumps(p).encode())
+    a = app_client.get("/api/alerts", params={"device_id": "station01"}).json()[0]
+    assert a["type"] == "test" and a["notify_count"] == 0
+    assert r.alerts.reminders() == 0
 
 
 def test_notification_policy_and_cooldown(app_client):
@@ -152,6 +205,20 @@ def test_offline_detection(app_client):
         d.status, d.last_seen = "online", dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=120)
     assert rt().alerts.check_offline() == ["station01"]
     assert app_client.get("/api/devices/station01").json()["status"] == "offline"
+
+
+def test_delete_device_removes_all_its_data(app_client, token):
+    r = rt()
+    rows = [r.mqtt.handle("vku/aiot/loadtest000/telemetry", tel(i, device_id="loadtest000")) for i in range(1, 4)]
+    r.mqtt.flush([x for x in rows if x])
+    r.mqtt.flush([r.mqtt.handle("vku/aiot/station01/telemetry", tel(1))])
+    assert app_client.delete("/api/devices/loadtest000").status_code == 401
+    res = app_client.delete("/api/devices/loadtest000", headers=token).json()
+    assert res["deleted"]["telemetry"] == 3 and res["deleted"]["device"] == 1
+    assert app_client.get("/api/devices/loadtest000").status_code == 404
+    assert app_client.get("/api/telemetry", params={"device_id": "loadtest000"}).json() == []
+    assert len(app_client.get("/api/telemetry", params={"device_id": "station01"}).json()) == 1  # trạm thật còn nguyên
+    assert ("vku/aiot/loadtest000/forecast", {}, True) in r.publisher.published  # xoá retained
 
 
 # ------------------------------------------------------------------ config & cmd

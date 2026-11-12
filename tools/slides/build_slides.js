@@ -112,7 +112,7 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   const s = slide('Mục tiêu và KPI', 'Mở đầu');
   const goals = [
     ['Trạm 5 cảm biến', 'DHT22, BMP280, BH1750, YL-83, MQ-2 gửi MQTT ổn định ≥ 72 h'],
-    ['Cảnh báo 4 cấp', 'Tại edge: hysteresis, debounce, chạy khi mất mạng, nút tắt còi'],
+    ['Cảnh báo 4 cấp', 'Tại edge: hysteresis, debounce, chạy khi mất mạng, tắt còi từ dashboard'],
     ['Dự báo 1 / 3 / 6 giờ', 'Nhiệt, ẩm, áp suất, mưa — vượt baseline persistence'],
     ['Cloud + dashboard', 'Lưu trữ, leo thang, Telegram/Email, cấu hình từ xa'],
   ];
@@ -139,7 +139,7 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   card(s, M, 1.4, 4.6, 5.1, C.mist, 'edge');
   text(s, 'EDGE — ESP32', {x: M + 0.25, y: 1.55, w: 4, h: 0.4, fontFace: HEAD, fontSize: 16, bold: true, color: C.deep});
   const eb = ['5 cảm biến · lọc median + EWMA', '10 feature cửa sổ 10–60 s', 'Rule 4 cấp (+ RF khi có dữ liệu thật)',
-    'level = max(rule, model)', 'LED xanh/đỏ · còi · OLED', 'Đệm offline LittleFS · seq'];
+    'level = max(rule, model)', 'LED xanh/đỏ · còi · TFT', 'Đệm offline LittleFS · seq'];
   eb.forEach((t, i) => {
     s.addShape(pres.shapes.ROUNDED_RECTANGLE, {x: M + 0.25, y: 2.05 + i * 0.7, w: 4.1, h: 0.56, rectRadius: 0.08,
       fill: {color: i === 3 ? C.amber : C.paper}, line: {color: C.light}});
@@ -173,16 +173,16 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
 {
   const s = slide('Phần cứng và giao thức MQTT', 'Thiết kế');
   const rows = [[th('Linh kiện'), th('Chân ESP32'), th('Ghi chú')],
-    ['BMP280 · BH1750 · OLED', 'I²C 21/22', '0x76 · 0x23 · 0x3C'],
+    ['BMP280 · BH1750', 'I²C 21/22', '0x76 · 0x23'],
+    ['TFT 1.8" ST7735', 'SPI 5 · 16 · 17 · 19', 'CS·A0·SDA·SCK'],
     ['DHT22', 'GPIO 4', 'chu kỳ 2 s'],
     ['YL-83', 'AO 34 · nguồn 18', 'cấp nguồn khi đọc'],
     ['MQ-2', 'AO 32 · DO 33', 'phân áp 10k/20k'],
-    ['Còi active', '25', 'nối thẳng GPIO'], ['LED xanh · đỏ', '26 · 14', '220 Ω'],
-    ['Nút tắt còi', '13', 'mute 5 phút']];
+    ['Còi active 2 chân', '25', 'nối thẳng GPIO'], ['LED xanh · đỏ', '26 · 14', '220 Ω']];
   s.addTable(rows, tableOpts(M, 1.45, 6.2, [2.4, 1.9, 1.9], 0.52));
   const r2 = [[th('Topic vku/aiot/{id}/…'), th('QoS'), th('Retain')],
     ['telemetry (10 s, 1 s khi cảnh báo)', '0', ''], ['alert · nowcast', '0', 'nowcast'], ['status (LWT offline)', '0', '✔'],
-    ['cmd (mute, calibrate, ota…)', '1', ''], ['config (có phiên bản + ack)', '1', '✔'], ['forecast → OLED', '1', '✔']];
+    ['cmd (mute, calibrate, ota…)', '1', ''], ['config (có phiên bản + ack)', '1', '✔'], ['forecast → TFT', '1', '✔']];
   s.addTable(r2, tableOpts(M + 6.6, 1.45, W - 2 * M - 6.6, [3.6, 0.8, 1.13], 0.52));
   card(s, M, 5.45, W - 2 * M, 1.1, 'FFF4E0');
   text(s, 'PubSubClient chỉ publish QoS 0 → tin cậy ở tầng ứng dụng: số thứ tự seq + đệm offline LittleFS 2 000 bản ghi + '
@@ -295,12 +295,12 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
   text(s, 'Forecast service (10 phút)', {x: x2 + 0.3, y: 1.6, w: 6, h: 0.4, fontFace: HEAD, fontSize: 18, bold: true, color: C.deep});
   bullets(s, ['Pretrain trên 5 năm Open-Meteo tại VKU', 'Bias correction trạm → Open-Meteo (Ridge; chỉ hiệu chỉnh độ lệch khi tương quan kém)',
     'Dự phòng: dữ liệu trạm → Open-Meteo 4 ngày → persistence', 'Khoảng tin cậy 95 %: ŷ ± 1,96 · RMSE_test',
-    'Publish forecast (retain) → OLED; tin tóm tắt 6 giờ sáng'], {x: x2 + 0.3, y: 2.15, w: W - M - x2 - 0.6, h: 2.75, fontSize: 15});
+    'Publish forecast (retain) → màn TFT; tin tóm tắt 6 giờ sáng'], {x: x2 + 0.3, y: 2.15, w: W - M - x2 - 0.6, h: 2.75, fontSize: 15});
   stat(s, M, 5.1, 2.9, '43 824', 'giờ dữ liệu Open-Meteo 2021–2025');
   stat(s, M + 3.1, 5.1, 2.9, '12', 'dự báo mỗi lượt (4 biến × 3 tầm)');
   stat(s, M + 6.2, 5.1, 2.9, '0,2 s', 'thời gian một lượt dự báo trong Docker');
   stat(s, M + 9.3, 5.1, 2.9, '15', 'test backend, gồm integration MQTT');
-  s.addNotes('FastAPI + SQLAlchemy 2 + APScheduler. 15 test backend gồm integration test với Mosquitto thật.');
+  s.addNotes('FastAPI + SQLAlchemy 2 + APScheduler. 20 test backend gồm integration test với Mosquitto thật.');
 }
 
 // =============================================================== 11. Dashboard
@@ -318,7 +318,7 @@ const th = t => ({text: t, options: {bold: true, color: C.paper, fill: {color: C
     text(s, d, {x: x + 0.25, y: y + 0.65, w: cw - 0.5, h: 0.85, fontSize: 14});
   });
   card(s, M, 5.35, W - 2 * M, 1.1);
-  text(s, 'Streamlit 6 trang, JWT, WebSocket realtime · Grafana provision sẵn đọc TimescaleDB · 7 smoke test dashboard',
+  text(s, 'Streamlit 6 trang, JWT, WebSocket realtime · Grafana provision sẵn đọc TimescaleDB · 8 smoke test dashboard',
     {x: M + 0.25, y: 5.35, w: W - 2 * M - 0.5, h: 1.1, fontSize: 15, valign: 'middle'});
   s.addNotes('Demo trực tiếp dashboard với dữ liệu từ trạm thật.');
 }

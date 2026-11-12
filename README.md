@@ -10,7 +10,7 @@ chạy cả khi mất mạng) → MQTT → backend Python dự báo thời tiế
 > ⚠ Nguyên mẫu học thuật — không thay thế thiết bị báo cháy/báo gas đã được chứng nhận.
 
 ```
-firmware/   ESP32 (PlatformIO): cảm biến, edge AI, cảnh báo, nowcast, MQTT, đệm offline, OLED
+firmware/   ESP32 (PlatformIO): cảm biến, edge AI, cảnh báo, nowcast, MQTT, đệm offline, màn TFT ST7735
 ml/         mlcore (CART, RF, GBDT, Logistic/Ridge, Holt-Winters, Isolation Forest, CUSUM, MLP/GRU, xuất C) + pipeline
 backend/    FastAPI + SQLAlchemy + MQTT ingest + alert/forecast service + Telegram
 dashboard/  Streamlit (6 trang) + smoke test · grafana/  dashboard Grafana provision sẵn (tuỳ chọn)

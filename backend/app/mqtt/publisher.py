@@ -28,6 +28,14 @@ class Publisher:
         info = self.client.publish(t, json.dumps(payload, ensure_ascii=False), qos=qos, retain=retain)
         return info.rc == 0
 
+    def clear_retained(self, device_id: str, suffixes=("forecast", "config", "status", "nowcast")):
+        """Xoá bản tin retained của thiết bị trên broker (gửi payload rỗng có cờ retain)."""
+        for s in suffixes:
+            t = self.topic(device_id, s)
+            self.published.append((t, {}, True))
+            if self.client is not None:
+                self.client.publish(t, b"", qos=1, retain=True)
+
     def cmd(self, device_id: str, cmd: str, **kw) -> str:
         cid = str(uuid.uuid4())
         self.publish(device_id, "cmd", {"cmd": cmd, "id": cid, **kw}, retain=False, qos=1)

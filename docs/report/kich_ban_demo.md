@@ -10,7 +10,7 @@ docker compose up -d --build                 # hoặc chạy backend + mosquitto
 # Telegram: điền TELEGRAM_TOKEN, TELEGRAM_CHAT_ID trong .env rồi `docker compose up -d backend`
 # mở sẵn 3 cửa sổ: dashboard http://localhost:8501 · Telegram trên điện thoại (chiếu màn hình) · terminal
 ```
-- Trạm đã cấp nguồn ≥ 10 phút (MQ-2 cần làm nóng), OLED hiện "Online", dashboard Tổng quan cập nhật. Để trang Dự báo có
+- Trạm đã cấp nguồn ≥ 10 phút (MQ-2 cần làm nóng), màn TFT hiện "W M" (Wi-Fi + MQTT), dashboard Tổng quan cập nhật. Để trang Dự báo có
   dữ liệu trạm, trạm cần chạy ≥ 30 giờ trước buổi demo (nếu chưa đủ, backend dùng Open-Meteo làm đầu vào).
 - Kiểm tra an toàn: phòng thoáng, không có nguồn lửa khác; dùng bật lửa gas **không bật đá**, chỉ xả gas 1–2 giây
   cách cảm biến ~5 cm; có người giám sát.
@@ -22,7 +22,7 @@ docker compose up -d --build                 # hoặc chạy backend + mosquitto
 | 0:00–0:30 | Giới thiệu trạm (ảnh/hộp thật), sơ đồ kiến trúc | "Trạm ESP32 5 cảm biến, AI lai edge–cloud: edge quyết định cảnh báo, cloud dự báo và leo thang." | Slide kiến trúc |
 | 0:30–1:10 | Dashboard → **Tổng quan**, **Biểu đồ** 24 giờ | "Dữ liệu 10 giây/lần qua MQTT vào TimescaleDB." | Số đo thay đổi realtime |
 | 1:10–1:40 | **Dự báo**: đường thực tế vs dự báo + khoảng tin cậy, xác suất mưa | "GBDT tự viết bằng NumPy, MAE nhiệt độ 1 giờ 0,30 °C." | Biểu đồ dự báo |
-| 1:40–2:40 | Xả gas gần MQ-2 | "Edge tăng cấp 1 → 2 → 3 trong vài giây, không chờ cloud." | LED xanh nháy → đỏ, còi; OLED; dashboard đổi màu |
+| 1:40–2:40 | Xả gas gần MQ-2 | "Edge tăng cấp 1 → 2 → 3 trong vài giây, không chờ cloud." | LED xanh nháy → đỏ, còi; màn TFT chuyển trang khí/khói nền đỏ; dashboard đổi màu |
 | 2:40–3:10 | Telegram nhận tin cấp 2, cấp 3 (nhắc lại mỗi phút) → bấm **✅ Đã xử lý** | "Cloud gửi thông báo theo cấp, nhắc lại tới khi có người xác nhận." | Tin nhắn + nút ack; trang Cảnh báo hiện ✅ |
 | 3:10–3:40 | Rút Wi-Fi/tắt router rồi xả gas lần nữa | "Mất mạng: còi vẫn kêu vì quyết định ở edge; dữ liệu vào đệm LittleFS, gửi bù khi có mạng. Broker phát LWT, dashboard báo offline." | Còi vẫn kêu; dashboard Offline + cảnh báo `device_offline` |
 | 3:40–4:10 | Bật lại mạng → dữ liệu gửi bù xuất hiện liền mạch trên Biểu đồ; trang **Thiết bị**: đổi ngưỡng, thiết bị ack | "Cấu hình có phiên bản, thiết bị xác nhận." | Biểu đồ không bị hở; config acked |

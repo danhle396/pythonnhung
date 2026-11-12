@@ -80,6 +80,8 @@ class AlertService:
     def dispatch(self, a: Alert, reminder=False, force=False, recv_t: float | None = None):
         """Chọn kênh theo cấp + cooldown. Trả về danh sách kênh đã gửi."""
         channels = []
+        if a.type == "test":
+            return []  # thử còi do người dùng bấm trên dashboard: không phải sự cố, không gửi Telegram/Email
         if a.type in ("device_offline", "sensor_fault"):
             channels = ["telegram"]
         elif a.type == "anomaly":
@@ -140,7 +142,7 @@ class AlertService:
         """Cấp 3 chưa ack -> nhắc lại mỗi reminder_every_s (tối đa 60 lần)."""
         now = dt.datetime.now(dt.timezone.utc)
         with session_scope() as s:
-            rows = s.scalars(select(Alert).where(Alert.level >= 3, Alert.ack_ts.is_(None),
+            rows = s.scalars(select(Alert).where(Alert.level >= 3, Alert.ack_ts.is_(None), Alert.type != "test",
                                                  Alert.notify_count < 60)).all()
             due = [r for r in rows if r.notified_at is None
                    or (now - as_utc(r.notified_at)).total_seconds() >= self.s.reminder_every_s]

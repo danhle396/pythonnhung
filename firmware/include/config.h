@@ -11,6 +11,8 @@
 #define STATION_ALT_M 8.0f
 #define TZ_INFO "<+07>-7"  // Asia/Ho_Chi_Minh, không có giờ mùa hè
 #define NTP_SERVER "pool.ntp.org"
+#define NTP_SERVER2 "time.google.com"
+#define NTP_SERVER3 "vn.pool.ntp.org"
 
 // ---- Sơ đồ chân (task.md 2.2). Chân analog chỉ dùng ADC1 (GPIO32–39) vì ADC2 xung đột Wi-Fi.
 #define PIN_I2C_SDA 21
@@ -25,8 +27,20 @@
 #define PIN_LED_GREEN 26
 #define PIN_LED_YELLOW 27
 #define PIN_LED_RED 14
-#define PIN_BUTTON 13    // INPUT_PULLUP, nhấn = LOW
+// GPIO13: để trống (nhóm không dùng nút tắt còi — tắt còi bằng lệnh mute trên dashboard)
 #define PIN_RELAY 23
+
+// ---- Màn hình TFT 1.8" ST7735S 128x160, giao tiếp SPI (module đỏ có khe thẻ SD — khe SD không dùng).
+// Dùng bus HSPI qua GPIO matrix, chỉ ghi (không nối MISO). Chân module: VCC GND CS RESET A0 SDA SCK LED.
+#define PIN_TFT_CS 5     // CS
+#define PIN_TFT_DC 16    // A0 (data/command) — trên DevKit V1 in là RX2
+#define PIN_TFT_MOSI 17  // SDA (dữ liệu SPI) — trên DevKit V1 in là TX2
+#define PIN_TFT_SCK 19   // SCK
+#define PIN_TFT_RST -1   // RESET nối chân EN của ESP32 (reset cùng chip) + lệnh SWRESET khi khởi tạo
+// LED (đèn nền) và VCC nối 3V3. Màn trắng/sai màu/lệch viền -> đổi TFT_INIT_TAB sang INITR_GREENTAB hoặc INITR_REDTAB.
+#define TFT_INIT_TAB INITR_BLACKTAB
+#define TFT_ROTATION 1           // nằm ngang 160x128; ảnh bị ngược -> đặt 3
+#define TFT_SPI_HZ 20000000UL    // ST7735 chạy ổn ở 20 MHz qua GPIO matrix
 
 // ---- Phần cứng thực tế của nhóm (đổi 0/1 cho khớp linh kiện đang có)
 #ifndef HAS_LED_YELLOW
@@ -42,7 +56,6 @@
 // ---- Địa chỉ I2C
 #define BMP280_ADDR 0x76
 #define BH1750_ADDR 0x23
-#define OLED_ADDR 0x3C
 
 // ---- MQ-2
 #define MQ2_RL_KOHM 5.0f         // điện trở tải trên module (đo lại: nhiều module dùng 1k hoặc 5k)
@@ -54,10 +67,13 @@
 #define MQ2_CURVE_B -2.222f
 #define MQ2_WARMUP_S 60
 
-// ---- YL-83: ADC càng thấp càng ướt. Hiệu chuẩn lại theo task.md 2.3.
-#define RAIN_MV_DRY 2800
-#define RAIN_MV_DRIZZLE 2200
-#define RAIN_MV_MODERATE 1400
+// ---- YL-83: ADC càng thấp càng ướt. Theo số đo cảm biến của nhóm (12/11/2026, nguồn 3,3 V):
+//   khô: 3126–3134 mV (trần ADC) · vài giọt nước: 2853–3074 mV  ⇒ chỉ cần dính nước là < 3100 mV.
+//   Mức 2/3 tạm đặt, chỉnh lại sau khi đo lúc tấm ướt đẫm (task.md 2.3).
+#define RAIN_MV_DRY 3100       // ≥ ngưỡng này mới là "Khô"
+#define RAIN_MV_DRIZZLE 2600   // [2600, 3100) mưa phùn
+#define RAIN_MV_MODERATE 1800  // [1800, 2600) mưa vừa; < 1800 mưa to
+#define RAIN_HOLD_READS 3      // giữ mức mưa cao nhất trong 3 lần đọc gần nhất (30 s): giọt nước lúc chạm lúc không
 
 // ---- Chu kỳ
 #define SENSOR_PERIOD_MS 1000

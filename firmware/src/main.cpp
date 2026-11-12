@@ -187,8 +187,8 @@ static void TaskEdgeAI(void*) {
   esp_task_wdt_add(nullptr);
   SensorData d;
   Actions act;
-  uint32_t lastTel = 0, lastNow = 0, lastDisp = 0, btnSince = 0;
-  bool btnPrev = HIGH;
+  uint32_t lastTel = 0, lastNow = 0, lastDisp = 0;
+  bool ncRestored = false, wasTesting = false;
   SensorFault prevFault = SensorFault::NONE;
   EdgeOutput o;
   for (;;) {
@@ -204,27 +204,25 @@ static void TaskEdgeAI(void*) {
     if (flagMute) { alerts.pressMute(now); flagMute = false; }
     if (flagTestAlarm) { alerts.testAlarm(now); flagTestAlarm = false; }
     if (cloudLevel > 0) { alerts.cloudEscalate(cloudLevel, now); cloudLevel = 0; }
-    // nút nhấn: chống dội 50 ms, nhấn = mute 5 phút
-    bool btn = digitalRead(PIN_BUTTON);
-    if (btn != btnPrev) { btnSince = now; btnPrev = btn; }
-    else if (btn == LOW && btnSince && now - btnSince > 50) { alerts.pressMute(now); btnSince = 0; }
 
     if (xQueueReceive(qSamples, &d, pdMS_TO_TICKS(100)) == pdTRUE) {
       EdgeInput in{d.mq2.ppm, d.mq2.ratio, isnan(d.temp) ? 25.0f : d.temp, isnan(d.hum) ? 70.0f : d.hum,
                    isnan(d.lux) ? 0.0f : d.lux, d.gasOk};
       o = edge.step(in);
       act = alerts.update(o.level, now);
-      uint32_t ts = d.ts ? d.ts : (uint32_t)time(nullptr);
+      uint32_t ts = d.ts;  // 0 = chưa có NTP -> backend gán giờ nhận (không gửi giây-từ-lúc-bật)
       if (act.levelChanged) {
         JsonDocument j;
         j["device_id"] = DEVICE_ID;
         j["ts"] = ts;
         j["seq"] = storage.nextSeq();
-        j["type"] = (o.cause & CAUSE_TEST) ? "test" : "gas";
+        // thử còi: cả lúc lên cấp 3 lẫn lúc trở về đều là "test" (không phải sự cố khí, không phải cloud nâng cấp)
+        const bool isTest = act.testing || wasTesting;
+        j["type"] = isTest ? "test" : "gas";
         j["level"] = act.level;
         j["prev_level"] = act.prevLevel;
         j["level_name"] = LEVEL_NAME[act.level & 3];
-        uint32_t cause = o.cause | (act.level > o.level ? CAUSE_CLOUD : 0);
+        uint32_t cause = isTest ? CAUSE_TEST : (o.cause | (act.level > o.level ? CAUSE_CLOUD : 0));
         causeToJson(j["cause"].to<JsonArray>(), cause, edge.rules.cfg);
         setNum(j, "gas_ppm", d.mq2.ppm, 0);
         setNum(j, "score", o.score, 3);
@@ -243,6 +241,7 @@ static void TaskEdgeAI(void*) {
         j["edge_latency_ms"] = millis() - now;
         enqueue("alert", j, false, true);
       }
+      wasTesting = act.testing;
       if (d.gasFault != prevFault) {
         JsonDocument j;
         j["device_id"] = DEVICE_ID;
@@ -286,13 +285,12 @@ static void TaskEdgeAI(void*) {
         j["model_ver"] = GAS_MODEL_VERSION;
         enqueue("telemetry", j, false, true);
       }
-      // nowcast: 1 mẫu áp suất / 10 phút (mẫu đầu tiên ngay khi có dữ liệu)
-      if (!isnan(d.pressureMsl) && (lastNow == 0 || now - lastNow >= NOWCAST_SAMPLE_MS)) {
-        lastNow = now;
-        nowcaster.addPressure(d.pressureMsl);
+      auto computeNowcast = [&]() {
         struct tm tmv;
         int month = getLocalTime(&tmv, 0) ? tmv.tm_mon + 1 : 11;
         lastNowcast = nowcaster.compute(d.rainLevel, isnan(d.hum) ? 70 : d.hum, month);
+      };
+      auto publishNowcast = [&]() {
         JsonDocument j;
         j["device_id"] = DEVICE_ID;
         j["ts"] = ts;
@@ -303,6 +301,32 @@ static void TaskEdgeAI(void*) {
         j["zambretti"] = String(lastNowcast.zambretti);
         j["samples"] = nowcaster.samples();
         enqueue("nowcast", j, true, false);
+      };
+      // Lần đầu có giờ NTP sau khởi động: gán giờ cho mẫu đã lấy, nạp lại mẫu đã lưu trong NVS (≤ 3 giờ trước)
+      // -> nowcast không phải chờ lại 1 giờ mỗi khi board khởi động lại.
+      if (!ncRestored && d.ts) {
+        ncRestored = true;
+        if (nowcaster.samples()) nowcaster.assignTimes(d.ts - (now - lastNow) / 1000);
+        float sp[NowcastEngine::N];
+        uint32_t st[NowcastEngine::N];
+        size_t n = storage.loadNowcast(sp, st, NowcastEngine::N);
+        nowcaster.restore(sp, st, n, d.ts);
+        computeNowcast();
+        publishNowcast();  // mẫu đầu sau khởi động thường lấy lúc MQTT chưa kết nối -> gửi lại khi đã có mạng
+        Serial.printf("[NOWCAST] nap lai %u mau da luu -> %u mau, %.1f gio du lieu\n", (unsigned)n,
+                      (unsigned)nowcaster.samples(), nowcaster.spanHours());
+      }
+      // nowcast: 1 mẫu áp suất / 10 phút (mẫu đầu tiên ngay khi có dữ liệu)
+      if (!isnan(d.pressureMsl) && (lastNow == 0 || now - lastNow >= NOWCAST_SAMPLE_MS)) {
+        lastNow = now;
+        nowcaster.addPressure(d.pressureMsl, d.ts);  // d.ts = 0 khi chưa có NTP
+        if (d.ts) {
+          float sp[NowcastEngine::N];
+          uint32_t st[NowcastEngine::N];
+          storage.saveNowcast(sp, st, nowcaster.exportSamples(sp, st));
+        }
+        computeNowcast();
+        publishNowcast();
       }
       xSemaphoreTake(mtx, portMAX_DELAY);
       dstate.s = d;
@@ -331,9 +355,14 @@ static void TaskEdgeAI(void*) {
 static void TaskNetwork(void*) {
   esp_task_wdt_add(nullptr);
   uint32_t lastStatus = 0;
-  bool wasConnected = false;
+  bool wasConnected = false, wifiWas = false;
   OutMsg m;
   for (;;) {
+    // Wi-Fi vừa lên mà chưa có giờ: khởi động lại SNTP ngay. Lần hỏi giờ lúc khởi động (chưa có Wi-Fi) thất bại
+    // thì SNTP tự lùi thời gian thử lại tới vài phút -> số đo đầu phải dùng giờ server gán.
+    bool wifiUp = WiFi.status() == WL_CONNECTED;
+    if (wifiUp && !wifiWas && time(nullptr) < 1700000000) configTzTime(TZ_INFO, NTP_SERVER, NTP_SERVER2, NTP_SERVER3);
+    wifiWas = wifiUp;
     bool up = mqtt.loop();
     if (up && !wasConnected) lastStatus = 0;  // vừa kết nối lại -> gửi status ngay
     wasConnected = up;
@@ -418,7 +447,6 @@ void setup() {
   pinMode(PIN_RELAY, OUTPUT);
   digitalWrite(PIN_RELAY, LOW);
 #endif
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
   storage.begin();
   storage.loadConfig(cfg);
   sensors.mq2.rlKohm = MQ2_RL_KOHM;
@@ -432,7 +460,7 @@ void setup() {
   qSamples = xQueueCreate(4, sizeof(SensorData));
   qOut = xQueueCreate(12, sizeof(OutMsg));
   mqtt.begin(DEVICE_ID, onMessage);
-  configTzTime(TZ_INFO, NTP_SERVER);
+  configTzTime(TZ_INFO, NTP_SERVER, NTP_SERVER2, NTP_SERVER3);
   esp_task_wdt_init(WDT_TIMEOUT_S, true);  // Task WDT: treo > 30 s -> reset
   xTaskCreatePinnedToCore(TaskSensors, "sensors", 4096, nullptr, 3, nullptr, 1);
   xTaskCreatePinnedToCore(TaskEdgeAI, "edgeai", 8192, nullptr, 4, nullptr, 1);

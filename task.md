@@ -69,9 +69,9 @@
 | 6 | **MQ-2** | Khí dễ cháy, khói | Analog + Digital | **Cần mua** |
 | 7 | Buzzer active 5V/3.3V | Còi cảnh báo (nối thẳng GPIO) | GPIO | Có sẵn |
 | 8 | LED xanh / đỏ (+ điện trở 220Ω) | Đèn báo cấp cảnh báo (không có LED vàng: cấp 1 = xanh nhấp nháy) | GPIO | Cần mua |
-| 9 | OLED SSD1306 0.96" (tuỳ chọn) | Hiển thị tại chỗ | I2C `0x3C` | Khuyến nghị |
+| 9 | Màn hình TFT 1.8" ST7735S 128×160 | Hiển thị tại chỗ (màu) | SPI (CS/A0/SDA/SCK) | Có sẵn |
 | 10 | ~~Relay 5V hoặc quạt nhỏ~~ | Không dùng (nhóm không có) — hướng phát triển | GPIO | Không dùng |
-| 11 | Nút nhấn | Tắt còi / xác nhận cảnh báo | GPIO (pull-up) | Cần mua |
+| 11 | ~~Nút nhấn~~ | Không dùng — tắt còi bằng lệnh `mute` trên dashboard | — | Không dùng |
 | 12 | Điện trở 10kΩ + 20kΩ | Phân áp cho MQ-2 AO | — | Cần mua |
 | 13 | Nguồn 5V/2A, breadboard, dây | Cấp nguồn | — | MQ-2 tiêu thụ khoảng 150mA do có bộ gia nhiệt |
 | 14 | Hộp nhựa có khe thông gió | Đóng gói trạm | — | YL-83 đặt ngoài trời, DHT22 đặt trong vỏ che nắng |
@@ -79,17 +79,17 @@
 ### 2.2 Sơ đồ chân (đề xuất)
 | Thiết bị | Chân thiết bị | Chân ESP32 |
 |---|---|---|
-| I2C bus (BMP280, BH1750, OLED) | SDA / SCL | GPIO21 / GPIO22 |
+| I2C bus (BMP280, BH1750) | SDA / SCL | GPIO21 / GPIO22 |
 | DHT22 | DATA | GPIO4 (pull-up 10kΩ) |
 | YL-83 | AO / DO | GPIO34 / GPIO35 |
 | MQ-2 | AO (qua phân áp) / DO | GPIO32 / GPIO33 |
 | Buzzer | + | GPIO25 |
 | LED xanh / đỏ | Anode | GPIO26 / GPIO14 |
-| Nút nhấn | — | GPIO13 (INPUT_PULLUP) |
+| TFT ST7735S | CS / A0 / SDA / SCK / RESET | GPIO5 / GPIO16 (RX2) / GPIO17 (TX2) / GPIO19 / EN |
 
 ### 2.3 Công việc phần cứng
 - [ ] Vẽ sơ đồ nguyên lý (Fritzing hoặc KiCad) và lưu vào `docs/hardware/`.
-- [ ] Chạy I2C scanner để xác nhận địa chỉ của BMP280, BH1750 và OLED.
+- [ ] Chạy I2C scanner để xác nhận địa chỉ của BMP280, BH1750; kiểm tra màn TFT hiển thị đúng màu/hướng.
 - [ ] Test riêng từng cảm biến bằng sketch tối giản và ghi kết quả.
 - [ ] **Burn-in MQ-2 24–48 giờ** trước khi hiệu chuẩn.
 - [ ] Hiệu chuẩn MQ-2: đo `R0` trong không khí sạch (`Rs/R0 ≈ 9.83`), sau đó tính ppm theo đường cong datasheet (`ppm = a · (Rs/R0)^b`).
@@ -111,7 +111,7 @@
 │     │                     │ • Rule engine (threshold+ROC)  │  │
 │     │                     │ • Pressure-trend nowcast       │  │
 │     │                     └───────────────┬───────────────┘  │
-│     │           Local actuators ◄─────────┤ (buzzer/LED/OLED)│
+│     │           Local actuators ◄─────────┤ (buzzer/LED/TFT) │
 │     │           Offline buffer (SPIFFS) ◄─┤ khi mất mạng     │
 └─────┼─────────────────────────────────────┼──────────────────┘
       │ MQTT (TLS tuỳ chọn), QoS 0/1, LWT    │
@@ -223,7 +223,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 | `.../alert` | Edge → Cloud | 1 | ❌ | Sự kiện cảnh báo khí/khói (khi đổi cấp) |
 | `.../nowcast` | Edge → Cloud | 0 | ✅ | Kết quả nowcast tại edge |
 | `.../status` | Edge → Cloud | 1 | ✅ | `online` / `offline` (LWT), RSSI, uptime, heap |
-| `.../forecast` | Cloud → Edge | 1 | ✅ | Dự báo 1h/3h/6h để hiển thị trên OLED |
+| `.../forecast` | Cloud → Edge | 1 | ✅ | Dự báo 1h/3h/6h để hiển thị trên màn TFT |
 | `.../cmd` | Cloud → Edge | 1 | ❌ | `mute`, `reboot`, `calibrate`, `test_alarm` |
 | `.../config` | Cloud → Edge | 1 | ✅ | Ngưỡng, chu kỳ gửi, phiên bản model |
 | `.../ack` | Edge → Cloud | 1 | ❌ | Xác nhận đã nhận cmd/config |
@@ -267,7 +267,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 
 ## 6. Firmware ESP32 (Edge)
 
-**Nền tảng:** PlatformIO + Arduino framework (hoặc ESP-IDF). Thư viện: `PubSubClient` hoặc `AsyncMqttClient`, `DHT sensor library`, `Adafruit BMP280`, `BH1750` (claws), `ArduinoJson`, `Adafruit SSD1306`, `LittleFS`.
+**Nền tảng:** PlatformIO + Arduino framework (hoặc ESP-IDF). Thư viện: `PubSubClient` hoặc `AsyncMqttClient`, `DHT sensor library`, `Adafruit BMP280`, `BH1750` (claws), `ArduinoJson`, `Adafruit ST7735 and ST7789`, `LittleFS`.
 
 ### 6.1 Nền tảng
 - [ ] Tạo project PlatformIO, cấu hình `platformio.ini` (board `esp32dev`, monitor 115200, partition có LittleFS).
@@ -304,7 +304,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 - [ ] **Rule engine:** ngưỡng ppm, rate-of-change, có **hysteresis** (ví dụ phải xuống dưới ngưỡng − 15% mới hạ cấp) và **debounce** (thoả điều kiện N mẫu liên tiếp mới tăng cấp, riêng cấp 3 tăng ngay).
 - [ ] **Model nhẹ** (chạy trên ESP32): Decision Tree, Random Forest nhỏ hoặc Logistic Regression **tự build** trong `ml/mlcore`, huấn luyện ở `ml/src/train_gas_edge.py`, xuất sang C header bằng `mlcore/export_c.py` tự viết. Firmware chỉ cần duyệt mảng node, không dùng thư viện suy luận nào. (Nâng cao: MLP nhỏ tự viết, xuất trọng số thành mảng C, suy luận bằng vòng lặp nhân ma trận.)
 - [ ] **Hợp nhất (fusion):** `level = max(rule_level, model_level)`. Quy tắc an toàn: model không được phép hạ cấp do rule đưa ra.
-- [ ] Nút nhấn: tắt còi 5 phút (mute) nhưng vẫn giữ cấp và LED. Nếu cấp tăng thêm thì còi kêu lại.
+- [ ] Tắt còi 5 phút bằng lệnh `mute` từ dashboard (không có nút vật lý) nhưng vẫn giữ cấp và LED. Nếu cấp tăng thêm thì còi kêu lại.
 - [ ] Publish `alert` mỗi khi cấp thay đổi, kèm `cause`.
 - [ ] Bộ phát hiện **lỗi cảm biến**: MQ-2 đứng yên giá trị (stuck), mất kết nối, ADC bão hoà. Khi đó gửi alert loại `sensor_fault`.
 
@@ -312,7 +312,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 - [ ] Lưu áp suất 3 giờ gần nhất (vòng đệm, 1 mẫu / 10 phút).
 - [ ] Tính xu hướng áp suất: tăng / ổn định / giảm (ngưỡng ±1.6 hPa / 3h).
 - [ ] Áp dụng thuật toán kiểu **Zambretti** kết hợp `rain_level` và `hum` để đưa ra nowcast: "Trời đẹp", "Có thể mưa", "Mưa sắp tới"...
-- [ ] Publish lên `.../nowcast` và hiển thị trên OLED.
+- [ ] Publish lên `.../nowcast` và hiển thị trên màn TFT.
 
 ### 6.5 Truyền thông và độ tin cậy
 - [ ] Publish telemetry mỗi 5–10 giây (cấu hình được). Khi đang có cảnh báo thì tăng lên 1 giây.
@@ -321,7 +321,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 - [ ] Gửi `status` định kỳ: RSSI, uptime, free heap, phiên bản firmware và model.
 - [ ] (Nâng cao) OTA firmware qua HTTP (`HTTPUpdate`) khi nhận lệnh `cmd: ota`.
 
-### 6.6 Hiển thị cục bộ (OLED)
+### 6.6 Hiển thị cục bộ (TFT 1.8" ST7735)
 - [ ] Trang 1: T / H / P / Lux / Rain.
 - [ ] Trang 2: Gas ppm, cấp cảnh báo.
 - [ ] Trang 3: Nowcast tại edge và dự báo từ cloud.
@@ -576,7 +576,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 | 5 | Thu dữ liệu khí có gán nhãn. Huấn luyện model edge bằng `mlcore`, xuất C, nhúng vào firmware, kiểm tra khớp C/Python | `gas_model.h`, bảng so sánh rule/model/hybrid |
 | 6 | EDA và feature. Tự build Holt-Winters và Gradient Boosting (MSE, log-loss). Huấn luyện baseline + GBDT trên Open-Meteo | Notebook, bảng metric |
 | 7 | Isolation Forest + CUSUM. (Nâng cao) GRU/LSTM bằng NumPy + gradient check. Fine-tune bằng dữ liệu trạm, chọn model. Forecast service + publish `forecast` | Dự báo chạy tự động |
-| 8 | Dashboard + Telegram + alert service (leo thang, ack). Nowcast edge + OLED | Hệ thống end-to-end |
+| 8 | Dashboard + Telegram + alert service (leo thang, ack). Nowcast edge + màn TFT | Hệ thống end-to-end |
 | 9 | Kiểm thử (unit, integration, load, 72h, mất mạng, báo động giả). Sửa lỗi | Bảng kết quả kiểm thử |
 | 10 | Báo cáo, slide, video demo, đóng hộp hoàn thiện | Bản nộp cuối |
 
@@ -584,7 +584,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (ví dụ `device_id = station01`)
 
 ## 15. Definition of Done
 - [ ] Trạm đọc đủ 5 loại cảm biến, gửi MQTT ổn định ≥ 72 giờ.
-- [ ] Cảnh báo khí/khói 4 cấp chạy **tại edge kể cả khi mất mạng**, có hysteresis/debounce, nút mute.
+- [ ] Cảnh báo khí/khói 4 cấp chạy **tại edge kể cả khi mất mạng**, có hysteresis/debounce, tắt còi từ xa (mute).
 - [ ] Cloud lưu dữ liệu, xác nhận/leo thang cảnh báo, gửi Telegram.
 - [ ] Dự báo 1h/3h/6h chạy tự động, có bảng so sánh với baseline và vượt baseline persistence.
 - [ ] Dashboard hiển thị realtime, lịch sử, dự báo, cảnh báo, cho phép chỉnh cấu hình thiết bị.

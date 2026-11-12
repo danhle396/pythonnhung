@@ -72,6 +72,47 @@ def fmt(v, nd=1, unit=""):
     return "—" if v is None or (isinstance(v, float) and pd.isna(v)) else f"{v:.{nd}f}{unit}"
 
 
+def gas_banner(t, online, gas_status, last_alert):
+    """Banner cấp cảnh báo khí. Chỉ hiện cấp khi đánh giá được: trạm online, MQ-2 không lỗi, không phải đang thử còi."""
+    lvl = int(t.get("edge_risk") or 0)
+    if not t:
+        return "⚪", "Chưa có dữ liệu từ trạm", "#757575"
+    if not online:
+        when = f" từ {to_local(pd.Series([t['ts']]))[0]:%H:%M:%S}" if t.get("ts") else ""
+        return "⚫", (f"Trạm mất kết nối{when} — chưa biết tình trạng khí "
+                     f"<small>(cấp cuối: {lvl} — {LEVEL[lvl][1]})</small>"), "#616161"
+    if last_alert.get("type") == "test" and int(last_alert.get("level") or 0) > 0:
+        return "🔔", "Đang thử còi — không phải sự cố khí", "#1565c0"
+    if gas_status == "error":
+        return "⚠", "Lỗi cảm biến khí MQ-2 — không đánh giá được khí", "#616161"
+    if (t.get("extra") or {}).get("warming_up"):
+        return "⏳", "MQ-2 đang làm nóng — chưa đánh giá khí", "#757575"
+    emoji, name, color = LEVEL[lvl]
+    return emoji, f"Cấp cảnh báo khí: <b>{lvl} — {name}</b>", color
+
+
+SENSOR_STYLE = {"ok": ("🟢", "#2e7d32"), "warn": ("🟡", "#f9a825"), "error": ("🔴", "#c62828"),
+                "unknown": ("⚪", "#757575")}
+
+
+def sensor_panel(health):
+    """Thẻ tình trạng từng cảm biến (API /api/sensors/{id}): cảm biến nào lỗi, lỗi gì, lần cuối còn tốt lúc nào."""
+    st.subheader("Tình trạng cảm biến", help=f"Đánh giá từ số liệu {health.get('window_min', 10)} phút gần nhất")
+    sensors = health.get("sensors") or []
+    for c, s in zip(st.columns(len(sensors) or 1), sensors):
+        icon, color = SENSOR_STYLE.get(s.get("status"), SENSOR_STYLE["unknown"])
+        last = ""
+        if s.get("status") != "ok":
+            last = (f"<br><small>Lần cuối hoạt động tốt: {to_local(pd.Series([s['last_ok']]))[0]:%H:%M:%S %d/%m}</small>"
+                    if s.get("last_ok") else "<br><small>Chưa ghi nhận lần nào hoạt động tốt</small>")
+        c.markdown(f"<div style='border-left:6px solid {color};background:{color}1f;padding:10px 12px;"
+                   f"border-radius:8px;min-height:150px'><b>{icon} {s['name']}</b><br>"
+                   f"<small>{s['measures']}</small><br>{s['message']}{last}</div>", unsafe_allow_html=True)
+    bad = [s["name"] for s in sensors if s.get("status") == "error"]
+    if bad:
+        st.error(f"⚠ Cảm biến đang lỗi: {', '.join(bad)} — số liệu của cảm biến này không đáng tin.")
+
+
 # ------------------------------------------------------------------ sidebar
 if "token" not in st.session_state and os.environ.get("DASHBOARD_USER"):
     login(os.environ["DASHBOARD_USER"], os.environ.get("DASHBOARD_PASS", ""))
@@ -112,24 +153,32 @@ def page_overview():
     def live():
         dev = api_get(f"/api/devices/{device}") or {}
         t = api_get("/api/telemetry/latest", device_id=device) or {}
-        lvl = int(t.get("edge_risk") or 0)
-        emoji, name, color = LEVEL[lvl]
+        health = api_get(f"/api/sensors/{device}", minutes=10) or {}
+        stt = {s["sensor"]: s.get("status") for s in health.get("sensors") or []}
+        last_alert = (api_get("/api/alerts", device_id=device, limit=1) or [{}])[0]
         online = dev.get("status") == "online"
+        emoji, text, color = gas_banner(t, online, stt.get("gas"), last_alert)
         c1, c2, c3 = st.columns([2, 1, 1])
-        c1.markdown(f"<div style='padding:14px;border-radius:12px;background:{color};color:white;font-size:1.6rem'>"
-                    f"{emoji} Cấp cảnh báo khí: <b>{lvl} — {name}</b></div>", unsafe_allow_html=True)
+        c1.markdown(f"<div style='padding:14px;border-radius:12px;background:{color};color:white;font-size:1.4rem'>"
+                    f"{emoji} {text}</div>", unsafe_allow_html=True)
         c2.metric("Trạng thái", "🟢 Online" if online else "⚫ Offline")
         c3.metric("RSSI", f"{dev.get('rssi')} dBm" if dev.get("rssi") is not None else "—")
+
+        def val(sensor, text):  # cảm biến lỗi -> không hiện con số không đáng tin
+            return "⚠ Lỗi" if stt.get(sensor) == "error" else text
+
         m = st.columns(6)
-        m[0].metric("Nhiệt độ", fmt(t.get("temp_dht"), 1, " °C"))
-        m[1].metric("Độ ẩm", fmt(t.get("hum"), 0, " %"))
-        m[2].metric("Áp suất MSL", fmt(t.get("pressure_msl"), 1, " hPa"))
-        m[3].metric("Ánh sáng", fmt(t.get("lux"), 0, " lx"))
-        m[4].metric("Mưa", ["Khô", "Mưa phùn", "Mưa vừa", "Mưa to"][int(t.get("rain_level") or 0)])
-        m[5].metric("Khí gas", fmt(t.get("gas_ppm"), 0, " ppm"), help=f"AI score {fmt(t.get('edge_score'), 2)}")
+        m[0].metric("Nhiệt độ", val("dht", fmt(t.get("temp_dht"), 1, " °C")))
+        m[1].metric("Độ ẩm", val("dht", fmt(t.get("hum"), 0, " %")))
+        m[2].metric("Áp suất MSL", val("bmp", fmt(t.get("pressure_msl"), 1, " hPa")))
+        m[3].metric("Ánh sáng", val("bh", fmt(t.get("lux"), 0, " lx")))
+        m[4].metric("Mưa", val("rain", ["Khô", "Mưa phùn", "Mưa vừa", "Mưa to"][int(t.get("rain_level") or 0)]))
+        m[5].metric("Khí gas", val("gas", fmt(t.get("gas_ppm"), 0, " ppm")), help=f"AI score {fmt(t.get('edge_score'), 2)}")
         if t.get("ts"):
             ts = pd.Timestamp(t["ts"]).tz_localize("UTC") if pd.Timestamp(t["ts"]).tzinfo is None else pd.Timestamp(t["ts"])
             st.caption(f"Cập nhật: {ts.tz_convert(TZ):%H:%M:%S %d/%m/%Y} · fw {t.get('fw')} · model {t.get('model_ver')}")
+        if health:
+            sensor_panel(health)
         a, b = st.columns(2)
         with a:
             st.subheader("Dự báo mới nhất")

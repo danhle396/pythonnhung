@@ -36,7 +36,7 @@ bool Sensors::begin() {
   digitalWrite(PIN_RAIN_PWR, LOW);
   pinMode(PIN_RAIN_DO, INPUT);
   pinMode(PIN_MQ2_DO, INPUT);
-  Serial.printf("[SENS] BMP280:%d BH1750:%d OLED:%d\n", bmpPresent, bhPresent, scanI2C(OLED_ADDR));
+  Serial.printf("[SENS] BMP280:%d BH1750:%d\n", bmpPresent, bhPresent);
   return bmpPresent && bhPresent;
 }
 
@@ -106,7 +106,10 @@ void Sensors::read(SensorData& d) {
     delay(15);
     lastRainMv_ = (int)readMv(PIN_RAIN_AO, 8);
     digitalWrite(PIN_RAIN_PWR, LOW);
-    lastRainLevel_ = rainLevelFromMv(lastRainMv_);
+    rainHist_[rainIdx_] = (uint8_t)rainLevelFromMv(lastRainMv_);
+    rainIdx_ = (rainIdx_ + 1) % RAIN_HOLD_READS;
+    lastRainLevel_ = 0;
+    for (uint8_t v : rainHist_) lastRainLevel_ = max(lastRainLevel_, (int)v);
   }
   d.rainMv = lastRainMv_;
   d.rainLevel = lastRainLevel_;
