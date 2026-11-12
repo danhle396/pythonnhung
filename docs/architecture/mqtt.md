@@ -16,8 +16,8 @@ Broker: Mosquitto 2.x (`broker/mosquitto/`). Xác thực username/password, ACL 
 | `…/config` | Cloud → Edge | 1 | ✅ | khi đổi | Ngưỡng, chu kỳ, chế độ edge, R0, `version` |
 | `…/ack` | Edge → Cloud | 0* | ❌ | sau cmd/config | Xác nhận đã nhận/áp dụng |
 
-\* PubSubClient trên ESP32 chỉ publish được QoS 0. Độ tin cậy "ít nhất một lần" được bảo đảm ở tầng ứng dụng:
-mỗi bản ghi có `seq` tăng dần (lưu NVS), khi publish thất bại bản ghi vào đệm offline LittleFS (2000 bản ghi) và
+\* MQTT client tự viết trên ESP32 (`firmware/src/mqtt.py`, MicroPython) chỉ publish QoS 0. Độ tin cậy "ít nhất một lần" được bảo đảm ở tầng ứng dụng:
+mỗi bản ghi có `seq` tăng dần (lưu `/seq.txt` trên flash), khi publish thất bại bản ghi vào đệm offline trên flash (2000 bản ghi) và
 được gửi bù khi kết nối lại; backend chống trùng theo `(device_id, ts, seq)`. Simulator và backend dùng QoS 1 thật.
 
 ## Payload
@@ -61,14 +61,14 @@ Backend tự tạo thêm `device_offline` và `anomaly` (source = `cloud`).
 {"device_id":"station01","ts":1762671600,"source":"station","summary":"1h 28.8C 3h 28.0C Mua3h 11%",
  "items":[{"target":"temp","h":1,"value":28.83,"lower":27.97,"upper":29.70,"model_ver":"fc-temp_1h-..."}]}
 ```
-Thiết bị kiểm tra hợp lệ config (th1 < th2 < th3, dải giá trị) trước khi áp dụng và lưu NVS; config không hợp lệ
+Thiết bị kiểm tra hợp lệ config (th1 < th2 < th3, dải giá trị) trước khi áp dụng và lưu `/config.json`; config không hợp lệ
 bị từ chối bằng `ack` với `ok:false`.
 
 ## Độ tin cậy
 - **LWT**: `…/status` = `{"state":"offline"}`, QoS 1, retain — backend đánh dấu offline + tạo alert `device_offline`.
 - Backend còn đánh dấu offline nếu > 60 s không nhận dữ liệu.
 - Keep-alive 15 s, kết nối lại với exponential backoff 2 → 30 s.
-- (Nâng cao) TLS cổng 8883: `broker/mosquitto/gen_certs.sh`, bật `MQTT_USE_TLS` + `MQTT_CA_CERT` trong `secrets.h`.
+- (Nâng cao) TLS cổng 8883: `python broker/mosquitto/gen_certs.py`, chép `ca.crt` lên board, đặt `MQTT_CA_FILE = "ca.crt"` và `MQTT_PORT = 8883` trong `firmware/src/credentials.py`.
 
 ## Kết quả đo (load test, broker local)
 Xem `docs/report/results_load_20.md`, `results_load_50.md`: 50 thiết bị × 1 msg/s, QoS 1 — mất gói 0 %,

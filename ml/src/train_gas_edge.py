@@ -1,9 +1,9 @@
-"""Huấn luyện mô hình cảnh báo khí/khói cho ESP32, so sánh Rule / Model / Hybrid, xuất sang C.
+"""Huấn luyện mô hình cảnh báo khí/khói cho ESP32, so sánh Rule / Model / Hybrid, xuất sang MicroPython.
 
     python -m aiot_ml.train_gas_edge --data data/raw/gas_labeled.csv
 
 Chỉ huấn luyện trên dữ liệu ĐO THẬT từ MQ-2, thu bằng tools/label_logger.py trong các buổi thí nghiệm có gán nhãn.
-Chưa có dữ liệu -> không có model, firmware chạy rule (firmware/include/gas_model.h với GAS_MODEL_AVAILABLE = 0).
+Chưa có dữ liệu -> không có model, firmware chạy rule (firmware/src/gas_model.py với AVAILABLE = False).
 CSV cần các cột: t (giây), gas_ppm, rs_r0, temp, hum, lux, label (0..3), event_id, scenario, stream_seed.
 Chia theo chuỗi (stream) để tập test là các buổi thí nghiệm khác hẳn tập train.
 """
@@ -11,9 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
-import subprocess
-import tempfile
 import time
 from pathlib import Path
 
@@ -21,10 +18,11 @@ import numpy as np
 import pandas as pd
 
 from mlcore import ensemble, explain, metrics, tree
-from mlcore.export_c import export_forest_c, export_test_vectors_c, forest_to_arrays, predict_c_like
+from mlcore.export_micropython import (export_forest_micropython, forest_to_arrays, load_module_from_source,
+                                       predict_float32, to_float32_list)
 from mlcore.serialize import dataset_hash, save_model
 
-from .config import EXPERIMENTS_DIR, FIRMWARE_INCLUDE, MODELS_DIR, REPO_DIR, SEED
+from .config import EXPERIMENTS_DIR, FIRMWARE_SRC, FIRMWARE_TESTS, MODELS_DIR, REPO_DIR, SEED
 from .gas_edge import EDGE_FEATURES, LEVEL_NAMES, RuleConfig, extract_features_stream, run_levels_vectorized
 from .tracking import ModelRegistry, log_experiment
 
@@ -93,37 +91,18 @@ def sample_metrics(y, pred):
             "per_class": r["per_class"], "confusion_matrix": r["confusion_matrix"]}
 
 
-def compile_parity(header_txt, tv_txt, prefix):
-    """Biên dịch test harness bằng g++ trên PC, chạy và so khớp với Python."""
-    cxx = shutil.which("g++") or shutil.which("gcc")
-    if cxx is None:
-        return {"compiled": False}
-    with tempfile.TemporaryDirectory() as td:
-        td = Path(td)
-        (td / "gas_model.h").write_text(header_txt, encoding="utf-8")
-        (td / "gas_model_testvec.h").write_text(tv_txt, encoding="utf-8")
-        P = prefix.upper()
-        (td / "main.cpp").write_text(f"""#include <cstdio>
-#include <cmath>
-#include <chrono>
-#include "gas_model.h"
-#include "gas_model_testvec.h"
-int main() {{
-  int bad = 0; float md = 0;
-  auto t0 = std::chrono::high_resolution_clock::now();
-  for (int r = 0; r < 20; ++r)
-  for (int i = 0; i < {P}_N_TEST; ++i) {{
-    float p[{P}_N_CLASSES]; int c = {prefix}_predict_proba({prefix}_test_x[i], p);
-    if (r == 0) {{ if (c != {prefix}_test_class_idx[i]) ++bad;
-      for (int k = 0; k < {P}_N_CLASSES; ++k) md = fmaxf(md, fabsf(p[k] - {prefix}_test_proba[i][k])); }}
-  }}
-  double us = std::chrono::duration<double, std::micro>(std::chrono::high_resolution_clock::now() - t0).count() / (20.0 * {P}_N_TEST);
-  std::printf("%d %g %g\\n", bad, md, us);
-}}""", encoding="utf-8")
-        exe = td / "parity.exe"
-        subprocess.run([cxx, "-O2", "-std=c++17", str(td / "main.cpp"), "-o", str(exe)], check=True, cwd=td)
-        bad, md, us = subprocess.run([str(exe)], capture_output=True, text=True, check=True).stdout.split()
-    return {"compiled": True, "mismatches": int(bad), "max_proba_diff": float(md), "pc_us_per_inference": float(us)}
+def python_parity(src, X, cls_idx, proba):
+    """Nạp module MicroPython vừa sinh vào CPython, chạy trên vector kiểm thử (đã làm tròn float32) và so với mlcore."""
+    mod = load_module_from_source(src)
+    bad, md = 0, 0.0
+    xs = [to_float32_list(x) for x in X]
+    t0 = time.perf_counter()
+    for i, x in enumerate(xs):
+        k, p = mod.predict_proba(x)
+        bad += int(k != cls_idx[i])
+        md = max(md, max(abs(a - b) for a, b in zip(p, proba[i])))
+    us = (time.perf_counter() - t0) / max(1, len(xs)) * 1e6
+    return {"checked": len(xs), "mismatches": bad, "max_proba_diff": md, "pc_us_per_inference": us}
 
 
 def main(argv=None):
@@ -189,28 +168,23 @@ def main(argv=None):
               f"latency={c['latency_median_s']}s")
     raw_model = sample_metrics(yte, pte)
 
-    # ------------------------------------------------ xuất C + kiểm tra khớp
-    P = "gas_model"
-    header = export_forest_c(model, EDGE_FEATURES, prefix=P, model_ver=a.model_ver,
-                             class_names=LEVEL_NAMES)
+    # ------------------------------------------------ xuất MicroPython + kiểm tra khớp
+    src = export_forest_micropython(model, EDGE_FEATURES, model_ver=a.model_ver, class_names=LEVEL_NAMES)
     rng = np.random.default_rng(SEED)
     pick = np.sort(np.r_[rng.choice(np.flatnonzero(yte == 0), min(250, int((yte == 0).sum())), replace=False),
                          *[np.flatnonzero(yte == k)[:: max(1, (yte == k).sum() // 80)][:80] for k in (1, 2, 3)]])
-    cls_idx, proba = predict_c_like(model, Xte[pick])
+    cls_idx, proba = predict_float32(model, Xte[pick])
     python_match = float((model.classes_[cls_idx] == model.predict(Xte[pick])).mean())
-    tv = export_test_vectors_c(Xte[pick], cls_idx, proba, prefix=P, n_max=len(pick))
-    FIRMWARE_INCLUDE.mkdir(parents=True, exist_ok=True)
-    (FIRMWARE_INCLUDE / "gas_model.h").write_text(header, encoding="utf-8")
-    tv_dir = REPO_DIR / "firmware" / "test" / "test_gas_model"
-    tv_dir.mkdir(parents=True, exist_ok=True)
-    (tv_dir / "gas_model_testvec.h").write_text(tv, encoding="utf-8")
-    parity = compile_parity(header, tv, P)
-    parity["python_float32_vs_float64_match"] = python_match
+    (FIRMWARE_SRC / "gas_model.py").write_text(src, encoding="utf-8")
+    # vector kiểm thử: firmware/tests kiểm tra lại gas_model.py; bench_device.py đo thời gian trên ESP32
+    (FIRMWARE_TESTS / "gas_model_testvec.json").write_text(json.dumps(
+        {"x": [to_float32_list(x) for x in Xte[pick]], "class_idx": cls_idx.tolist()}), encoding="utf-8")
+    parity = python_parity(src, Xte[pick], cls_idx, proba)
+    parity["float32_vs_float64_match"] = python_match
     A = forest_to_arrays(model)
     n_nodes, n_leaves = len(A["feature"]), int((A["feature"] < 0).sum())
-    idx_bytes = 2 if n_nodes < 32767 else 4
-    flash = n_nodes * (1 + 4 + 2 * idx_bytes) + n_leaves * 4 * 4 + len(A["roots"]) * 2
-    print(f"  C parity: {parity} | ~{flash / 1024:.1f} kB flash, {n_nodes} nút")
+    flash = n_nodes * (10 if n_nodes < 32767 else 16) + n_leaves * 4 * 4 + len(A["roots"]) * 2
+    print(f"  MicroPython parity: {parity} | ~{flash / 1024:.1f} kB dữ liệu model, {n_nodes} nút")
 
     # ------------------------------------------------ lưu
     dh = dataset_hash(X[m_tr], y[m_tr])
@@ -226,7 +200,7 @@ def main(argv=None):
            "chosen": {"model": best_name, **best_params}, "test_raw_model": raw_model, "test_comparison": comp,
            "edge_resources": {"nodes": n_nodes, "leaves": n_leaves, "trees": len(A["roots"]),
                               "flash_bytes_est": flash, "ram_bytes_runtime": 4 * (10 + 4) + 4 * (30 + 60 + 60)},
-           "c_parity": parity, "importance_split_gain": imp, "importance_permutation_recall_ge2": perm,
+           "micropython_parity": parity, "importance_split_gain": imp, "importance_permutation_recall_ge2": perm,
            "model_path": str(path)}
     EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
     (EXPERIMENTS_DIR / "gas_edge_results.json").write_text(json.dumps(res, indent=2, ensure_ascii=False, default=float),
@@ -239,7 +213,7 @@ def main(argv=None):
                    {m: {"recall_ge2": comp[m]["recall_ge2"], "event_recall_ge2": comp[m]["event_recall_ge2"],
                         "macro_f1": comp[m]["macro_f1"]} for m in comp}, SEED, time.perf_counter() - t0)
     write_report(res)
-    print(f"Xong ({time.perf_counter() - t0:.0f}s). firmware/include/gas_model.h đã cập nhật.")
+    print(f"Xong ({time.perf_counter() - t0:.0f}s). firmware/src/gas_model.py đã cập nhật — nạp lại bằng firmware/deploy.py.")
 
 
 def write_report(res):
@@ -265,12 +239,13 @@ def write_report(res):
     for i, row in enumerate(c["hybrid"]["confusion_matrix"]):
         L.append(f"| {i} | " + " | ".join(map(str, row)) + " |")
     r = res["edge_resources"]
-    p = res["c_parity"]
-    L += ["", "## Tài nguyên edge & kiểm tra khớp C/Python", "",
-          f"- {r['trees']} cây, {r['nodes']} nút, {r['leaves']} lá, ước tính **{r['flash_bytes_est'] / 1024:.1f} kB flash**, "
-          f"RAM lúc chạy ≈ {r['ram_bytes_runtime']} B (bộ đệm cửa sổ + feature)",
-          f"- C (g++) vs Python: lệch lớp **{p.get('mismatches')}**, lệch xác suất tối đa {p.get('max_proba_diff')}, "
-          f"{p.get('pc_us_per_inference', 0):.3f} µs/lần trên PC (đo lại trên ESP32 bằng test_gas_model)",
+    p = res["micropython_parity"]
+    L += ["", "## Tài nguyên edge & kiểm tra khớp MicroPython/mlcore", "",
+          f"- {r['trees']} cây, {r['nodes']} nút, {r['leaves']} lá, ước tính **{r['flash_bytes_est'] / 1024:.1f} kB dữ liệu model** "
+          f"(bytes trong gas_model.py)",
+          f"- gas_model.py (float32) vs mlcore trên {p.get('checked')} vector: lệch lớp **{p.get('mismatches')}**, "
+          f"lệch xác suất tối đa {p.get('max_proba_diff'):.2e}, {p.get('pc_us_per_inference', 0):.1f} µs/lần trên PC "
+          f"(đo trên ESP32: `python -m mpremote run firmware/bench_device.py`)",
           "", "## Feature quan trọng (split gain)", ""]
     L += [f"- {n}: {v:.3f}" for n, v in res["importance_split_gain"]]
     out = REPO_DIR / "docs" / "report" / "results_gas_edge.md"

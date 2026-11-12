@@ -21,7 +21,7 @@ Cây phân loại (Gini / Entropy, có trọng số lớp)
     Trọng số lớp lớn ⇒ bỏ sót lớp đó bị "phạt" nặng hơn ⇒ tăng Recall cho lớp đó.
 
 Cây được lưu dưới dạng mảng node (feature, threshold, left, right, value) — chính là định dạng
-xuất sang C cho ESP32 (xem export_c.py). Nút lá có feature = −1.
+xuất sang module MicroPython cho ESP32 (xem export_micropython.py). Nút lá có feature = −1.
 """
 from __future__ import annotations
 

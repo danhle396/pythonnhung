@@ -1,5 +1,5 @@
-"""Bản tham chiếu Python cho logic Edge AI cảnh báo khí/khói — firmware/src/edge_ai.cpp và alert.cpp
-cài đặt Y HỆT các công thức dưới đây (cùng tên biến, cùng thứ tự feature).
+"""Bản tham chiếu (NumPy) cho logic Edge AI cảnh báo khí/khói — firmware/src/edge_ai.py và alert.py (MicroPython)
+cài đặt Y HỆT các công thức dưới đây (cùng thứ tự feature; ml/tests/test_edge_parity.py kiểm tra).
 
 MQ-2:  Rs = RL·(Vc − Vout)/Vout,  ratio = Rs/R0,  ppm(LPG) = A·ratio^B  (A = 574.25, B = −2.222)
 Feature (lấy mẫu 1 Hz):
@@ -16,7 +16,7 @@ Feature (lấy mẫu 1 Hz):
                    (khói che sáng làm lux giảm so với nền chậm; nền không bị kéo theo khi đang có khói)
 Rule engine 4 cấp với hysteresis & debounce; fusion: level = max(rule_level, model_level)
 (model không bao giờ hạ cấp do rule đưa ra). Không có model (chưa có dữ liệu đo thật để huấn luyện,
-GAS_MODEL_AVAILABLE = 0 trong firmware) -> mọi chế độ đều chạy như 'rule'.
+gas_model.AVAILABLE = False trong firmware) -> mọi chế độ đều chạy như 'rule'.
 """
 from __future__ import annotations
 
