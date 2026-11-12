@@ -41,7 +41,7 @@
 3.6 Cấp cảnh báo, hysteresis, debounce, quy tắc fusion `level = max(rule, model)`.
 
 ## Chương 4 — Hiện thực
-4.1 Firmware: FreeRTOS 3 task, WDT, đệm offline, OLED (`firmware/src/*`). Build: RAM 14.5 %, Flash 46.6 %.
+4.1 Firmware: FreeRTOS 3 task, WDT, đệm offline, màn TFT ST7735 (`firmware/src/*`). Build: RAM 15.2 %, Flash 48.3 %.
 4.2 Thư viện `mlcore`: giao diện chung `fit/predict/predict_proba/to_dict/from_dict`, vector hoá NumPy, histogram
     binning + trừ histogram; kiểm chứng: 41 test (dữ liệu đồ chơi, gradient check < 1e-5, round-trip).
 4.3 Xuất model sang C: `ml/mlcore/export_c.py` → `firmware/include/gas_model.h`; kiểm chứng g++ và Unity (`firmware/test/test_gas_model`) 0 lệch.

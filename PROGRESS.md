@@ -4,7 +4,7 @@
 > Phiên Claude Code tiếp theo: đọc `CLAUDE.md` → `task.md` → file này, rồi làm tiếp mục "CÒN LẠI" theo thứ tự.
 > Cập nhật file này sau mỗi hạng mục hoàn thành.
 
-Cập nhật lần cuối: 2026-11-10
+Cập nhật lần cuối: 2026-11-12
 
 ## ĐÃ XONG (đã chạy và kiểm chứng)
 
@@ -30,9 +30,9 @@ Cập nhật lần cuối: 2026-11-10
 - [x] PlatformIO project, FreeRTOS 3 task (sensors/edgeai/network), WDT, NTP, Wi-Fi/MQTT reconnect + LWT,
       đọc DHT22/BMP280/BH1750/YL-83/MQ-2 + lọc median/EWMA, rule engine 4 cấp (hysteresis/debounce), model cây,
       fusion hybrid, mute 5 phút, sensor_fault, nowcast Zambretti, đệm offline LittleFS (2000 bản ghi), config NVS + ack,
-      OLED 3 trang, publish telemetry/alert/status/nowcast.
-- [x] `pio run -e esp32dev` **build thành công** (RAM 14.5 %, Flash 46.6 %).
-- [x] `pio test -e native` **12/12 pass** (filters, rule engine, alert manager, nowcast, model C khớp Python).
+      màn TFT 1.8" ST7735 (SPI) 3 trang, publish telemetry/alert/status/nowcast.
+- [x] `pio run -e esp32dev` **build thành công** (RAM 15.2 %, Flash 48.3 %).
+- [x] `pio test -e native` **13 test, 12 pass + 1 bỏ qua khi chưa có model** (filters, rule engine, alert manager, nowcast, model C khớp Python).
 
 ### Backend — `backend/` (task.md §7, §10)
 - [x] FastAPI + SQLAlchemy 2 (Postgres/Timescale hoặc SQLite), Alembic migration (hypertable, continuous aggregate, retention 90 ngày).
@@ -62,7 +62,7 @@ Cập nhật lần cuối: 2026-11-10
 - [x] **Kiểm thử**: load test 20 và 50 thiết bị × 1 msg/s × 30 s, QoS 1 → `docs/report/results_load_20.md`, `results_load_50.md`
       (mất gói 0 %, P95 broker ≈ 2 ms, 100 % vào DB, CPU backend TB ≈ 55–61 % một lõi, SQLite).
       `backend/tests/test_integration_mqtt.py`: Mosquitto thật → ingest → DB → API, chống trùng khi gửi bù, cmd xuống thiết bị,
-      LWT → offline (tự bỏ qua nếu không có mosquitto). Backend tổng cộng **15 test pass**.
+      LWT → offline (tự bỏ qua nếu không có mosquitto). Backend tổng cộng **15 test pass** (2026-11-12: thêm 2 → **17**).
 - [x] `docs/report/bao_cao_khung.md`: khung 6 chương + nguồn số liệu/hình cho từng mục, tài liệu tham khảo, kịch bản demo.
 - [x] OTA firmware qua HTTP (`cmd: ota` + `url`, API `POST /api/devices/{id}/cmd {"cmd":"ota","url":...}`); TLS 8883 có sẵn
       (`gen_certs.sh`, cờ `MQTT_USE_TLS`) — chưa build thử với TLS.
@@ -78,7 +78,7 @@ Cập nhật lần cuối: 2026-11-10
 - [x] Bias correction: khi hệ số góc trạm→Open-Meteo ngoài [0.5, 1.5] chỉ hiệu chỉnh độ lệch (trước đây clip 0.5 làm khoảng tin cậy
       rộng gấp đôi); kẹp độ ẩm dự báo trong [0, 100]. Thêm test → **ml 42 test pass**.
 - [x] Dashboard: `?page=` / `?device=` trên URL, mặc định `station01`, trục giờ 24h, điểm + thanh CI cho dự báo, giờ địa phương.
-      **Smoke test** `dashboard/tests/test_app.py` (6 trang + ack + gửi config, API giả từ dữ liệu thật) → 7 pass.
+      **Smoke test** `dashboard/tests/test_app.py` (6 trang + ack + gửi config) → 7 pass. 2026-11-12: fixture chụp lại từ trạm thật (`capture_fixture.py`).
 - [x] Grafana: datasource uid cố định + dashboard provision sẵn `grafana/dashboards/vku_aiot.json` (đã kiểm tra: kết nối DB OK).
 - [x] Hình báo cáo: `tools/make_report_figures.py` (MAE, F1 mưa, Rule/Model/Hybrid, load, diễn biến cảnh báo),
       `tools/render_mermaid.js` (kiến trúc, ERD, 3 sơ đồ tuần tự từ `docs/architecture/*.md`), ảnh chụp 6 trang dashboard + Grafana.
@@ -88,7 +88,31 @@ Cập nhật lần cuối: 2026-11-10
 - [x] Sơ đồ đấu dây draw.io: `docs/hardware/wiring.drawio` (2 trang: cảm biến / cảnh báo; + `wiring-1.png`, `wiring-2.png`, bảng đấu dây `docs/hardware/README.md`,
       sinh từ `gen_wiring_drawio.py`, xuất PNG bằng `tools/render_drawio.js`); đã chèn vào báo cáo mục 3.2.
 
+### 2026-11-12 — trạm thật lên mạng, dọn sạch dữ liệu giả lập
+- [x] Đổi màn hình sang **TFT 1.8" ST7735 (SPI)**: firmware, sơ đồ đấu dây, báo cáo, slide. Còi 2 chân.
+- [x] Nạp firmware vào ESP32 thật (COM3, Wi-Fi = Mobile Hotspot laptop, MQTT `192.168.137.1:11883`); dữ liệu thật vào DB từ 17:02.
+- [x] **Xoá dữ liệu giả lập còn trong DB Docker**: 496 bản ghi `fw=sim-1.0.0`, 50 thiết bị `loadtest*` (1 505 bản ghi),
+      64 cảnh báo + 178 thông báo cũ, 4 320 dự báo cũ; xoá retained cũ trên broker; refresh continuous aggregate.
+- [x] Backend: sửa bộ đếm telemetry âm (TimescaleDB trả rowcount −1 → đếm bằng RETURNING); bỏ qua bản tin rỗng
+      (xoá retained) thay vì tạo thiết bị ma; thêm `DELETE /api/devices/{id}`; `tools/load_test.py` tự xoá thiết bị tạm sau khi đo.
+- [x] Fixture dashboard chụp lại từ trạm thật (bỏ fixture từ thời giả lập).
+- [x] YL-83: ngưỡng theo số đo thật (khô ≥ 3100 mV; vài giọt nước 2853–3074 mV) + giữ mức mưa 30 s.
+- [x] Sơ đồ đấu dây: sửa cầu phân áp MQ-2 (nút giữa R1/R2 ở phía GPIO32, không phải phía AO).
+- [x] Giờ đo: backend thay ts < 2020 (ESP32 chưa có NTP) bằng giờ nhận; firmware gửi ts = 0 thay vì giây-từ-lúc-bật,
+      khởi động lại SNTP khi Wi-Fi vừa lên (+2 máy chủ dự phòng) → có giờ sau ≈ 20 s thay vì vài phút.
+- [x] Nowcast: mẫu áp suất lưu kèm giờ vào NVS mỗi 10 phút, nạp lại sau khởi động (≤ 3 giờ), xu hướng tính theo
+      thời gian thật; gửi lại nowcast khi đã có mạng. Thêm test native `test_nowcast_restore_after_reboot`.
+- [x] **Tình trạng từng cảm biến**: API `GET /api/sensors/{id}` (ok / chập chờn / lỗi / mất dữ liệu / trạm offline, lý do,
+      lần cuối còn tốt) + khung "Tình trạng cảm biến" ở trang Tổng quan; ô số liệu của cảm biến lỗi hiện "⚠ Lỗi".
+- [x] Thử còi (cmd `test_alarm`): firmware gửi `type: test` (trước bị ghi nhầm cấp 3 `cloud_escalation`); backend không
+      gửi Telegram/Email và không nhắc lại cảnh báo `test`; sửa 4 bản ghi thử còi 18:24–18:25 thành `test`.
+- [x] **Bỏ nút tắt còi** (theo yêu cầu nhóm): xoá code đọc GPIO13, khỏi sơ đồ và tài liệu; tắt còi bằng lệnh `mute` trên dashboard.
+- [x] Dashboard: banner khí chỉ hiện cấp khi đánh giá được — trạm offline / MQ-2 lỗi / đang thử còi / MQ-2 làm nóng hiện riêng.
+
 ## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
+- [ ] **Nguồn trạm**: board tự khởi động lại khi bật Wi-Fi (POWERON_RESET) khi cấp nguồn qua USB → dùng nguồn 5 V/2 A vào VIN.
+- [ ] **YL-83**: ADC kẹt 3134 mV (trần) kể cả khi nhỏ nước → kiểm tra dây tấm cảm biến ↔ LM393, AO (không phải DO) → GPIO34.
+- [ ] **MQ-2**: ADC kẹt 142 mV, `sensor_ok.gas = false` → kiểm tra VCC 5 V (VIN) và cầu phân áp 10k/20k → GPIO32.
 - [ ] Điền họ tên, MSSV, GVHD ở đầu `docs/report/bao_cao.md` rồi chạy lại `python tools/md_to_docx.py docs/report/bao_cao.md`.
 - [ ] Quay video demo theo `docs/report/kich_ban_demo.md` (cần trạm thật).
 - [ ] Thu dữ liệu khí thật → `python -m aiot_ml.train_gas_edge --data ...`; sau ≥ 3 tuần trạm chạy → `train_anomaly --data ...`;
@@ -98,9 +122,8 @@ Cập nhật lần cuối: 2026-11-10
       µs suy luận trên ESP32, công suất; chụp ảnh lắp ráp.
 
 ## VIỆC CẦN NGƯỜI LÀM (phần cứng — Claude không làm được)
-- Phần cứng của nhóm: còi active, LED xanh/đỏ (không có LED vàng, S8050, relay — `config.h`: `HAS_LED_YELLOW 0`, `HAS_RELAY 0`).
-  **Báo loại còi** (2 chân hay module 3 chân, 3V/5V; module kêu khi I/O = LOW ⇒ `BUZZER_ACTIVE_LOW 1`).
-- Mua MQ-2, nút, điện trở phân áp 10k/20k; lắp theo `firmware/include/config.h`; đo lại `MQ2_RL_KOHM` trên module.
+- Phần cứng của nhóm: còi active 2 chân (nối thẳng GPIO25, `BUZZER_ACTIVE_LOW 0`), màn TFT 1.8" ST7735 (SPI), LED xanh/đỏ (không có LED vàng, S8050, relay — `config.h`: `HAS_LED_YELLOW 0`, `HAS_RELAY 0`).
+- Mua MQ-2, điện trở phân áp 10k/20k; lắp theo `firmware/include/config.h`; đo lại `MQ2_RL_KOHM` trên module.
 - Copy `firmware/include/secrets.h.example` → `secrets.h`, điền Wi-Fi/MQTT. Nạp: `pio run -e esp32dev -t upload`.
 - Burn-in MQ-2 24–48 h → lệnh `calibrate` (đo R0). Hiệu chuẩn YL-83 (`RAIN_MV_*`).
 - `pio test -e esp32dev -f test_gas_model` trên ESP32 thật để đo µs suy luận và xác nhận khớp C/Python.

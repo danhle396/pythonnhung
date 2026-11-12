@@ -25,6 +25,9 @@ class Storage {
   void loadConfig(DeviceConfig& c);
   void saveConfig(const DeviceConfig& c);
   uint32_t nextSeq();
+  // mẫu áp suất của nowcast (giữ qua các lần khởi động lại)
+  void saveNowcast(const float* p, const uint32_t* t, size_t n);
+  size_t loadNowcast(float* p, uint32_t* t, size_t maxN);
 
  private:
   bool ok_ = false;

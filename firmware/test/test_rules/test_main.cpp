@@ -126,6 +126,52 @@ static void test_nowcast_trends() {
   TEST_ASSERT_EQUAL((int)NowcastCode::RAINING, (int)s.compute(2, 60.0f, 3).code);
 }
 
+// Thử còi: cấp 3 trong 3 s, đánh dấu testing (để gửi type "test", không phải sự cố khí / cloud nâng cấp)
+static void test_alarm_test_is_flagged() {
+  AlertManager m;
+  m.testAlarm(1000);
+  Actions a = m.update(0, 1000);
+  TEST_ASSERT_EQUAL(3, a.level);
+  TEST_ASSERT_TRUE(a.testing);
+  a = m.update(0, 4500);
+  TEST_ASSERT_EQUAL(0, a.level);
+  TEST_ASSERT_FALSE(a.testing);
+  m.cloudEscalate(2, 5000);
+  a = m.update(0, 5000);
+  TEST_ASSERT_EQUAL(2, a.level);
+  TEST_ASSERT_FALSE(a.testing);
+}
+
+// Board khởi động lại: mẫu đã lưu (có giờ) được nạp lại -> không phải chờ lại 1 giờ; quãng tắt máy tính đúng.
+static void test_nowcast_restore_after_reboot() {
+  const uint32_t T0 = 1794470000;
+  NowcastEngine a;
+  for (int i = 0; i < 6; ++i) a.addPressure(1012.0f - 0.2f * i, T0 + i * 600);  // 50 phút, giảm
+  TEST_ASSERT_EQUAL((int)PressureTrend::Unknown, (int)a.compute(0, 80.0f, 11).trend);  // < 1 giờ
+  float p[NowcastEngine::N];
+  uint32_t t[NowcastEngine::N];
+  size_t n = a.exportSamples(p, t);
+  TEST_ASSERT_EQUAL(6, (int)n);
+
+  // khởi động lại sau 15 phút tắt máy; mẫu đầu tiên lấy trước khi có NTP (ts = 0)
+  NowcastEngine b;
+  b.addPressure(1010.6f, 0);
+  const uint32_t now = T0 + 5 * 600 + 15 * 60 + 60;  // NTP về 1 phút sau mẫu đầu
+  b.assignTimes(now - 60);
+  b.restore(p, t, n, now);
+  TEST_ASSERT_EQUAL(7, (int)b.samples());
+  TEST_ASSERT_TRUE(b.timed());
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, (5 * 600 + 15 * 60) / 3600.0f, b.spanHours());  // 65 phút thật, không phải 60
+  Nowcast c = b.compute(0, 80.0f, 11);
+  TEST_ASSERT_EQUAL((int)PressureTrend::Falling, (int)c.trend);  // giảm 1.4 hPa / 65 phút -> ≈ -3.9 hPa/3h
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, -1.4f * 3.0f / b.spanHours(), c.trend3h);
+
+  // mẫu đã lưu quá 3 giờ bị bỏ
+  NowcastEngine old;
+  old.restore(p, t, n, T0 + 5 * 3600);
+  TEST_ASSERT_EQUAL(0, (int)old.samples());
+}
+
 static void test_derived_quantities() {
   TEST_ASSERT_FLOAT_WITHIN(0.05f, 25.0f, dewPoint(25.0f, 100.0f));
   float p0 = seaLevelPressure(1009.0f, 28.0f, 8.0f);
@@ -144,6 +190,8 @@ int main(int, char**) {
   RUN_TEST(test_mq2_conversion_and_fault);
   RUN_TEST(test_edge_hybrid_never_below_rule);
   RUN_TEST(test_nowcast_trends);
+  RUN_TEST(test_nowcast_restore_after_reboot);
+  RUN_TEST(test_alarm_test_is_flagged);
   RUN_TEST(test_derived_quantities);
   return UNITY_END();
 }

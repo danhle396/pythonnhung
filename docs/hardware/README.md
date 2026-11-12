@@ -4,7 +4,7 @@
 
 ![Sơ đồ đấu dây — cảm biến](wiring-1.png)
 
-**Trang 2 — Cảnh báo và điều khiển**
+**Trang 2 — Cảnh báo (còi, LED) và màn hình TFT**
 
 ![Sơ đồ đấu dây — cảnh báo](wiring-2.png)
 
@@ -17,23 +17,28 @@ Chấm tròn = nối · vòng cung = dây cắt qua, **không** nối · nét đ
 
 ## Bảng đấu dây
 
+Trên board ESP32 DevKit V1, chân GPIOx thường in là **Dx** (D5, D19…); riêng **GPIO16 in là RX2**, **GPIO17 in là TX2**
+(nằm giữa D5 và D4, cùng hàng chân với D23/D22).
+
 | Linh kiện | Chân linh kiện | Nối tới | Ghi chú |
 |---|---|---|---|
 | Nguồn 5 V / 2 A | +5V / GND | VIN / GND của ESP32, MQ-2 | GND chung toàn mạch |
 | BMP280 | VCC / GND / SCL / SDA / SDO | 3V3 / GND / GPIO22 / GPIO21 / GND | địa chỉ 0x76 |
 | BH1750 | VCC / GND / SCL / SDA / ADDR | 3V3 / GND / GPIO22 / GPIO21 / GND | địa chỉ 0x23 |
-| OLED SSD1306 | VCC / GND / SCL / SDA | 3V3 / GND / GPIO22 / GPIO21 | 0x3C |
 | DHT22 | VCC / DATA / GND | 3V3 / GPIO4 / GND | trở kéo lên 10 kΩ DATA → 3V3 |
 | YL-83 (LM393) | VCC / GND / AO / DO | **GPIO18** / GND / GPIO34 / GPIO35 | GPIO18 chỉ cấp nguồn khi đọc (giảm ăn mòn) |
 | MQ-2 | VCC / GND / AO / DO | 5V / GND / **R1 10 kΩ → GPIO32**, R2 20 kΩ GPIO32 → GND / *để trống* | AO tối đa 5 V → 3,33 V |
-| Còi active (2 chân) | + / − | GPIO25 / GND | nối thẳng, không cần transistor (còi 3,3 V ≈ 20 mA) |
-| Module còi 3 chân | I/O / VCC / GND | GPIO25 / 3V3 / GND | có transistor sẵn; kêu khi I/O = LOW ⇒ `BUZZER_ACTIVE_LOW 1` |
+| Còi active 2 chân | + / − | GPIO25 / GND | nối thẳng, không cần transistor; chân + dài hơn; GPIO = HIGH → kêu |
 | LED xanh / đỏ | anode / cathode | 220 Ω ← GPIO26 / 14 · GND | cấp 1 = xanh nháy 1 Hz (không có LED vàng) |
-| Nút tắt còi | 2 chân | GPIO13 / GND | INPUT_PULLUP nội |
-| *(không dùng)* LED vàng, transistor S8050, relay/quạt | — | GPIO27, GPIO23 để trống | `config.h`: `HAS_LED_YELLOW 0`, `HAS_RELAY 0` |
+| Màn hình TFT 1.8" ST7735S 128×160 (SPI) | VCC / GND / CS / RESET / A0 / SDA / SCK / LED | 3V3 / GND / **GPIO5** / **EN** / **GPIO16 (RX2)** / **GPIO17 (TX2)** / **GPIO19** / 3V3 | SPI chỉ ghi (HSPI); không nối MISO, không nối GPIO12; khe thẻ SD bỏ trống |
+| *(không dùng)* LED vàng, transistor S8050, relay/quạt, nút tắt còi | — | GPIO27, GPIO23, GPIO13 để trống | `config.h`: `HAS_LED_YELLOW 0`, `HAS_RELAY 0`; tắt còi bằng lệnh `mute` trên dashboard |
 
 ## Kiểm tra trước khi cấp điện
 1. Đo thông mạch GND chung; không chập 5V–GND, 3V3–GND.
 2. Đo điện áp nút giữa R1/R2 khi MQ-2 cấp 5 V: phải ≤ 3,3 V.
-3. Nạp firmware, mở `pio device monitor`: kiểm tra log I²C tìm thấy 0x23, 0x3C, 0x76.
+3. Nạp firmware, mở `pio device monitor`: log `[SENS] BMP280:1 BH1750:1` (I²C 0x76, 0x23); màn TFT hiện
+   "Tram AIoT" rồi 3 trang luân phiên.
+5. Màn TFT: trắng xoá / sai màu / lệch 1–2 hàng điểm ở mép → đổi `TFT_INIT_TAB` trong `config.h`
+   (`INITR_BLACKTAB` → `INITR_GREENTAB` hoặc `INITR_REDTAB`); hình ngược → `TFT_ROTATION 3`. Module có ổn áp
+   3,3 V và jumper J1: cấp VCC = 3V3 là an toàn trong mọi trường hợp; **không** cấp 5 V nếu J1 đã được hàn nối.
 4. MQ-2 cần làm nóng 24–48 giờ trước khi hiệu chuẩn R0 (lệnh `calibrate` trên dashboard).

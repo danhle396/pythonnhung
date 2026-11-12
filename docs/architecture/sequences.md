@@ -71,7 +71,7 @@ sequenceDiagram
             F->>F: persistence
         end
         F->>DB: forecasts (giá trị + khoảng tin cậy 95 %)
-        F->>B: forecast (retain) → OLED trang 3
+        F->>B: forecast (retain) → màn TFT trang 3
         F-->>D: WebSocket /ws/live
     end
     D->>DB: GET /api/forecast/{id} (thực tế vs dự báo)

@@ -55,6 +55,7 @@ Actions AlertManager::update(int edgeLevel, uint32_t nowMs) {
   if (timeBefore(nowMs, cloudUntil_) && cloudLevel_ > lvl) lvl = cloudLevel_;  // cloud chỉ được nâng cấp
   bool testing = timeBefore(nowMs, testUntil_);
   if (testing) lvl = 3;
+  a.testing = testing;
   a.prevLevel = level_;
   a.levelChanged = (lvl != level_);
   level_ = lvl;

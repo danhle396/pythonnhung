@@ -10,11 +10,12 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import authenticate, create_token, require_user
-from app.db.models import Alert, Command, Device, DeviceConfig, Forecast, ModelRegistryEntry, Nowcast, Telemetry
+from app.db.models import (Alert, Command, Device, DeviceConfig, Forecast, ModelRegistryEntry, Notification, Nowcast,
+                           Telemetry)
 from app.db.session import as_utc, get_db
 from app.runtime import rt
 from app.schemas.payloads import AckRequest, CommandIn, DeviceConfigIn
@@ -71,6 +72,20 @@ def get_device(device_id: str, db: Session = Depends(get_db)):
     return {**_row(d), "config": _row(cfg) if cfg else None}
 
 
+@router.delete("/devices/{device_id}", tags=["devices"])
+def delete_device(device_id: str, db: Session = Depends(get_db), user: str = Depends(require_user)):
+    """Xoá thiết bị cùng toàn bộ dữ liệu của nó (vd. thiết bị load test) và bản tin retained trên broker."""
+    alert_ids = select(Alert.id).where(Alert.device_id == device_id)
+    n = {"notifications": db.execute(delete(Notification).where(Notification.alert_id.in_(alert_ids))).rowcount}
+    for name, model in (("alerts", Alert), ("telemetry", Telemetry), ("forecasts", Forecast), ("nowcasts", Nowcast),
+                        ("configs", DeviceConfig), ("commands", Command)):
+        n[name] = db.execute(delete(model).where(model.device_id == device_id)).rowcount
+    n["device"] = db.execute(delete(Device).where(Device.id == device_id)).rowcount
+    db.commit()
+    rt().publisher.clear_retained(device_id)
+    return {"device_id": device_id, "deleted": n}
+
+
 @router.put("/devices/{device_id}/config", tags=["devices"])
 def put_config(device_id: str, body: DeviceConfigIn, db: Session = Depends(get_db), user: str = Depends(require_user)):
     prev = db.scalars(select(DeviceConfig).where(DeviceConfig.device_id == device_id)
@@ -109,6 +124,74 @@ def send_cmd(device_id: str, body: CommandIn, db: Session = Depends(get_db), use
 def list_commands(device_id: str, db: Session = Depends(get_db)):
     return [_row(c) for c in db.scalars(select(Command).where(Command.device_id == device_id)
                                         .order_by(Command.created_at.desc()).limit(50))]
+
+
+# ------------------------------------------------------------------ tình trạng từng cảm biến
+# (khoá sensor_ok do firmware gửi, tên, đại lượng đo, cột bắt buộc có giá trị)
+SENSORS = [("dht", "DHT22", "Nhiệt độ, độ ẩm", ["temp_dht", "hum"]),
+           ("bmp", "BMP280", "Áp suất", ["pressure_msl"]),
+           ("bh", "BH1750", "Ánh sáng", ["lux"]),
+           ("rain", "YL-83", "Mưa", ["rain_raw"]),
+           ("gas", "MQ-2", "Khí gas, khói", ["gas_raw", "gas_ppm"])]
+ADC_FLOOR_MV = 150   # ADC ESP32 (11 dB) không đọc được dưới ≈ 142 mV
+STATION_STALE_S = 60
+
+
+@router.get("/sensors/{device_id}", tags=["devices"])
+def sensor_health(device_id: str, minutes: int = Query(10, ge=1, le=1440), db: Session = Depends(get_db)):
+    """Tình trạng từng cảm biến trong `minutes` phút gần nhất: ok | warn | error | unknown + lý do."""
+    now = dt.datetime.now(dt.timezone.utc)
+    rows = list(db.scalars(select(Telemetry).where(Telemetry.device_id == device_id,
+                                                   Telemetry.ts >= now - dt.timedelta(minutes=minutes))
+                           .order_by(Telemetry.ts)))
+    last = rows[-1] if rows else None
+    if last is None:  # trong cửa sổ không có gì: lấy bản ghi cuối cùng để biết mất từ lúc nào
+        last = db.scalars(select(Telemetry).where(Telemetry.device_id == device_id)
+                          .order_by(Telemetry.ts.desc()).limit(1)).first()
+    last_ts = as_utc(last.ts) if last else None
+    online = bool(rows) and (now - as_utc(rows[-1].ts)).total_seconds() <= STATION_STALE_S
+    hhmm = lambda t: t.astimezone(dt.timezone(dt.timedelta(hours=7))).strftime("%H:%M:%S %d/%m")  # noqa: E731
+
+    def ok_row(r, key, cols):
+        flags = ((r.extra or {}).get("sensor_ok") or {})
+        return flags.get(key) is not False and all(getattr(r, c) is not None for c in cols)
+
+    out = []
+    for key, name, measures, cols in SENSORS:
+        s = {"sensor": key, "name": name, "measures": measures, "samples": len(rows),
+             "value": {c: getattr(rows[-1], c) for c in cols} if rows else None, "last_ok": None}
+        oks = [ok_row(r, key, cols) for r in rows]
+        last_ok = next((as_utc(r.ts) for r, ok in zip(reversed(rows), reversed(oks)) if ok), None)
+        if last_ok is None and last is not None and ok_row(last, key, cols):
+            last_ok = last_ts
+        s["last_ok"] = last_ok.isoformat() if last_ok else None
+        s["ok_ratio"] = round(sum(oks) / len(oks), 3) if oks else None
+        if not rows:
+            s["status"], s["message"] = "unknown", (f"Trạm không gửi dữ liệu trong {minutes} phút"
+                                                    + (f" (lần cuối {hhmm(last_ts)})" if last_ts else ""))
+        elif not online:
+            s["status"], s["message"] = "unknown", f"Trạm mất kết nối từ {hhmm(as_utc(rows[-1].ts))}"
+        elif not oks[-1]:
+            r = rows[-1]
+            missing = [c for c in cols if getattr(r, c) is None]
+            s["status"] = "error"
+            if missing:
+                s["message"] = "Mất dữ liệu: không đọc được cảm biến (kiểm tra dây, nguồn, địa chỉ I²C)"
+            elif key == "gas" and (r.gas_raw or 0) <= ADC_FLOOR_MV:
+                s["message"] = ("Tín hiệu đứng yên ở mức thấp nhất ADC đo được (≈ 142 mV) ≥ 5 phút: không khí rất "
+                                "sạch hoặc AO chưa nối vào GPIO32 — thử xả gas bật lửa (không đánh lửa) gần cảm biến")
+            else:
+                s["message"] = "Cảm biến báo lỗi (tín hiệu đứng yên, mất tín hiệu hoặc bão hoà)"
+        elif s["ok_ratio"] < 1:
+            bad = len(oks) - sum(oks)
+            s["status"], s["message"] = "warn", f"Chập chờn: {bad}/{len(oks)} lần đọc lỗi trong {minutes} phút"
+        elif key == "gas" and (rows[-1].extra or {}).get("warming_up"):
+            s["status"], s["message"] = "warn", "Đang làm nóng — chưa đánh giá khí"
+        else:
+            s["status"], s["message"] = "ok", "Hoạt động bình thường"
+        out.append(s)
+    return {"device_id": device_id, "window_min": minutes, "online": online,
+            "last_ts": last_ts.isoformat() if last_ts else None, "sensors": out}
 
 
 # ------------------------------------------------------------------ telemetry

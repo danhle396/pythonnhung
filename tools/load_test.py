@@ -1,4 +1,6 @@
-"""Load test (task.md 12.1): giả lập N thiết bị, mỗi thiết bị gửi 1 msg/giây trong D giây.
+"""Load test (task.md 12.1): N client MQTT tạm (`loadtestNNN`), mỗi client gửi 1 msg/giây trong D giây — đo hiệu năng
+broker/backend, KHÔNG phải số liệu môi trường. Đo xong tự xoá các thiết bị tạm khỏi DB + retained trên broker
+(DELETE /api/devices/{id}, cần --api và tài khoản admin) để chỉ còn số liệu đo thật của trạm.
 
 Đo:
   - độ trễ broker (publish -> subscriber giám sát nhận được), P50/P95/P99
@@ -12,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import threading
 import time
@@ -43,6 +46,9 @@ def main():
     ap.add_argument("--prefix", default="loadtest")
     ap.add_argument("--api", default=None, help="URL backend để kiểm tra số bản ghi đã ghi DB")
     ap.add_argument("--backend-pid", type=int, default=None)
+    ap.add_argument("--admin-user", default=os.getenv("ADMIN_USER", "admin"))
+    ap.add_argument("--admin-pass", default=os.getenv("ADMIN_PASS", "admin123"))
+    ap.add_argument("--keep", action="store_true", help="không xoá thiết bị tạm sau khi đo (mặc định: xoá)")
     ap.add_argument("--out", default=str(ROOT / "docs" / "report" / "results_load.md"))
     a = ap.parse_args()
 
@@ -55,7 +61,7 @@ def main():
         except Exception:
             return
         if not str(j.get("device_id", "")).startswith(a.prefix) or "t_pub_ms" not in j:
-            return  # bỏ qua thiết bị thật / simulator khác đang chạy song song
+            return  # bỏ qua trạm thật đang gửi song song
         with lock:
             lat.append(t - j["t_pub_ms"])
             seen.setdefault(j["device_id"], set()).add(j["seq"])
@@ -149,6 +155,26 @@ def main():
         L.append(f"| RAM backend | {res['backend_rss_mb']:.0f} MB |")
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text("\n".join(L) + "\n", encoding="utf-8")
+    cleanup(a, sorted(sent))
+
+
+def cleanup(a, devices):
+    """Xoá thiết bị tạm khỏi DB và broker để dashboard/dự báo chỉ còn số liệu đo thật."""
+    if a.keep:
+        print(f"--keep: giữ {len(devices)} thiết bị tạm trong DB")
+        return
+    if not a.api:
+        print(f"⚠ Không có --api: backend vẫn ghi {len(devices)} thiết bị {a.prefix}* vào DB — xoá bằng "
+              f"DELETE /api/devices/{{id}} hoặc chạy lại với --api")
+        return
+    import httpx
+    time.sleep(2)  # chờ backend ghi nốt lô cuối
+    tok = httpx.post(f"{a.api}/api/auth/token", data={"username": a.admin_user, "password": a.admin_pass},
+                     timeout=15).json()["access_token"]
+    h = {"Authorization": f"Bearer {tok}"}
+    n = sum(httpx.delete(f"{a.api}/api/devices/{did}", headers=h, timeout=60).json()["deleted"]["telemetry"]
+            for did in devices)
+    print(f"Đã xoá {len(devices)} thiết bị tạm ({n} bản ghi) khỏi DB và broker")
 
 
 if __name__ == "__main__":

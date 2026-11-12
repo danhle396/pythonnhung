@@ -127,7 +127,7 @@ p1 = Page("s", "<b>ESP32 DevKit V1</b> (ESP32-WROOM-32) · Trang 1/2 — <b>Cả
     ("G22", "GPIO22", "SCL", SCL), ("G21", "GPIO21", "SDA", SDA), ("G4", "GPIO4", "DHT22", DHT),
     ("G34", "GPIO34", "Mưa AO", "#00897B"), ("G35", "GPIO35", "Mưa DO", "#6D4C41"), ("G18", "GPIO18", "Mưa VCC", "#8E24AA"),
     ("G32", "GPIO32", "MQ-2 AO", "#3949AB"), ("5V", "VIN", "5V", P5V), ("3V3", "3V3", "", P3V3), ("GND", "GND", "", GND),
-], pin_x=1250)
+], pin_x=1340)
 p1.title_short = "1 - Cam bien"
 g = f"<font color='{GREY}'>"
 p1.comp(f"<b>DHT22</b> (AM2302)<br>Nhiệt độ, độ ẩm<br>{g}1 dây · trở kéo lên 10 kΩ DATA–3V3<br>(module 3 chân đã có sẵn)</font>",
@@ -136,17 +136,18 @@ p1.comp(f"<b>BH1750</b> (GY-302)<br>Cường độ ánh sáng<br>{g}I2C địa c
         [("VCC", "3V3"), ("GND", "GND"), ("SDA", "G21"), ("SCL", "G22"), ("ADDR", ("GND", "dashed"))])
 p1.comp(f"<b>BMP280</b> (GY-BMP280)<br>Áp suất<br>{g}I2C địa chỉ 0x76 (SDO nối GND)<br>CSB nối 3V3 → chế độ I2C<br>chỉ dùng 3,3 V</font>",
         [("VCC", "3V3"), ("GND", "GND"), ("SDA", "G21"), ("SCL", "G22"), ("CSB", ("3V3", "dashed")), ("SDO", ("GND", "dashed"))])
-p1.comp(f"<b>OLED SSD1306</b> 0.96\"<br>Màn hình tại chỗ<br>{g}I2C địa chỉ 0x3C</font>",
-        [("VCC", "3V3"), ("GND", "GND"), ("SDA", "G21"), ("SCL", "G22")])
 p1.comp(f"<b>YL-83 + LM393</b><br>Mưa (4 mức)<br>{g}VCC lấy từ GPIO18: chỉ cấp khi đọc<br>(giảm ăn mòn tấm cảm biến)</font>",
         [("VCC", "G18"), ("GND", "GND"), ("DO", "G35"), ("AO", "G34")])
-ys = p1.comp(f"<b>MQ-2</b><br>Khí gas, khói · đốt nóng 5 V ≈ 150 mA<br>{g}AO tới 5 V → R1/R2 → ≤ 3,33 V vào ADC<br>"
+ys = p1.comp(f"<b>MQ-2</b><br>Khí gas, khói · đốt nóng 5 V ≈ 150 mA<br>{g}AO → R1 → GPIO32; GPIO32 → R2 → GND<br>"
+             f"(AO tới 5 V → ≤ 3,33 V vào ADC)<br>"
              f"DO: để trống (mức 5 V)</font>",
              [("VCC", "5V"), ("GND", "GND"), ("AO", ("via", "R1 10 kΩ", "G32")), ("DO", None)], min_h=160, gap=90)
-# cầu phân áp: nút giữa R1 và chân AO → R2 20 kΩ → GND
+# cầu phân áp: AO → R1 10 kΩ → [nút giữa = GPIO32] → R2 20 kΩ → GND. Nút giữa nằm ở PHÍA GPIO32 của R1
+# (bên trái R1), không phải phía chân AO — đặt sai thì GPIO32 nhận thẳng điện áp AO tới 5 V.
 cy = ys["AO"]
-nx = p1.pin_x - 50
+nx = p1.pin_x - 240  # giữa thanh GND và R1 (R1 nằm ở pin_x−190 … pin_x−100)
 p1.dot(nx, cy, "#3949AB")
+p1.box(nx - 60, cy - 34, 120, 22, "→ GPIO32", "text;html=1;align=center;fontSize=12;fontColor=#3949AB;")
 p1.box(nx - 32, cy + 30, 64, 44, "R2<br>20 kΩ", S_RES)
 p1.line([(nx, cy), (nx, cy + 30)], "#3949AB", jump=False)
 p1.line([(nx, cy + 74), (nx, cy + 100), (p1.col["GND"][0], cy + 100)], GND, jump=False)
@@ -156,26 +157,37 @@ p1.legend([(P5V, "5 V (VIN)", False), (P3V3, "3,3 V", False), (GND, "GND", False
            (SCL, "I2C SCL", False), (DHT, "DHT22 data", False)])
 
 # =================================================================== Trang 2: cảnh báo & điều khiển
-p2 = Page("a", "<b>ESP32 DevKit V1</b> · Trang 2/2 — <b>Cảnh báo</b> (còi · LED xanh/đỏ · nút)", [
+TFT_CS, TFT_DC, TFT_SDA, TFT_SCK, TFT_RST = "#1E6FD9", "#8E24AA", "#00897B", "#F08C00", "#C2185B"
+p2 = Page("a", "<b>ESP32 DevKit V1</b> · Trang 2/2 — <b>Cảnh báo &amp; hiển thị</b> (còi · LED · màn hình TFT)", [
     ("G25", "GPIO25", "Còi", "#6D4C41"), ("G26", "GPIO26", "LED xanh", "#2E9D47"),
-    ("G14", "GPIO14", "LED đỏ", "#E53935"), ("G13", "GPIO13", "Nút", "#455A64"), ("GND", "GND", "", GND),
-], pin_x=1050)
-p2.title_short = "2 - Canh bao"
-# Không dùng transistor: còi nối thẳng GPIO25 (còi 3,3 V ~20 mA, hoặc module còi 3 chân có transistor sẵn).
-p2.comp(f"<b>Còi active</b> (nối thẳng GPIO, không cần transistor)<br>{g}Còi 2 chân: (+) → GPIO25, (−) → GND<br>"
-        f"Module 3 chân: I/O → GPIO25, VCC → 3V3, GND → GND<br>"
-        f"kêu khi I/O = LOW ⇒ đặt BUZZER_ACTIVE_LOW 1</font>",
-        [("+ / I/O", "G25"), ("− / GND", "GND"), ("VCC*", None)], min_h=130, gap=40)
+    ("G14", "GPIO14", "LED đỏ", "#E53935"),
+    ("G5", "GPIO5", "TFT CS", TFT_CS), ("G16", "GPIO16", "RX2 · TFT A0", TFT_DC), ("G17", "GPIO17", "TX2 · TFT SDA", TFT_SDA),
+    ("G19", "GPIO19", "TFT SCK", TFT_SCK), ("EN", "EN", "TFT RESET", TFT_RST), ("3V3", "3V3", "", P3V3),
+    ("GND", "GND", "", GND),
+], pin_x=1350)
+p2.title_short = "2 - Canh bao + TFT"
+# Còi active 2 chân nối thẳng GPIO25 (không transistor): GPIO = HIGH → kêu.
+p2.comp(f"<b>Còi active 2 chân</b><br>{g}nối thẳng GPIO, không cần transistor<br>"
+        f"chân (+) dài hơn / có dấu + trên vỏ<br>GPIO25 = HIGH → kêu</font>",
+        [("+", "G25"), ("−", "GND")], min_h=110, gap=40)
 for key, name, state in [("G26", "LED xanh", "Bình thường · nháy 1 Hz = Chú ý"), ("G14", "LED đỏ", "nháy = Cảnh báo · sáng = Nguy hiểm")]:
     p2.comp(f"<b>{name}</b><br>{g}{state}</font>", [("A (+)", ("via", "220 Ω", key)), ("K (−)", "GND")], gap=30)
 p2.y += 20
-p2.comp(f"<b>Nút tắt còi</b><br>{g}INPUT_PULLUP nội · nhấn = LOW<br>→ tắt còi 5 phút</font>", [("1", "G13"), ("2", "GND")], gap=70)
-p2.legend([(GND, "GND", False), ("#6D4C41", "Còi", False), ("#2E9D47", "LED xanh", False), ("#E53935", "LED đỏ", False),
-           ("#455A64", "Nút", False)])
-p2.box(40, p2.height - 20, 1100, 26, "* VCC chỉ có ở module còi 3 chân (nối 3V3). Không dùng LED vàng, transistor S8050, relay "
-       "(GPIO27, GPIO23 để trống; firmware: HAS_LED_YELLOW 0, HAS_RELAY 0).",
+# Màn hình TFT 1.8" (module đỏ, 8 chân theo thứ tự trên mạch): SPI chỉ ghi qua HSPI + GPIO matrix
+p2.comp(f"<b>TFT 1.8\" ST7735S</b> 128×160 · SPI<br>Màn hình màu tại chỗ (3 trang)<br>{g}"
+        f"SPI chỉ ghi: không nối MISO<br>RESET → EN: reset cùng ESP32<br>LED = đèn nền → 3V3<br>"
+        f"Khe thẻ SD (SD_CS/MOSI/MISO/SCK): không dùng</font>",
+        [("VCC", "3V3"), ("GND", "GND"), ("CS", "G5"), ("RESET", "EN"), ("A0", "G16"), ("SDA", "G17"), ("SCK", "G19"),
+         ("LED", "3V3")], gap=70)
+p2.legend([(P3V3, "3,3 V", False), (GND, "GND", False), ("#6D4C41", "Còi", False), ("#2E9D47", "LED xanh", False),
+           ("#E53935", "LED đỏ", False)])
+p2.box(40, p2.height - 20, 1300, 26, "Không dùng LED vàng, transistor S8050, relay, nút tắt còi "
+       "(GPIO27, GPIO23, GPIO13 để trống; firmware: HAS_LED_YELLOW 0, HAS_RELAY 0). Tắt còi: lệnh mute trên dashboard.",
        f"text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor={GREY};")
-p2.height += 30
+p2.box(40, p2.height + 6, 1300, 26, "TFT: SPI bus HSPI qua GPIO matrix (firmware: PIN_TFT_* trong config.h); GPIO12 được core "
+       "gán làm MISO ảo — không nối gì vào GPIO12 (D12). Trên DevKit V1: GPIO16 in là RX2, GPIO17 in là TX2.",
+       f"text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor={GREY};")
+p2.height += 56
 
 OUT.write_text('<mxfile host="Electron" agent="gen_wiring_drawio.py">\n' + p1.xml() + p2.xml() + "</mxfile>\n", encoding="utf-8")
 print("Đã ghi", OUT)

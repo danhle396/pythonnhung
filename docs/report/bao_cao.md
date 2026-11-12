@@ -71,7 +71,7 @@ thường chỉ có một ngưỡng cố định, dễ báo động giả và kh
 
 1. Thiết kế, lắp ráp và lập trình trạm ESP32 đo nhiệt độ, độ ẩm, áp suất, ánh sáng, mưa và khí gas/khói, gửi dữ liệu
    qua MQTT ổn định.
-2. Cảnh báo khí/khói 4 cấp chạy **ngay tại thiết bị** (kể cả khi mất mạng), có hysteresis, debounce, nút tắt còi.
+2. Cảnh báo khí/khói 4 cấp chạy **ngay tại thiết bị** (kể cả khi mất mạng), có hysteresis, debounce, tắt còi từ xa qua dashboard.
 3. Backend lưu trữ chuỗi thời gian, xác nhận/leo thang cảnh báo, gửi Telegram/Email, cung cấp REST API và dashboard.
 4. Dự báo nhiệt độ, độ ẩm, áp suất và khả năng mưa 1/3/6 giờ, vượt baseline persistence.
 5. Tự cài đặt toàn bộ thuật toán học máy (không dùng thư viện ML) và chứng minh tính đúng đắn.
@@ -250,7 +250,7 @@ Phân công edge–cloud:
 |---|---|---|
 | Lọc tín hiệu, tính ppm | Edge | Cần tần số 1 Hz, dữ liệu thô không cần gửi đi |
 | Cảnh báo khí 4 cấp (rule; + Random Forest khi có dữ liệu đo thật) | Edge | Độ trễ < 1 s, phải chạy khi mất mạng |
-| Nowcast Zambretti | Edge | Hiển thị OLED ngay cả khi offline |
+| Nowcast Zambretti | Edge | Hiển thị trên màn TFT ngay cả khi offline |
 | Xác nhận/leo thang cảnh báo (độ dốc 10 phút; Isolation Forest khi đủ dữ liệu trạm) | Cloud | Cần ngữ cảnh dài, mô hình lớn hơn |
 | Dự báo 1/3/6 giờ (GBDT) | Cloud | Cần ≥ 30 giờ lịch sử + Open-Meteo, 2 700+ cây |
 | Thông báo Telegram/Email, lưu trữ, dashboard | Cloud | Cần Internet và lưu trữ |
@@ -259,23 +259,23 @@ Phân công edge–cloud:
 
 | Linh kiện | Chân ESP32 | Ghi chú |
 |---|---|---|
-| BMP280, BH1750, OLED SSD1306 | SDA 21, SCL 22 (I²C) | Địa chỉ 0x76, 0x23, 0x3C |
+| BMP280, BH1750 | SDA 21, SCL 22 (I²C) | Địa chỉ 0x76, 0x23 |
 | DHT22 | GPIO 4 | Điện trở kéo lên 10 kΩ |
 | YL-83 | AO 34, DO 35, nguồn 18 | Chỉ cấp nguồn khi đọc |
 | MQ-2 | AO 32 (qua cầu phân áp 10k/20k), DO 33 | 5 V → 3,33 V cho ADC |
-| Còi active | GPIO 25 | Nối thẳng GPIO, không cần transistor |
+| Còi active 2 chân | GPIO 25 | Nối thẳng GPIO, không cần transistor |
 | LED xanh / đỏ | GPIO 26 / 14 | Không có LED vàng: cấp 1 = LED xanh nhấp nháy 1 Hz |
-| Nút tắt còi | GPIO 13 | INPUT_PULLUP |
+| Màn hình TFT 1.8" ST7735S 128×160 | CS 5, A0 16 (RX2), SDA 17 (TX2), SCK 19, RESET → EN (SPI) | Màn màu; VCC, LED nền → 3V3 |
 
 Nhóm không dùng LED vàng, transistor S8050 và module relay/quạt; firmware chọn cấu hình bằng cờ trong `config.h`
-(`HAS_LED_YELLOW 0`, `HAS_RELAY 0`, `BUZZER_ACTIVE_LOW` cho module còi kích mức thấp). Bật quạt hút tự động là hướng
+(`HAS_LED_YELLOW 0`, `HAS_RELAY 0`). Bật quạt hút tự động là hướng
 phát triển.
 
 ![Sơ đồ đấu dây — cảm biến](figures/wiring-1.png)
 
-![Sơ đồ đấu dây — cảnh báo](figures/wiring-2.png)
+![Sơ đồ đấu dây — cảnh báo và màn hình TFT](figures/wiring-2.png)
 
-*Hình 3.2 — Sơ đồ đấu dây: (a) cảm biến, (b) cảnh báo (còi, LED, nút) (`docs/hardware/wiring.drawio`, 2 trang, mở bằng draw.io; chấm tròn = nối, vòng cung = dây cắt qua không nối; bảng chi tiết ở `docs/hardware/README.md`).*
+*Hình 3.2 — Sơ đồ đấu dây: (a) cảm biến, (b) cảnh báo (còi, LED) và màn hình TFT 1.8" ST7735 (SPI) (`docs/hardware/wiring.drawio`, 2 trang, mở bằng draw.io; chấm tròn = nối, vòng cung = dây cắt qua không nối; bảng chi tiết ở `docs/hardware/README.md`).*
 
 Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ sung sau khi lắp hộp.*
 
@@ -289,7 +289,7 @@ Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ su
 | `vku/aiot/{id}/nowcast` | thiết bị → cloud | 0 | có | Zambretti 10 phút/lần |
 | `vku/aiot/{id}/cmd` | cloud → thiết bị | 1 | không | mute, test_alarm, calibrate, reboot, escalate, ota |
 | `vku/aiot/{id}/config` | cloud → thiết bị | 1 | có | Ngưỡng, hysteresis, debounce, chu kỳ, chế độ |
-| `vku/aiot/{id}/forecast` | cloud → thiết bị | 1 | có | Tóm tắt dự báo cho OLED |
+| `vku/aiot/{id}/forecast` | cloud → thiết bị | 1 | có | Tóm tắt dự báo cho màn hình TFT |
 | `vku/aiot/{id}/ack` | thiết bị → cloud | 0 | không | Xác nhận lệnh/cấu hình |
 
 ### 3.4 Cơ sở dữ liệu
@@ -330,7 +330,8 @@ Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ su
 - **Hysteresis 15 %:** chỉ hạ cấp khi ppm < ngưỡng × 0,85, tránh dao động quanh ngưỡng.
 - **Debounce:** tăng cấp khi điều kiện đúng 3 mẫu liên tiếp (cấp 3 tăng ngay), hạ cấp sau 5 mẫu.
 - **Fusion:** level = max(rule, model) — mô hình chỉ có thể nâng cấp sớm hơn, không bao giờ hạ cấp mà rule đưa ra (an toàn).
-- **Nút bấm:** nhấn tắt còi 5 phút (LED vẫn báo); thử còi bằng lệnh `test_alarm` từ dashboard.
+- **Tắt còi:** lệnh `mute` từ dashboard tắt còi 5 phút (LED và cấp vẫn giữ; cấp tăng thêm thì còi kêu lại); thử còi bằng
+  lệnh `test_alarm`. Trạm không có nút bấm vật lý.
 - **Leo thang ở cloud:** ppm tăng đều trong 10 phút (độ dốc dương ở cả hai nửa cửa sổ) hoặc Isolation Forest báo bất thường
   ⇒ nâng 1 cấp, gửi `cmd escalate` xuống thiết bị.
 
@@ -345,10 +346,11 @@ Nguồn: `firmware/include/config.h`. ⚙ *Ảnh lắp ráp thực tế: bổ su
 - **Watchdog** 30 s cho mọi task; tự kết nối lại Wi-Fi/MQTT với backoff; LWT.
 - **Đệm offline** LittleFS tối đa 2 000 bản ghi JSONL, gửi bù khi có mạng (backend chống trùng theo seq).
 - **Cấu hình NVS**: ngưỡng, chế độ (rule/model/hybrid), R_0 sau `calibrate`; nhận qua topic `config` và gửi ack.
-- **OLED 3 trang**: đo hiện tại, cấp cảnh báo, dự báo từ cloud + nowcast.
+- **Màn hình TFT 1.8" ST7735S (160×128, màu, SPI) 3 trang**: đo hiện tại, cấp cảnh báo, dự báo từ cloud + nowcast;
+  thanh tiêu đề đổi màu theo cấp (xanh/vàng/cam/đỏ), chỉ vẽ lại dòng thay đổi nên không nháy.
 - **OTA** qua HTTP(S): lệnh `{"cmd":"ota","url":"…/firmware.bin"}`.
-- Kích thước bản build `esp32dev`: **RAM 14,9 %, Flash 48,9 %** (bao gồm OTA).
-- Kiểm thử trên PC: `pio test -e native` — 12 test (bộ lọc, rule engine, alert manager, nowcast, mô hình C khớp Python).
+- Kích thước bản build `esp32dev`: **RAM 15,2 %, Flash 48,3 %** (bao gồm OTA).
+- Kiểm thử trên PC: `pio test -e native` — 14 test (bộ lọc, rule engine, alert manager, nowcast, mô hình C khớp Python).
 
 ### 4.2 Thư viện `mlcore` (`ml/mlcore/`)
 
@@ -394,7 +396,7 @@ Unity test `firmware/test/test_gas_model` (chạy trên PC và ESP32, đo µs/l�
   ŷ ± 1,96·RMSE_test. Thứ tự dự phòng: dữ liệu trạm → Open-Meteo 4 ngày gần nhất → persistence. Bản tin tóm tắt 6 giờ sáng.
 - **REST API** (Swagger `/docs`, JWT): thiết bị, telemetry (raw/1m/10m/1h/1d), xuất CSV, cảnh báo + ack, dự báo, nowcast,
   cấu hình (có phiên bản), lệnh, model registry.
-- Kiểm thử: **15 test** (`backend/tests/`), gồm integration test với Mosquitto thật (ingest, chống trùng khi gửi bù,
+- Kiểm thử: **20 test** (`backend/tests/`), gồm integration test với Mosquitto thật (ingest, chống trùng khi gửi bù,
   lệnh xuống thiết bị, LWT → offline).
 
 ### 4.5 Dashboard (`dashboard/app.py`)
@@ -408,8 +410,8 @@ Streamlit 6 trang, tự đăng nhập JWT, có thể mở thẳng một trang b�
 - **Thiết bị:** lệnh (thử còi, tắt còi, hiệu chuẩn R0, khởi động lại) và form cấu hình ngưỡng.
 - **Mô hình:** model registry đang hoạt động và các bảng kết quả.
 
-Dashboard có 7 smoke test (`dashboard/tests/`) render cả 6 trang, bấm xác nhận cảnh báo và gửi cấu hình trên API giả
-(fixture kiểm thử). Ngoài ra có dashboard **Grafana** được provision sẵn (profile `monitoring`) đọc trực tiếp TimescaleDB:
+Dashboard có 8 smoke test (`dashboard/tests/`) render cả 6 trang, kiểm tra khung tình trạng cảm biến, bấm xác nhận cảnh báo và gửi cấu hình, với API được thay bằng
+phản hồi đã chụp từ backend chạy cùng trạm thật (`capture_fixture.py`). Ngoài ra có dashboard **Grafana** được provision sẵn (profile `monitoring`) đọc trực tiếp TimescaleDB:
 nhiệt độ, độ ẩm, áp suất, ppm với vùng ngưỡng, cấp rủi ro edge, bảng cảnh báo.
 
 ⚙ *Ảnh chụp màn hình dashboard/Grafana: chụp khi trạm thật đã gửi dữ liệu.*
@@ -612,8 +614,8 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r backend/requireme
 .venv/Scripts/python -m pip install -e ml
 # kiểm thử
 cd ml && ../.venv/Scripts/python -m pytest -q            # 42 test
-cd backend && ../.venv/Scripts/python -m pytest -q tests # 15 test
-cd firmware && pio test -e native                        # 12 test
+cd backend && ../.venv/Scripts/python -m pytest -q tests # 20 test
+cd firmware && pio test -e native                        # 14 test
 pytest -q dashboard/tests                                # 7 test
 # huấn luyện lại
 cd ml && python -m aiot_ml.train_forecast

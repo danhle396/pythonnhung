@@ -27,9 +27,9 @@ export PYTHONUTF8=1                                 # bắt buộc trên Windows
 ## Lệnh kiểm thử
 ```bash
 cd ml && ../.venv/Scripts/python -m pytest -q                 # 42 test mlcore + pipeline
-cd backend && ../.venv/Scripts/python -m pytest -q tests      # 15 test backend (gồm integration với Mosquitto nếu có)
-cd firmware && ../.venv/Scripts/pio test -e native            # 12 test firmware trên PC (cần g++; test_gas_model bỏ qua khi chưa có model)
-.venv/Scripts/python -m pytest -q dashboard/tests              # 7 smoke test dashboard (API giả)
+cd backend && ../.venv/Scripts/python -m pytest -q tests      # 20 test backend (gồm integration với Mosquitto nếu có)
+cd firmware && ../.venv/Scripts/pio test -e native            # 14 test firmware trên PC (cần g++; test_gas_model bỏ qua khi chưa có model)
+.venv/Scripts/python -m pytest -q dashboard/tests              # 8 smoke test dashboard (phản hồi API chụp từ trạm thật)
 cd firmware && cp -n include/secrets.h.example include/secrets.h && ../.venv/Scripts/pio run -e esp32dev
 ```
 

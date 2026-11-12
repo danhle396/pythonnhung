@@ -121,3 +121,19 @@ uint32_t Storage::nextSeq() {
   }
   return ++seq;
 }
+
+// Mẫu áp suất của nowcast (≤ 19 × (4 + 4) byte): ghi mỗi 10 phút -> ~144 lần/ngày, NVS tự cân bằng hao mòn.
+void Storage::saveNowcast(const float* p, const uint32_t* t, size_t n) {
+  prefs.putBytes("ncP", p, n * sizeof(float));
+  prefs.putBytes("ncT", t, n * sizeof(uint32_t));
+}
+
+size_t Storage::loadNowcast(float* p, uint32_t* t, size_t maxN) {
+  if (!prefs.isKey("ncP") || !prefs.isKey("ncT")) return 0;
+  size_t n = prefs.getBytesLength("ncP") / sizeof(float);
+  if (n != prefs.getBytesLength("ncT") / sizeof(uint32_t)) return 0;
+  if (n > maxN) n = maxN;
+  prefs.getBytes("ncP", p, n * sizeof(float));
+  prefs.getBytes("ncT", t, n * sizeof(uint32_t));
+  return n;
+}

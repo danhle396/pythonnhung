@@ -48,9 +48,10 @@ struct Actions {
   bool levelChanged = false;
   int level = 0, prevLevel = 0;
   bool muted = false;
+  bool testing = false;  // đang thử còi (cmd test_alarm), không phải sự cố khí
 };
 
-// Quản lý cấp cảnh báo đầu ra + nút mute (task.md 6.3): mute tắt còi 5 phút nhưng giữ cấp và LED;
+// Quản lý cấp cảnh báo đầu ra + tắt còi (lệnh mute từ dashboard, task.md 6.3): mute tắt còi 5 phút nhưng giữ cấp và LED;
 // nếu cấp tăng thêm thì còi kêu lại. Cloud có thể nâng cấp (cmd escalate) — không bao giờ hạ cấp edge.
 class AlertManager {
  public:

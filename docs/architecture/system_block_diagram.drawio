@@ -61,7 +61,7 @@
                 <mxCell id="fuse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Hợp nhất&lt;/b&gt; (hiện: rule)&lt;br&gt;cấp = max(rule, model)&lt;br&gt;hysteresis + debounce" vertex="1">
                     <mxGeometry height="62" width="180" x="345" y="478" as="geometry"/>
                 </mxCell>
-                <mxCell id="act" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;Còi • LED xanh/đỏ&lt;/b&gt;&lt;br&gt;OLED&lt;br&gt;&lt;i&gt;dưới 1 s, không cần mạng&lt;/i&gt;" vertex="1">
+                <mxCell id="act" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;Còi • LED xanh/đỏ&lt;/b&gt;&lt;br&gt;TFT 1.8&amp;quot; ST7735&lt;br&gt;&lt;i&gt;dưới 1 s, không cần mạng&lt;/i&gt;" vertex="1">
                     <mxGeometry height="75" width="180" x="40" y="470" as="geometry"/>
                 </mxCell>
                 <mxCell id="btn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="Nút nhấn (tắt còi)" vertex="1">

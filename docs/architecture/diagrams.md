@@ -14,7 +14,7 @@ flowchart TB
         FEAT --> TREE["Model cây gas_model.h<br/>(khi có dữ liệu đo thật)"]
         RULE --> FUS{"max(rule, model)"}
         TREE --> FUS
-        FUS --> ACT["LED xanh/đỏ · còi · OLED"]
+        FUS --> ACT["LED xanh/đỏ · còi · TFT"]
         FIL --> ZAM["Nowcast Zambretti"]
         FUS --> TX["MQTT client<br/>seq + đệm LittleFS"]
         ZAM --> TX

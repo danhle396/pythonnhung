@@ -27,6 +27,9 @@ log = logging.getLogger(__name__)
 TELEMETRY_COLS = [c.name for c in Telemetry.__table__.columns if c.name not in ("received_at", "extra")]
 
 
+MIN_VALID_EPOCH = 1577836800  # 2020-01-01: ts nhỏ hơn = thiết bị chưa có giờ NTP
+
+
 def insert_ignore(session, table, rows):
     """INSERT bỏ qua bản ghi trùng khoá — hỗ trợ PostgreSQL và SQLite."""
     if not rows:
@@ -36,8 +39,10 @@ def insert_ignore(session, table, rows):
         from sqlalchemy.dialects.postgresql import insert
     else:
         from sqlalchemy.dialects.sqlite import insert
-    res = session.execute(insert(table).values(rows).on_conflict_do_nothing())
-    return res.rowcount or 0
+    # Đếm bằng RETURNING: hypertable TimescaleDB trả rowcount = -1 cho INSERT ... ON CONFLICT DO NOTHING
+    pk = list(table.primary_key.columns)[0]
+    res = session.execute(insert(table).values(rows).on_conflict_do_nothing().returning(pk))
+    return len(res.fetchall())
 
 
 class Deduper:
@@ -126,11 +131,19 @@ class MqttService:
         device_id, kind = parts[-2], parts[-1]
         try:
             text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else payload
+            if not text.strip():  # bản tin rỗng = lệnh xoá retained trên broker, không phải dữ liệu thiết bị
+                return None
             data = json.loads(text) if text.strip().startswith("{") else {"state": text.strip()}
         except Exception:
             self.stats["invalid"] += 1
             return None
         data.setdefault("device_id", device_id)
+        # Vừa khởi động, ESP32 chưa đồng bộ NTP -> ts = số giây từ lúc bật (năm 1970). Bản tin đến gần như tức thời
+        # nên lấy giờ backend nhận được; đánh dấu ts_server để biết giờ này do server gán.
+        ts = data.get("ts")
+        if isinstance(ts, (int, float)) and ts < MIN_VALID_EPOCH:
+            data["ts"] = int(recv_t or time.time())
+            data["ts_server"] = True
         try:
             if kind == "telemetry":
                 t = TelemetryIn.model_validate(data)

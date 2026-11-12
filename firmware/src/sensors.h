@@ -1,6 +1,7 @@
 // Driver cảm biến: DHT22, BMP280, BH1750, YL-83, MQ-2 — có xử lý lỗi và cờ sensor_ok.
 #pragma once
 #include <Arduino.h>
+#include "config.h"
 #include "edge_ai.h"
 #include "filters.h"
 
@@ -34,5 +35,7 @@ class Sensors {
   Mq2FaultDetector gasFault_;
   float lastTempDht_ = NAN, lastHum_ = NAN;
   int lastRainMv_ = -1, lastRainLevel_ = 0;
+  uint8_t rainHist_[RAIN_HOLD_READS] = {0};  // mức mưa các lần đọc gần nhất (giữ trạng thái ướt)
+  uint8_t rainIdx_ = 0;
   uint8_t dhtFails_ = 0;
 };

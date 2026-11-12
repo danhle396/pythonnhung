@@ -1,5 +1,5 @@
 """Forecast service (task.md 7.4): chạy mỗi 10–15 phút, lấy dữ liệu gần nhất, tạo feature, gọi model
-(mlcore, nạp từ model registry), lưu bảng forecasts, publish `.../forecast` (retain) cho OLED.
+(mlcore, nạp từ model registry), lưu bảng forecasts, publish `.../forecast` (retain) cho màn TFT của trạm.
 
 Nguồn đầu vào theo thứ tự ưu tiên:
   1. dữ liệu trạm (≥ 30 giờ hợp lệ) + bias correction trạm → Open-Meteo;
