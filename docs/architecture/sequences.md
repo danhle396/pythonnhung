@@ -27,7 +27,7 @@ sequenceDiagram
     I->>AS: on_edge_alert (lưu DB, chống trùng)
     AS->>T: cấp 2: Telegram · cấp 3: Telegram + Email
     loop mỗi 30 s
-        AS->>AS: ngữ cảnh 10 phút: độ dốc ppm (+ Isolation Forest khi có model)
+        AS->>AS: ngữ cảnh 10 phút: độ dốc ppm
         opt leo thang
             AS->>B: cmd escalate {level}
             B->>E: cmd
@@ -59,20 +59,16 @@ sequenceDiagram
     E->>B: telemetry (10 s)
     B->>I: telemetry
     I->>DB: ghi lô, chống trùng (device_id, ts, seq)
-    E->>B: nowcast Zambretti (10 phút, retain)
     loop APScheduler mỗi 10 phút
-        F->>DB: 60 giờ telemetry gần nhất
-        alt ≥ 30 giờ hợp lệ
-            F->>OM: (6 giờ/lần) dữ liệu gần đây để fit bias correction trạm→Open-Meteo
-            F->>F: resample giờ → feature → GBDT/Ridge (mlcore)
-        else trạm thiếu dữ liệu
-            F->>OM: 4 ngày gần nhất làm đầu vào
+        F->>OM: quan trắc 4 ngày gần nhất tại toạ độ trạm
+        alt lấy được dữ liệu
+            F->>F: làm sạch → feature → GBDT (LightGBM)
+            F->>DB: forecasts (giá trị + khoảng tin cậy 95 %)
+            F->>B: forecast (retain) → màn TFT trang 3
+            F-->>D: WebSocket /ws/live
         else không có mạng
-            F->>F: persistence
+            F->>F: bỏ qua lượt này (không đoán từ số đo trạm)
         end
-        F->>DB: forecasts (giá trị + khoảng tin cậy 95 %)
-        F->>B: forecast (retain) → màn TFT trang 3
-        F-->>D: WebSocket /ws/live
     end
     D->>DB: GET /api/forecast/{id} (thực tế vs dự báo)
 ```

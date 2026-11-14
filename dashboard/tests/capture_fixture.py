@@ -1,7 +1,3 @@
-"""Chụp fixture cho smoke test dashboard từ API backend đang chạy với trạm thật (chỉ số liệu đo thật).
-
-    python dashboard/tests/capture_fixture.py [--api http://localhost:8000] [--device station01]
-"""
 from __future__ import annotations
 
 import argparse
@@ -26,7 +22,6 @@ def main():
         "/api/telemetry/latest": {"device_id": dev},
         f"/api/sensors/{dev}": {"minutes": 10},
         f"/api/forecast/{dev}": {"history_h": 72},
-        f"/api/nowcast/{dev}": {"limit": 24},
         "/api/alerts": {"device_id": dev, "limit": 50},
         "/api/telemetry": {"device_id": dev, "resolution": "1m", "from": time.time() - 24 * 3600},
         f"/api/devices/{dev}/configs": {},

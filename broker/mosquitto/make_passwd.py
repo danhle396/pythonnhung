@@ -1,10 +1,3 @@
-"""Tạo file passwd cho Mosquitto từ biến môi trường (chạy Mosquitto cài trực tiếp trên máy, không dùng Docker).
-
-    MQTT_BACKEND_PASS=... MQTT_DEVICE_PASS=... python broker/mosquitto/make_passwd.py [đường_dẫn_passwd]
-
-Cần lệnh `mosquitto_passwd` (đi kèm bản cài Mosquitto). Trong Docker, container mosquitto tự sinh passwd
-bằng lệnh khai báo trong docker-compose.yml (cùng tài khoản như dưới đây).
-"""
 from __future__ import annotations
 
 import os

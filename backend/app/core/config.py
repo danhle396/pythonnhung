@@ -1,4 +1,3 @@
-"""Cấu hình backend, đọc từ biến môi trường / file .env (xem .env.example ở thư mục gốc)."""
 from __future__ import annotations
 
 from functools import lru_cache
@@ -52,7 +51,7 @@ class Settings(BaseSettings):
     ml_registry: str = str(REPO_DIR / "ml" / "models" / "registry.json")
     anomaly_model: str = str(REPO_DIR / "ml" / "models" / "gas_anomaly.json")
     scheduler_enabled: bool = True
-    use_open_meteo_fallback: bool = True
+    use_open_meteo: bool = True
 
 
 @lru_cache

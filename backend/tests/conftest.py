@@ -10,13 +10,12 @@ sys.path.insert(0, str(ROOT))
 
 @pytest.fixture()
 def app_client(tmp_path, monkeypatch):
-    """App FastAPI với SQLite tạm, không MQTT thật, không scheduler."""
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{(tmp_path / 'test.db').as_posix()}")
     monkeypatch.setenv("MQTT_ENABLED", "false")
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
     monkeypatch.setenv("TELEGRAM_TOKEN", "")
     monkeypatch.setenv("SMTP_HOST", "")
-    monkeypatch.setenv("USE_OPEN_METEO_FALLBACK", "false")
+    monkeypatch.setenv("USE_OPEN_METEO", "false")
     monkeypatch.setenv("NOTIFY_COOLDOWN_S", "120")
     from app.core.config import get_settings
     get_settings.cache_clear()

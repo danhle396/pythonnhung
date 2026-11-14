@@ -1,4 +1,3 @@
-"""Mô hình CSDL (SQLAlchemy 2). Chạy được trên PostgreSQL/TimescaleDB (production) và SQLite (dev/test)."""
 from __future__ import annotations
 
 import datetime as dt
@@ -33,7 +32,6 @@ class Device(Base):
 
 
 class Telemetry(Base):
-    """Hypertable theo ts trên TimescaleDB. Khoá (device_id, ts, seq) đồng thời dùng để chống trùng."""
     __tablename__ = "telemetry"
     device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     ts: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
@@ -67,13 +65,13 @@ class Alert(Base):
     device_id: Mapped[str] = mapped_column(String(64), index=True)
     ts: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
     seq: Mapped[int | None] = mapped_column(BigInteger)
-    type: Mapped[str] = mapped_column(String(32), default="gas")  # gas | sensor_fault | device_offline | anomaly | test
+    type: Mapped[str] = mapped_column(String(32), default="gas")
     level: Mapped[int] = mapped_column(Integer)
     prev_level: Mapped[int | None] = mapped_column(Integer)
     cause: Mapped[list | None] = mapped_column(JSON)
     gas_ppm: Mapped[float | None] = mapped_column(Float)
     score: Mapped[float | None] = mapped_column(Float)
-    source: Mapped[str] = mapped_column(String(8), default="edge")  # edge | cloud
+    source: Mapped[str] = mapped_column(String(8), default="edge")
     message: Mapped[str | None] = mapped_column(Text)
     acknowledged_by: Mapped[str | None] = mapped_column(String(64))
     ack_ts: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
@@ -89,26 +87,14 @@ class Forecast(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     device_id: Mapped[str] = mapped_column(String(64), index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
-    issued_for: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))  # mốc thời gian dữ liệu cuối
+    issued_for: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
     horizon: Mapped[int] = mapped_column(Integer)
-    target: Mapped[str] = mapped_column(String(16))  # temp | hum | pres | rain_prob
+    target: Mapped[str] = mapped_column(String(16))
     value: Mapped[float] = mapped_column(Float)
     lower: Mapped[float | None] = mapped_column(Float)
     upper: Mapped[float | None] = mapped_column(Float)
     model_ver: Mapped[str | None] = mapped_column(String(64))
-    source: Mapped[str | None] = mapped_column(String(16))  # station | open-meteo | fallback
-
-
-class Nowcast(Base):
-    __tablename__ = "nowcasts"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    device_id: Mapped[str] = mapped_column(String(64), index=True)
-    ts: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
-    code: Mapped[int | None] = mapped_column(Integer)
-    text: Mapped[str | None] = mapped_column(String(64))
-    trend: Mapped[int | None] = mapped_column(Integer)
-    trend_3h: Mapped[float | None] = mapped_column(Float)
-    zambretti: Mapped[str | None] = mapped_column(String(2))
+    source: Mapped[str | None] = mapped_column(String(16))
 
 
 class DeviceConfig(Base):
@@ -152,7 +138,6 @@ class ModelRegistryEntry(Base):
 
 
 class Notification(Base):
-    """Nhật ký thông báo đã gửi (Telegram/Email) — phục vụ cooldown và đo độ trễ end-to-end."""
     __tablename__ = "notifications"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     alert_id: Mapped[int | None] = mapped_column(ForeignKey("alerts.id"))

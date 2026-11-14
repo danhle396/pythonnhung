@@ -1,4 +1,3 @@
-# Backend — KHÔNG có thư viện ML. Model chạy bằng mlcore (cài: pip install -e ../ml)
 fastapi>=0.110
 uvicorn[standard]>=0.29
 sqlalchemy>=2.0

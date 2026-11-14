@@ -1,4 +1,3 @@
-"""Publish xuống thiết bị: cmd / config (retain) / forecast (retain)."""
 from __future__ import annotations
 
 import json
@@ -11,8 +10,8 @@ log = logging.getLogger(__name__)
 class Publisher:
     def __init__(self, prefix: str):
         self.prefix = prefix
-        self.client = None  # paho client, gán bởi MqttService khi kết nối
-        self.published: list[tuple[str, dict, bool]] = []  # lưu lại (dùng cho test / debug)
+        self.client = None
+        self.published: list[tuple[str, dict, bool]] = []
 
     def topic(self, device_id, suffix):
         return f"{self.prefix}/{device_id}/{suffix}"
@@ -28,8 +27,7 @@ class Publisher:
         info = self.client.publish(t, json.dumps(payload, ensure_ascii=False), qos=qos, retain=retain)
         return info.rc == 0
 
-    def clear_retained(self, device_id: str, suffixes=("forecast", "config", "status", "nowcast")):
-        """Xoá bản tin retained của thiết bị trên broker (gửi payload rỗng có cờ retain)."""
+    def clear_retained(self, device_id: str, suffixes=("forecast", "config", "status")):
         for s in suffixes:
             t = self.topic(device_id, s)
             self.published.append((t, {}, True))

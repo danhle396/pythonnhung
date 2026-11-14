@@ -20,18 +20,18 @@ Chấm tròn = nối · vòng cung = dây cắt qua, **không** nối · nét đ
 Trên board ESP32 DevKit V1, chân GPIOx thường in là **Dx** (D5, D19…); riêng **GPIO16 in là RX2**, **GPIO17 in là TX2**
 (nằm giữa D5 và D4, cùng hàng chân với D23/D22).
 
-| Linh kiện | Chân linh kiện | Nối tới | Ghi chú |
-|---|---|---|---|
-| Nguồn 5 V / 2 A | +5V / GND | VIN / GND của ESP32, MQ-2 | GND chung toàn mạch |
-| BMP280 | VCC / GND / SCL / SDA / SDO | 3V3 / GND / GPIO22 / GPIO21 / GND | địa chỉ 0x76 |
-| BH1750 | VCC / GND / SCL / SDA / ADDR | 3V3 / GND / GPIO22 / GPIO21 / GND | địa chỉ 0x23 |
-| DHT22 | VCC / DATA / GND | 3V3 / GPIO4 / GND | trở kéo lên 10 kΩ DATA → 3V3 |
-| YL-83 (LM393) | VCC / GND / AO / DO | **GPIO18** / GND / GPIO34 / GPIO35 | GPIO18 chỉ cấp nguồn khi đọc (giảm ăn mòn) |
-| MQ-2 | VCC / GND / AO / DO | 5V / GND / **R1 10 kΩ → GPIO32**, R2 20 kΩ GPIO32 → GND / *để trống* | AO tối đa 5 V → 3,33 V |
-| Còi active 2 chân | + / − | GPIO25 / GND | nối thẳng, không cần transistor; chân + dài hơn; GPIO = HIGH → kêu |
-| LED xanh / đỏ | anode / cathode | 220 Ω ← GPIO26 / 14 · GND | cấp 1 = xanh nháy 1 Hz (không có LED vàng) |
-| Màn hình TFT 1.8" ST7735S 128×160 (SPI) | VCC / GND / CS / RESET / A0 / SDA / SCK / LED | 3V3 / GND / **GPIO5** / **EN** / **GPIO16 (RX2)** / **GPIO17 (TX2)** / **GPIO19** / 3V3 | SPI chỉ ghi (HSPI); không nối MISO, không nối GPIO12; khe thẻ SD bỏ trống |
-| *(không dùng)* LED vàng, transistor S8050, relay/quạt, nút tắt còi | — | GPIO27, GPIO23, GPIO13 để trống | `config.py`: `HAS_LED_YELLOW = False`, `HAS_RELAY = False`; tắt còi bằng lệnh `mute` trên dashboard |
+| Linh kiện                                                          | Chân linh kiện                                | Nối tới                                                                                 | Ghi chú                                                                                             |
+| ------------------------------------------------------------------ | --------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Nguồn 5 V / 2 A                                                    | +5V / GND                                     | VIN / GND của ESP32, MQ-2                                                               | GND chung toàn mạch                                                                                 |
+| BMP280                                                             | VCC / GND / SCL / SDA / SDO                   | 3V3 / GND / GPIO22 / GPIO21 / GND                                                       | địa chỉ 0x76                                                                                        |
+| BH1750                                                             | VCC / GND / SCL / SDA / ADDR                  | 3V3 / GND / GPIO22 / GPIO21 / GND                                                       | địa chỉ 0x23                                                                                        |
+| DHT22                                                              | VCC / DATA / GND                              | 3V3 / GPIO4 / GND                                                                       | trở kéo lên 10 kΩ DATA → 3V3                                                                        |
+| YL-83 (LM393)                                                      | VCC / GND / AO / DO                           | **GPIO18** / GND / GPIO34 / GPIO35                                                      | GPIO18 chỉ cấp nguồn khi đọc (giảm ăn mòn)                                                          |
+| MQ-2                                                               | VCC / GND / AO / DO                           | 5V / GND / **R1 10 kΩ → GPIO32**, R2 20 kΩ GPIO32 → GND / *để trống*                    | AO tối đa 5 V → 3,33 V                                                                              |
+| Còi active 2 chân                                                  | + / −                                         | GPIO25 / GND                                                                            | nối thẳng, không cần transistor; chân + dài hơn; GPIO = HIGH → kêu                                  |
+| LED xanh / đỏ                                                      | anode / cathode                               | 220 Ω ← GPIO26 / 14 · GND                                                               | cấp 1 = xanh nháy 1 Hz (không có LED vàng)                                                          |
+| Màn hình TFT 1.8" ST7735S 128×160 (SPI)                            | VCC / GND / CS / RESET / A0 / SDA / SCK / LED | 3V3 / GND / **GPIO5** / **EN** / **GPIO16 (RX2)** / **GPIO17 (TX2)** / **GPIO19** / 3V3 | SPI chỉ ghi (HSPI); không nối MISO, không nối GPIO12; khe thẻ SD bỏ trống                           |
+| *(không dùng)* LED vàng, transistor S8050, relay/quạt, nút tắt còi | —                                             | GPIO27, GPIO23, GPIO13 để trống                                                         | `config.py`: `HAS_LED_YELLOW = False`, `HAS_RELAY = False`; tắt còi bằng lệnh `mute` trên dashboard |
 
 ## Kiểm tra trước khi cấp điện
 1. Đo thông mạch GND chung; không chập 5V–GND, 3V3–GND.

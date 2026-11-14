@@ -1,11 +1,3 @@
-"""Sinh hình cho báo cáo/slide từ các file kết quả docs/report/results_*.md (và tuỳ chọn từ API backend).
-
-    python tools/make_report_figures.py                       # hình từ bảng kết quả
-    python tools/make_report_figures.py --api http://localhost:8000 --device station01 --minutes 4 --start 2026-11-10T15:51:20Z
-                                                              # + hình diễn biến cảnh báo từ dữ liệu thật trong DB
-
-Chỉ dùng matplotlib/pandas/requests (không có thư viện ML).
-"""
 from __future__ import annotations
 
 import argparse
@@ -16,14 +8,14 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import pandas as pd  # noqa: E402
+import matplotlib.pyplot as plt
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 REP = ROOT / "docs" / "report"
 FIG = REP / "figures"
 COL = {"Persistence": "#9aa5b1", "Seasonal naive": "#cbd2d9", "Holt-Winters": "#f0b429", "Ridge": "#3e7cb1",
-       "GBDT": "#0b6e4f", "GRU (NumPy)": "#c75146", "Logistic": "#3e7cb1",
+       "GBDT": "#0b6e4f", "GRU (PyTorch)": "#c75146", "Logistic": "#3e7cb1",
        "Rule": "#9aa5b1", "Model": "#3e7cb1", "Hybrid": "#0b6e4f"}
 LEVEL_COLORS = ["#2e7d32", "#f9a825", "#ef6c00", "#c62828"]
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "axes.spines.top": False,
@@ -31,7 +23,6 @@ plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "axes.spines
 
 
 def md_tables(path: Path) -> list[pd.DataFrame]:
-    """Đọc mọi bảng Markdown trong file thành DataFrame (cột đầu làm index)."""
     out, cur = [], []
     for line in path.read_text(encoding="utf-8").splitlines() + [""]:
         if line.strip().startswith("|"):
@@ -51,8 +42,8 @@ def num(s: str) -> float:
 
 def fig_forecast_mae():
     reg = md_tables(REP / "results_forecast.md")[0]
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.6))
-    for ax, (tgt, unit) in zip(axes, [("temp", "°C"), ("hum", "%RH"), ("pres", "hPa")]):
+    fig, axes = plt.subplots(1, 2, figsize=(9, 3.6))
+    for ax, (tgt, unit) in zip(axes, [("temp", "°C"), ("hum", "%RH")]):
         hs = [1, 3, 6]
         models = [m for m in reg.index if m != "Seasonal naive"]
         w = 0.8 / len(models)
@@ -60,7 +51,7 @@ def fig_forecast_mae():
             v = [num(reg.loc[m, f"{tgt}_{h}h"]) for h in hs]
             ax.bar([j + (i - (len(models) - 1) / 2) * w for j in range(3)], v, w, label=m, color=COL[m])
         ax.set_xticks(range(3), [f"+{h}h" for h in hs])
-        ax.set_title({"temp": "Nhiệt độ", "hum": "Độ ẩm", "pres": "Áp suất"}[tgt] + f" — MAE ({unit})")
+        ax.set_title({"temp": "Nhiệt độ", "hum": "Độ ẩm"}[tgt] + f" — MAE ({unit})")
     axes[0].legend(fontsize=8, frameon=False)
     fig.suptitle("Sai số dự báo trên tập test 2025 (thấp hơn là tốt hơn)", fontweight="bold")
     fig.tight_layout()
@@ -86,7 +77,7 @@ def fig_rain():
 
 
 def fig_gas_edge():
-    p = REP / "results_gas_edge.md"  # chỉ có sau khi train_gas_edge chạy trên dữ liệu đo thật
+    p = REP / "results_gas_edge.md"
     if not p.exists():
         print("bỏ qua hình gas edge: chưa có results_gas_edge.md (chưa có dữ liệu khí đo thật)")
         return

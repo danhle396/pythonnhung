@@ -1,11 +1,3 @@
-"""Chuyển báo cáo Markdown → Word (.docx) có nhúng ảnh, định dạng theo kiểu báo cáo đồ án.
-
-    python tools/md_to_docx.py docs/report/bao_cao.md            # → docs/report/bao_cao.docx
-
-Bước 1 (mọi hệ điều hành): Markdown → HTML (thư viện `markdown`, CSS Times New Roman 13 pt).
-Bước 2 (Windows có Microsoft Word): mở HTML bằng Word qua COM (PowerShell), nhúng ảnh vào tài liệu, lưu .docx.
-Không có Word: mở file .html sinh ra bằng Word/LibreOffice và "Lưu thành .docx".
-"""
 from __future__ import annotations
 
 import subprocess
@@ -38,14 +30,12 @@ try {
   foreach ($s in @($doc.InlineShapes)) {
     if ($s.LinkFormat -ne $null) { $s.LinkFormat.SavePictureWithDocument = $true; $s.LinkFormat.BreakLink() }
   }
-  # khổ A4, lề 3/2/2,5/2,5 cm (trái/phải/trên/dưới) theo thể thức báo cáo
   $ps = $doc.PageSetup
   $ps.PaperSize = 7; $ps.LeftMargin = 85.05; $ps.RightMargin = 56.7; $ps.TopMargin = 70.9; $ps.BottomMargin = 70.9
-  # mọi hình giãn theo bề rộng vùng in, nhưng không cao quá 60 % trang (giữ tỉ lệ)
   $maxw = $ps.PageWidth - $ps.LeftMargin - $ps.RightMargin
   $maxh = ($ps.PageHeight - $ps.TopMargin - $ps.BottomMargin) * 0.6
   foreach ($s in @($doc.InlineShapes)) {
-    if ($s.Type -ne 3 -and $s.Type -ne 4) { continue }  # chỉ ảnh (bỏ qua đường kẻ ngang <hr>)
+    if ($s.Type -ne 3 -and $s.Type -ne 4) { continue }
     $s.LockAspectRatio = -1
     $ratio = $s.Height / $s.Width
     $w = $maxw

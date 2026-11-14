@@ -1,4 +1,3 @@
-"""Đọc hằng số từ firmware/src/config.py trên máy tính (không import để tránh phụ thuộc module MicroPython)."""
 import ast
 from pathlib import Path
 

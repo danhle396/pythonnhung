@@ -1,4 +1,3 @@
-# Chạy trước main.py mỗi lần khởi động. Giữ tối thiểu: thu gom rác, tắt log debug của ESP-IDF.
 import gc
 
 try:

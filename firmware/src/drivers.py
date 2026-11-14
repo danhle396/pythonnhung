@@ -1,11 +1,7 @@
-# Driver I2C tự viết cho BMP280 (áp suất, nhiệt độ) và BH1750 (ánh sáng) — thay thư viện Adafruit/claws.
-# Phần bù trừ BMP280 dùng công thức số nguyên 32/64 bit trong datasheet (Bosch BST-BMP280-DS001, mục 8.2):
-# Python có số nguyên không giới hạn nên tính chính xác, không phụ thuộc float32 của MicroPython.
 import struct
 
 
 def bmp280_compensate(adc_t, adc_p, cal):
-    """cal = (T1, T2, T3, P1..P9). Trả về (nhiệt độ °C, áp suất hPa) hoặc (t, None) nếu chia cho 0."""
     T1, T2, T3, P1, P2, P3, P4, P5, P6, P7, P8, P9 = cal
     var1 = (((adc_t >> 3) - (T1 << 1)) * T2) >> 11
     var2 = (((((adc_t >> 4) - T1) * ((adc_t >> 4) - T1)) >> 12) * T3) >> 14
@@ -23,7 +19,7 @@ def bmp280_compensate(adc_t, adc_p, cal):
     p = (((p << 31) - var2) * 3125) // var1
     var1 = (P9 * (p >> 13) * (p >> 13)) >> 25
     var2 = (P8 * p) >> 19
-    p = ((p + var1 + var2) >> 8) + (P7 << 4)  # Pa dạng Q24.8
+    p = ((p + var1 + var2) >> 8) + (P7 << 4)
     return t, p / 25600.0
 
 
@@ -36,7 +32,6 @@ class BMP280:
             raise OSError("khong phai BMP280")
         raw = self.i2c.readfrom_mem(addr, 0x88, 24)
         self.cal = struct.unpack("<HhhHhhhhhhhh", raw)
-        # config: chờ 500 ms giữa các lần đo, lọc IIR ×16; ctrl_meas: nhiệt ×2, áp suất ×16, chế độ normal
         self.i2c.writeto_mem(addr, 0xF5, bytes([0b100_100_00]))
         self.i2c.writeto_mem(addr, 0xF4, bytes([0b010_101_11]))
 
@@ -54,7 +49,7 @@ class BH1750:
     def __init__(self, i2c, addr=0x23):
         self.i2c, self.addr = i2c, addr
         self.i2c.writeto(addr, bytes([self.POWER_ON]))
-        self.i2c.writeto(addr, bytes([self.CONT_HIGH_RES]))  # 1 lx/đơn vị, 120 ms/lần đo
+        self.i2c.writeto(addr, bytes([self.CONT_HIGH_RES]))
 
     def read(self):
         d = self.i2c.readfrom(self.addr, 2)

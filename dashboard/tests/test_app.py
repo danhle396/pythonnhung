@@ -1,8 +1,3 @@
-"""Smoke test dashboard: render 6 trang, thay API bằng phản hồi đã chụp từ backend chạy với trạm thật
-(api_fixture.json, sinh lại bằng `python dashboard/tests/capture_fixture.py`).
-
-    python -m pytest -q dashboard/tests
-"""
 from __future__ import annotations
 
 import json
@@ -15,7 +10,7 @@ st_testing = pytest.importorskip("streamlit.testing.v1")
 
 HERE = Path(__file__).resolve().parent
 APP = str(HERE.parent / "app.py")
-FIX = json.loads((HERE / "api_fixture.json").read_text(encoding="utf-8"))  # chụp từ trạm thật: capture_fixture.py
+FIX = json.loads((HERE / "api_fixture.json").read_text(encoding="utf-8"))
 PAGES = ["overview", "charts", "forecast", "alerts", "device", "models"]
 
 
@@ -71,7 +66,6 @@ def test_page_renders_without_exception(page):
 
 
 def test_overview_shows_sensor_status():
-    """Trang Tổng quan có khung tình trạng từng cảm biến; cảm biến lỗi không hiện con số."""
     at = st_testing.AppTest.from_file(APP, default_timeout=60)
     at.query_params["page"] = "overview"
     at.run()

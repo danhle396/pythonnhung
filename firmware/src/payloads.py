@@ -1,4 +1,3 @@
-# Đóng gói bản tin MQTT (JSON) — cùng tên trường với backend (backend/app/schemas/payloads.py).
 import json
 
 import config
@@ -10,7 +9,6 @@ LEVEL_NAME = ("normal", "advisory", "warning", "danger")
 
 
 def num(v, digits=2):
-    """Số làm tròn; NaN -> null."""
     if isnan(v):
         return None
     return round(float(v), digits)
@@ -57,7 +55,6 @@ def action_list(act):
 def alert_gas(d, act, o, seq, is_test, causes, latency_ms):
     return dumps({
         "device_id": config.DEVICE_ID, "ts": d.ts, "seq": seq,
-        # thử còi: cả lúc lên cấp 3 lẫn lúc trở về đều là "test" (không phải sự cố khí, không phải cloud nâng cấp)
         "type": "test" if is_test else "gas",
         "level": act.level, "prev_level": act.prev_level, "level_name": LEVEL_NAME[act.level & 3],
         "cause": causes, "gas_ppm": num(d.mq2.ppm, 0), "score": num(o.score, 3),
@@ -69,18 +66,9 @@ def alert_gas(d, act, o, seq, is_test, causes, latency_ms):
 def sensor_fault(d, level, seq):
     return dumps({
         "device_id": config.DEVICE_ID, "ts": d.ts, "seq": seq, "type": "sensor_fault", "sensor": "mq2",
-        "fault": d.gas_fault,  # 0 hết lỗi, 1 stuck, 2 mất kết nối, 3 bão hoà
+        "fault": d.gas_fault,
         "level": level, "prev_level": level,
     })
-
-
-def nowcast(nc, ts, samples):
-    return dumps({
-        "device_id": config.DEVICE_ID, "ts": ts, "code": nc.code, "text": nc.text_vi, "trend": nc.trend,
-        "trend_3h": num(nc.trend3h), "zambretti": nc.zambretti, "samples": samples,
-    })
-
-
 def ack(ref, cmd_id, ok, msg, ts):
     d = {"device_id": config.DEVICE_ID, "ts": ts, "ref": ref, "ok": ok, "msg": msg}
     if cmd_id:

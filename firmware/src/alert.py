@@ -1,6 +1,3 @@
-# Rule engine cảnh báo khí 4 cấp + quản lý hành động (còi/LED/mute; relay tuỳ chọn). Thuần Python, test được trên PC.
-# Logic GIỐNG HỆT ml/src/gas_edge.py (RuleEngine) để bản dùng khi huấn luyện/đánh giá phản ánh đúng thiết bị
-# (ml/tests/test_edge_parity.py kiểm tra hai bản cho cùng kết quả).
 from compat import ticks_add, ticks_diff
 
 CAUSE_PPM_TH1 = 1 << 0
@@ -13,7 +10,6 @@ CAUSE_SENSOR_FAULT = 1 << 6
 CAUSE_CLOUD = 1 << 7
 CAUSE_TEST = 1 << 8
 
-# Chế độ LED / còi
 LED_GREEN, LED_YELLOW, LED_RED_BLINK, LED_RED_SOLID, LED_OFF = 0, 1, 2, 3, 4
 BUZZER_OFF, BUZZER_INTERMITTENT, BUZZER_CONTINUOUS = 0, 1, 2
 
@@ -22,8 +18,8 @@ class RuleConfig:
     def __init__(self, th1=300.0, th2=1000.0, th3=2000.0, slope1=15.0, dtemp3=1.0, hyst=0.15,
                  debounce_up=3, debounce_down=5):
         self.th1, self.th2, self.th3 = th1, th2, th3
-        self.slope1 = slope1        # ppm/s
-        self.dtemp3 = dtemp3        # °C/phút
+        self.slope1 = slope1
+        self.dtemp3 = dtemp3
         self.hyst = hyst
         self.debounce_up = debounce_up
         self.debounce_down = debounce_down
@@ -34,7 +30,6 @@ class RuleConfig:
 
 
 def cause_list(c, cfg):
-    """Bit nguyên nhân -> danh sách chuỗi gửi lên cloud."""
     out = []
     if c & CAUSE_PPM_TH1:
         out.append("gas_ppm>%.0f" % cfg.th1)
@@ -64,7 +59,6 @@ class RuleEngine:
         self.cause = 0
 
     def raw_level(self, ppm, slope, dtemp, scale=1.0):
-        """Trả về (cấp, bit nguyên nhân) khi so với ngưỡng × scale."""
         c = self.cfg
         cause = 0
         lvl = 0
@@ -90,7 +84,7 @@ class RuleEngine:
         up, c = self.raw_level(ppm, slope, dtemp, 1.0)
         if up > self.level:
             self.down_cnt = 0
-            if up == 3:  # cấp Nguy hiểm: tăng ngay, không debounce
+            if up == 3:
                 self.level, self.up_cnt, self.cause = 3, 0, c
             else:
                 self.up_cnt += 1
@@ -123,7 +117,7 @@ class Actions:
         self.level = 0
         self.prev_level = 0
         self.muted = False
-        self.testing = False  # đang thử còi (cmd test_alarm), không phải sự cố khí
+        self.testing = False
 
 
 def _active(now, until):
@@ -131,9 +125,6 @@ def _active(now, until):
 
 
 class AlertManager:
-    """Cấp cảnh báo đầu ra + tắt còi (lệnh mute từ dashboard, task.md 6.3): mute tắt còi 5 phút nhưng giữ cấp và LED;
-    nếu cấp tăng thêm thì còi kêu lại. Cloud có thể nâng cấp (cmd escalate) — không bao giờ hạ cấp edge.
-    Mốc thời gian hết hạn được xoá (None) ngay khi qua để không bị sai khi bộ đếm ticks quay vòng."""
 
     def __init__(self, mute_ms=300000):
         self.mute_ms = mute_ms
@@ -161,7 +152,7 @@ class AlertManager:
         lvl = edge_level
         if _active(now, self.cloud_until):
             if self.cloud_level > lvl:
-                lvl = self.cloud_level  # cloud chỉ được nâng cấp
+                lvl = self.cloud_level
         else:
             self.cloud_until = None
         testing = _active(now, self.test_until)
@@ -174,7 +165,6 @@ class AlertManager:
         a.level_changed = lvl != self.level
         self.level = lvl
         a.level = lvl
-        # mute hết hạn hoặc cấp tăng vượt cấp đã mute -> còi kêu lại
         muted = self.muted_level >= 0 and _active(now, self.muted_until) and lvl <= self.muted_level and not testing
         if not muted:
             self.muted_level = -1

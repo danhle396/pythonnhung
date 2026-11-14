@@ -1,10 +1,3 @@
-"""(Nâng cao) Tạo CA tự ký + chứng chỉ server cho MQTT TLS cổng 8883 (gọi lệnh openssl).
-
-    python broker/mosquitto/gen_certs.py [CN]
-
-Kết quả ở broker/mosquitto/certs/. Chép certs/ca.crt lên ESP32 (python -m mpremote fs cp ca.crt :ca.crt),
-đặt MQTT_CA_FILE = "ca.crt" và MQTT_PORT = 8883 trong firmware/src/credentials.py.
-"""
 from __future__ import annotations
 
 import shutil

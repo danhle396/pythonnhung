@@ -1,11 +1,3 @@
-"""Điều khiển Microsoft Edge / Google Chrome headless qua Chrome DevTools Protocol (CDP) bằng Python thuần
-(websockets) — dùng để render sơ đồ Mermaid/draw.io thành PNG mà không cần Node.js/puppeteer.
-
-    with Browser() as b:
-        b.open_html(html)                 # mở trang, chờ tải xong
-        b.evaluate("1 + 1")               # chạy biểu thức trong trang, trả về giá trị
-        b.screenshot_element("svg", "out.png")
-"""
 from __future__ import annotations
 
 import base64
@@ -43,7 +35,6 @@ class Browser:
         self.width, self.height, self.scale = width, height, scale
         self._id = 0
 
-    # ------------------------------------------------------------------ vòng đời
     def __enter__(self):
         self.profile = tempfile.mkdtemp(prefix="cdp-")
         self.proc = subprocess.Popen(
@@ -79,9 +70,8 @@ class Browser:
                 self.proc.wait(10)
             except subprocess.TimeoutExpired:
                 self.proc.kill()
-            shutil.rmtree(self.profile, ignore_errors=True)  # Windows đôi khi còn khoá file hồ sơ tạm
+            shutil.rmtree(self.profile, ignore_errors=True)
 
-    # ------------------------------------------------------------------ giao thức
     def call(self, method, timeout=60, **params):
         self._id += 1
         mid = self._id
@@ -103,9 +93,7 @@ class Browser:
                 return msg.get("params", {})
         raise TimeoutError(name)
 
-    # ------------------------------------------------------------------ tiện ích
     def open_html(self, html: str, timeout=60):
-        """Mở nội dung HTML (ghi ra file tạm) và chờ sự kiện load."""
         f = Path(self.profile) / f"page{self._id}.html"
         f.write_text(html, encoding="utf-8")
         self.call("Page.navigate", url=f.as_uri())

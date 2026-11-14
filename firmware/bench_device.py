@@ -1,6 +1,3 @@
-# Đo tài nguyên Edge AI NGAY TRÊN ESP32 (chạy bằng: python -m mpremote connect COM5 run firmware/bench_device.py).
-# Cần đã nạp firmware (deploy.py) để import được các module. In ra: thời gian 1 bước edge (feature + rule [+ model]),
-# thời gian suy luận gas_model (nếu có), RAM trống. Số liệu này dùng cho mục "Tài nguyên edge" của báo cáo.
 import gc
 import time
 
@@ -11,7 +8,6 @@ gc.collect()
 free0 = gc.mem_free()
 e = EdgeAI(mode=MODE_HYBRID, warmup_samples=0)
 N = 200
-# chuỗi ppm đầu vào cố định (chỉ để đo thời gian tính toán, không phải dữ liệu đo)
 t0 = time.ticks_us()
 for i in range(N):
     e.step(100.0 + (i % 50), 2.0, 28.0, 75.0, 300.0, True)

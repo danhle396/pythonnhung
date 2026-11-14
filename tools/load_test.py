@@ -1,15 +1,3 @@
-"""Load test (task.md 12.1): N client MQTT tạm (`loadtestNNN`), mỗi client gửi 1 msg/giây trong D giây — đo hiệu năng
-broker/backend, KHÔNG phải số liệu môi trường. Đo xong tự xoá các thiết bị tạm khỏi DB + retained trên broker
-(DELETE /api/devices/{id}, cần --api và tài khoản admin) để chỉ còn số liệu đo thật của trạm.
-
-Đo:
-  - độ trễ broker (publish -> subscriber giám sát nhận được), P50/P95/P99
-  - tỉ lệ mất gói theo seq (QoS 0 hoặc 1)
-  - (tuỳ chọn --api) số bản ghi backend thực sự ghi vào DB và độ trễ ingest (received_at − t_pub)
-  - CPU/RAM của process backend nếu có psutil và --backend-pid
-
-    python tools/load_test.py --devices 50 --duration 60 --qos 1 --api http://localhost:8000
-"""
 from __future__ import annotations
 
 import argparse
@@ -21,6 +9,8 @@ import time
 from pathlib import Path
 
 import paho.mqtt.client as mqtt
+
+from aiot_ml.mdtable import align_tables
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -61,7 +51,7 @@ def main():
         except Exception:
             return
         if not str(j.get("device_id", "")).startswith(a.prefix) or "t_pub_ms" not in j:
-            return  # bỏ qua trạm thật đang gửi song song
+            return
         with lock:
             lat.append(t - j["t_pub_ms"])
             seen.setdefault(j["device_id"], set()).add(j["seq"])
@@ -91,7 +81,7 @@ def main():
         c.username_pw_set(a.user, a.password)
         c.connect(a.host, a.port)
         c.loop_start()
-        seq, start = 0, time.time() + i * (1.0 / a.devices)  # dàn đều thời điểm gửi
+        seq, start = 0, time.time() + i * (1.0 / a.devices)
         while not stop.is_set():
             if time.time() < start:
                 time.sleep(0.005)
@@ -154,12 +144,11 @@ def main():
         L.append(f"| CPU backend TB / max | {res['backend_cpu_pct']['mean']:.1f} % / {res['backend_cpu_pct']['max']:.1f} % |")
         L.append(f"| RAM backend | {res['backend_rss_mb']:.0f} MB |")
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    Path(a.out).write_text("\n".join(L) + "\n", encoding="utf-8")
+    Path(a.out).write_text(align_tables("\n".join(L) + "\n"), encoding="utf-8")
     cleanup(a, sorted(sent))
 
 
 def cleanup(a, devices):
-    """Xoá thiết bị tạm khỏi DB và broker để dashboard/dự báo chỉ còn số liệu đo thật."""
     if a.keep:
         print(f"--keep: giữ {len(devices)} thiết bị tạm trong DB")
         return
@@ -168,7 +157,7 @@ def cleanup(a, devices):
               f"DELETE /api/devices/{{id}} hoặc chạy lại với --api")
         return
     import httpx
-    time.sleep(2)  # chờ backend ghi nốt lô cuối
+    time.sleep(2)
     tok = httpx.post(f"{a.api}/api/auth/token", data={"username": a.admin_user, "password": a.admin_pass},
                      timeout=15).json()["access_token"]
     h = {"Authorization": f"Bearer {tok}"}

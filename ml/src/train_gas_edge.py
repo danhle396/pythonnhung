@@ -1,12 +1,3 @@
-"""Huấn luyện mô hình cảnh báo khí/khói cho ESP32, so sánh Rule / Model / Hybrid, xuất sang MicroPython.
-
-    python -m aiot_ml.train_gas_edge --data data/raw/gas_labeled.csv
-
-Chỉ huấn luyện trên dữ liệu ĐO THẬT từ MQ-2, thu bằng tools/label_logger.py trong các buổi thí nghiệm có gán nhãn.
-Chưa có dữ liệu -> không có model, firmware chạy rule (firmware/src/gas_model.py với AVAILABLE = False).
-CSV cần các cột: t (giây), gas_ppm, rs_r0, temp, hum, lux, label (0..3), event_id, scenario, stream_seed.
-Chia theo chuỗi (stream) để tập test là các buổi thí nghiệm khác hẳn tập train.
-"""
 from __future__ import annotations
 
 import argparse
@@ -17,16 +8,21 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from mlcore import ensemble, explain, metrics, tree
-from mlcore.export_micropython import (export_forest_micropython, forest_to_arrays, load_module_from_source,
-                                       predict_float32, to_float32_list)
-from mlcore.serialize import dataset_hash, save_model
+from sklearn import metrics as skm
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import make_scorer
+from sklearn.tree import DecisionTreeClassifier
 
 from .config import EXPERIMENTS_DIR, FIRMWARE_SRC, FIRMWARE_TESTS, MODELS_DIR, REPO_DIR, SEED
 from .gas_edge import EDGE_FEATURES, LEVEL_NAMES, RuleConfig, extract_features_stream, run_levels_vectorized
+from .export_micropython import (export_forest_micropython, forest_to_arrays, load_module_from_source,
+                                 predict_float32, to_float32_list)
+from .mdtable import align_tables
+from .serialize import dataset_hash, save_model
 from .tracking import ModelRegistry, log_experiment
 
-CLASS_WEIGHT = {0: 1.0, 1: 1.5, 2: 4.0, 3: 6.0}  # phạt nặng khi bỏ sót cấp 2, 3 (ưu tiên Recall)
+CLASS_WEIGHT = {0: 1.0, 1: 1.5, 2: 4.0, 3: 6.0}
 
 
 REQUIRED_COLUMNS = ["t", "gas_ppm", "rs_r0", "temp", "hum", "lux", "label", "scenario", "event_id", "stream_seed"]
@@ -51,7 +47,6 @@ def build_dataset(args):
 
 
 def event_metrics(df, pred):
-    """Đánh giá theo sự kiện: phát hiện (cấp dự đoán ≥ nhãn sự kiện ≥ 2), báo động giả, độ trễ."""
     out = {"events_ge2": 0, "detected_ge2": 0, "latency_s": [], "nuisance_events": 0, "nuisance_alarm_l1": 0,
            "nuisance_alarm_l2": 0, "clean_events": 0, "clean_alarm_l1": 0}
     d = df.assign(pred=pred)
@@ -61,7 +56,7 @@ def event_metrics(df, pred):
         if lab >= 2:
             out["events_ge2"] += 1
             act = g[g["label"] >= 2]
-            win = g.loc[act.index.min():act.index.max() + 10]  # cho phép trễ 10 s sau khi hết nhãn
+            win = g.loc[act.index.min():act.index.max() + 10]
             hit = win["pred"] >= 2
             if hit.any():
                 out["detected_ge2"] += 1
@@ -83,16 +78,20 @@ def event_metrics(df, pred):
     return out
 
 
+def recall_ge2(y, pred):
+    return float(skm.recall_score(np.asarray(y) >= 2, np.asarray(pred) >= 2, zero_division=0))
+
+
 def sample_metrics(y, pred):
-    r = metrics.precision_recall_f1(y, pred, labels=[0, 1, 2, 3])
-    ge2 = metrics.recall_binary((y >= 2).astype(int), (pred >= 2).astype(int))
-    prec_ge2 = metrics.precision_binary((y >= 2).astype(int), (pred >= 2).astype(int))
-    return {"macro_f1": r["macro"]["f1"], "recall_ge2": ge2, "precision_ge2": prec_ge2,
-            "per_class": r["per_class"], "confusion_matrix": r["confusion_matrix"]}
+    labels = [0, 1, 2, 3]
+    p, r, f, _ = skm.precision_recall_fscore_support(y, pred, labels=labels, zero_division=0)
+    return {"macro_f1": float(f.mean()), "recall_ge2": recall_ge2(y, pred),
+            "precision_ge2": float(skm.precision_score(y >= 2, pred >= 2, zero_division=0)),
+            "per_class": [{"precision": float(p[k]), "recall": float(r[k]), "f1": float(f[k])} for k in labels],
+            "confusion_matrix": skm.confusion_matrix(y, pred, labels=labels).tolist()}
 
 
 def python_parity(src, X, cls_idx, proba):
-    """Nạp module MicroPython vừa sinh vào CPython, chạy trên vector kiểm thử (đã làm tròn float32) và so với mlcore."""
     mod = load_module_from_source(src)
     bad, md = 0, 0.0
     xs = [to_float32_list(x) for x in X]
@@ -120,17 +119,16 @@ def main(argv=None):
     print(f"Dữ liệu đo thật {a.data}: {len(df)} mẫu 1 Hz, {df.groupby(['stream_seed', 'event_id']).ngroups} "
           f"sự kiện | phân bố nhãn {np.bincount(y, minlength=4).tolist()} | train/val/test streams {len(s_tr)}/{len(s_va)}/{len(s_te)}")
 
-    # ------------------------------------------------ chọn model trên tập val
     cands = []
     for depth in (4, 5, 6):
         cands.append(("DecisionTree", {"max_depth": depth},
-                      lambda d=depth: tree.DecisionTreeClassifier(max_depth=d, min_samples_leaf=20,
-                                                                  class_weight=CLASS_WEIGHT, seed=SEED)))
+                      lambda d=depth: DecisionTreeClassifier(max_depth=d, min_samples_leaf=20,
+                                                             class_weight=CLASS_WEIGHT, random_state=SEED)))
     for nt, depth in ((5, 5), (10, 5), (10, 6)):
         cands.append(("RandomForest", {"n_estimators": nt, "max_depth": depth},
-                      lambda nt=nt, d=depth: ensemble.RandomForestClassifier(
+                      lambda nt=nt, d=depth: RandomForestClassifier(
                           n_estimators=nt, max_depth=d, min_samples_leaf=20, max_features=0.6,
-                          class_weight=CLASS_WEIGHT, seed=SEED)))
+                          class_weight=CLASS_WEIGHT, random_state=SEED, n_jobs=-1)))
     best = None
     sel_log = []
     for name, params, make in cands:
@@ -142,7 +140,6 @@ def main(argv=None):
         sm = sample_metrics(y[m_va], lv)
         ev = event_metrics(df[m_va], lv)
         n_nodes = len(forest_to_arrays(m)["feature"])
-        # mục tiêu: ưu tiên recall ≥2 theo sự kiện, rồi giảm báo động giả, rồi macro-F1, phạt kích thước
         score = (ev["event_recall_ge2"] * 2 + sm["recall_ge2"] - 1.5 * ev["nuisance_fp_rate_l2"]
                  + sm["macro_f1"] - n_nodes / 20000)
         sel_log.append({"model": name, **params, "val_score": score, "val_event_recall_ge2": ev["event_recall_ge2"],
@@ -155,7 +152,6 @@ def main(argv=None):
     _, best_name, best_params, model = best
     print(f"-> chọn {best_name} {best_params}")
 
-    # ------------------------------------------------ so sánh Rule / Model / Hybrid trên test
     Xte, yte, dte = X[m_te], y[m_te], df[m_te]
     pte = model.predict(Xte)
     comp = {}
@@ -168,7 +164,6 @@ def main(argv=None):
               f"latency={c['latency_median_s']}s")
     raw_model = sample_metrics(yte, pte)
 
-    # ------------------------------------------------ xuất MicroPython + kiểm tra khớp
     src = export_forest_micropython(model, EDGE_FEATURES, model_ver=a.model_ver, class_names=LEVEL_NAMES)
     rng = np.random.default_rng(SEED)
     pick = np.sort(np.r_[rng.choice(np.flatnonzero(yte == 0), min(250, int((yte == 0).sum())), replace=False),
@@ -176,7 +171,6 @@ def main(argv=None):
     cls_idx, proba = predict_float32(model, Xte[pick])
     python_match = float((model.classes_[cls_idx] == model.predict(Xte[pick])).mean())
     (FIRMWARE_SRC / "gas_model.py").write_text(src, encoding="utf-8")
-    # vector kiểm thử: firmware/tests kiểm tra lại gas_model.py; bench_device.py đo thời gian trên ESP32
     (FIRMWARE_TESTS / "gas_model_testvec.json").write_text(json.dumps(
         {"x": [to_float32_list(x) for x in Xte[pick]], "class_idx": cls_idx.tolist()}), encoding="utf-8")
     parity = python_parity(src, Xte[pick], cls_idx, proba)
@@ -186,15 +180,15 @@ def main(argv=None):
     flash = n_nodes * (10 if n_nodes < 32767 else 16) + n_leaves * 4 * 4 + len(A["roots"]) * 2
     print(f"  MicroPython parity: {parity} | ~{flash / 1024:.1f} kB dữ liệu model, {n_nodes} nút")
 
-    # ------------------------------------------------ lưu
     dh = dataset_hash(X[m_tr], y[m_tr])
     path = save_model({"model": model, "features": EDGE_FEATURES, "class_weight": CLASS_WEIGHT,
                        "rule_config": RuleConfig().__dict__}, MODELS_DIR / "gas_edge", model_ver=a.model_ver,
                       data_hash=dh, meta={"data": str(a.data)})
-    imp = explain.split_gain_importance(model, EDGE_FEATURES)
-    perm = explain.permutation_importance(lambda Z: model.predict(Z), Xte[:20000], yte[:20000],
-                                          lambda yy, pp: metrics.recall_binary(yy >= 2, pp >= 2), n_repeats=3,
-                                          greater_is_better=True, feature_names=EDGE_FEATURES)
+    order = np.argsort(-model.feature_importances_)
+    imp = [(EDGE_FEATURES[i], float(model.feature_importances_[i])) for i in order]
+    pi = permutation_importance(model, Xte[:20000], yte[:20000], scoring=make_scorer(recall_ge2), n_repeats=3,
+                                random_state=SEED)
+    perm = [(EDGE_FEATURES[i], float(pi.importances_mean[i])) for i in np.argsort(-pi.importances_mean)]
     res = {"data": str(a.data), "n_samples": int(len(df)),
            "label_counts": np.bincount(y, minlength=4).tolist(), "selection": sel_log,
            "chosen": {"model": best_name, **best_params}, "test_raw_model": raw_model, "test_comparison": comp,
@@ -240,17 +234,17 @@ def write_report(res):
         L.append(f"| {i} | " + " | ".join(map(str, row)) + " |")
     r = res["edge_resources"]
     p = res["micropython_parity"]
-    L += ["", "## Tài nguyên edge & kiểm tra khớp MicroPython/mlcore", "",
+    L += ["", "## Tài nguyên edge & kiểm tra khớp MicroPython/scikit-learn", "",
           f"- {r['trees']} cây, {r['nodes']} nút, {r['leaves']} lá, ước tính **{r['flash_bytes_est'] / 1024:.1f} kB dữ liệu model** "
           f"(bytes trong gas_model.py)",
-          f"- gas_model.py (float32) vs mlcore trên {p.get('checked')} vector: lệch lớp **{p.get('mismatches')}**, "
+          f"- gas_model.py (float32) vs scikit-learn trên {p.get('checked')} vector: lệch lớp **{p.get('mismatches')}**, "
           f"lệch xác suất tối đa {p.get('max_proba_diff'):.2e}, {p.get('pc_us_per_inference', 0):.1f} µs/lần trên PC "
           f"(đo trên ESP32: `python -m mpremote run firmware/bench_device.py`)",
-          "", "## Feature quan trọng (split gain)", ""]
+          "", "## Feature quan trọng (impurity, scikit-learn)", ""]
     L += [f"- {n}: {v:.3f}" for n, v in res["importance_split_gain"]]
     out = REPO_DIR / "docs" / "report" / "results_gas_edge.md"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("\n".join(L) + "\n", encoding="utf-8")
+    out.write_text(align_tables("\n".join(L) + "\n"), encoding="utf-8")
 
 
 if __name__ == "__main__":

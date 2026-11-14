@@ -1,11 +1,3 @@
-"""Render mọi khối ```mermaid trong docs/architecture/*.md thành PNG (cho báo cáo Word / slide).
-
-    python tools/render_mermaid.py
-
-Tên ảnh lấy theo tiêu đề `##` gần nhất phía trên khối. Dùng Edge/Chrome có sẵn trên máy (headless, qua
-tools/browser_cdp.py); thư viện vẽ mermaid@11.4.1 được trình duyệt tải từ CDN jsDelivr (cần Internet,
-chỉ tải thư viện, nội dung sơ đồ không gửi đi đâu).
-"""
 from __future__ import annotations
 
 import json
@@ -15,7 +7,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from browser_cdp import Browser  # noqa: E402
+from browser_cdp import Browser
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs" / "report" / "figures" / "diagrams"

@@ -1,9 +1,10 @@
-"""Tải lịch sử thời tiết theo giờ tại VKU từ Open-Meteo Historical API (miễn phí, không cần key).
+from __future__ import annotations
+
+USAGE = """Tải lịch sử thời tiết theo giờ tại VKU từ Open-Meteo Historical API (miễn phí, không cần key).
 
     python -m aiot_ml.fetch_open_meteo --start 2021-01-01 --end 2025-12-31
 Kết quả: ml/data/external/vku_hourly_<start>_<end>.csv
 """
-from __future__ import annotations
 
 import argparse
 import datetime as dt
@@ -27,7 +28,7 @@ def _get(url, params, retries=4):
             r = requests.get(url, params=params, timeout=60, headers={"User-Agent": "vku-aiot-station/1.0"})
             r.raise_for_status()
             return r.json()
-        except Exception as e:  # mạng chập chờn / rate-limit -> thử lại
+        except Exception as e:
             if k == retries - 1:
                 raise
             wait = 2 ** k * 3
@@ -36,7 +37,6 @@ def _get(url, params, retries=4):
 
 
 def fetch_archive(start: str, end: str, lat=STATION["lat"], lon=STATION["lon"]) -> pd.DataFrame:
-    """Tải theo từng năm để tránh request quá lớn rồi ghép lại."""
     frames = []
     s = dt.date.fromisoformat(start)
     e = dt.date.fromisoformat(end)
@@ -54,7 +54,6 @@ def fetch_archive(start: str, end: str, lat=STATION["lat"], lon=STATION["lon"]) 
 
 
 def fetch_recent(past_days=7, lat=STATION["lat"], lon=STATION["lon"]) -> pd.DataFrame:
-    """Dữ liệu vài ngày gần nhất (Forecast API có past_days) — dùng để bổ sung khi trạm thiếu dữ liệu."""
     js = _get(FORECAST_URL, {"latitude": lat, "longitude": lon, "past_days": past_days, "forecast_days": 1,
                              "hourly": ",".join(HOURLY_VARS), "timezone": STATION["tz"]})
     df = pd.DataFrame(js["hourly"])
@@ -63,7 +62,7 @@ def fetch_recent(past_days=7, lat=STATION["lat"], lon=STATION["lon"]) -> pd.Data
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(description=USAGE)
     ap.add_argument("--start", default="2021-01-01")
     ap.add_argument("--end", default="2025-12-31")
     ap.add_argument("--out", default=None)

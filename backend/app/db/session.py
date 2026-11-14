@@ -20,7 +20,6 @@ def get_engine():
 
 
 def init_engine(url: str):
-    """(Re)khởi tạo engine — test dùng để trỏ sang SQLite tạm."""
     global _engine
     kw = {"pool_pre_ping": True}
     if url.startswith("sqlite"):
@@ -66,7 +65,6 @@ def get_db():
 
 
 def as_utc(t: dt.datetime | None):
-    """SQLite trả về datetime không có tz -> gắn UTC để so sánh nhất quán."""
     if t is None:
         return None
     return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)

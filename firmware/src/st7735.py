@@ -1,17 +1,12 @@
-# Driver màn TFT 1.8" ST7735S 128x160 (SPI) tự viết cho MicroPython — thay thư viện Adafruit ST7735.
-# Vẽ theo từng dải chữ: mỗi dòng chữ được dựng trong một FrameBuffer nhỏ (RGB565) rồi đẩy một cửa sổ qua SPI,
-# không cần bộ đệm cả màn hình (40 kB). Font 8x8 có sẵn của framebuf; cỡ 2 = phóng to 2 lần.
 import framebuf
 from machine import SPI, Pin
 
 from compat import sleep_ms
 
-# Lệnh ST7735
 SWRESET, SLPOUT, NORON, INVOFF, DISPON = 0x01, 0x11, 0x13, 0x20, 0x29
 CASET, RASET, RAMWR, MADCTL, COLMOD = 0x2A, 0x2B, 0x2C, 0x36, 0x3A
 MY, MX, MV, BGR = 0x80, 0x40, 0x20, 0x08
 
-# Trình tự khởi tạo của datasheet/Adafruit cho module "tab" đỏ/đen/xanh (ST7735R/S)
 _INIT = (
     (0xB1, b"\x01\x2c\x2d", 0), (0xB2, b"\x01\x2c\x2d", 0), (0xB3, b"\x01\x2c\x2d\x01\x2c\x2d", 0),
     (0xB4, b"\x07", 0), (0xC0, b"\xa2\x02\x84", 0), (0xC1, b"\xc5", 0), (0xC2, b"\x0a\x00", 0),
@@ -23,7 +18,6 @@ _INIT = (
 
 
 def rgb(r, g, b):
-    """Màu RGB565, đảo byte sẵn: framebuf ghi little-endian còn ST7735 đọc big-endian."""
     c = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
     return ((c & 0xFF) << 8) | (c >> 8)
 
@@ -41,14 +35,12 @@ GREY = rgb(124, 124, 124)
 
 class ST7735:
     def __init__(self, spi_id, sck, mosi, cs, dc, baudrate=20000000, tab="black", rotation=1):
-        # SPI chỉ ghi; MISO để mặc định của bus (không nối dây, chỉ là chân vào)
         self.spi = SPI(spi_id, baudrate=baudrate, polarity=0, phase=0, sck=Pin(sck), mosi=Pin(mosi))
         self.cs = Pin(cs, Pin.OUT, value=1)
         self.dc = Pin(dc, Pin.OUT, value=0)
         self.tab = tab
         self.width, self.height = (160, 128) if rotation in (1, 3) else (128, 160)
         col0, row0 = (2, 1) if tab == "green" else (0, 0)
-        # khi xoay ngang, vị trí lệch của cột/hàng đổi chỗ
         self.x0, self.y0 = (row0, col0) if rotation in (1, 3) else (col0, row0)
         order = 0 if tab == "black" else BGR
         self.madctl = (MX | MY, MY | MV, 0, MX | MV)[rotation & 3] | order
@@ -65,7 +57,7 @@ class ST7735:
         self.cs(1)
 
     def init(self):
-        self.cmd(SWRESET)  # RESET nối EN: lệnh reset mềm để khởi tạo lại sau reset của ESP32
+        self.cmd(SWRESET)
         sleep_ms(150)
         self.cmd(SLPOUT)
         sleep_ms(255)
@@ -92,7 +84,7 @@ class ST7735:
 
     def fill_rect(self, x, y, w, h, color):
         line = bytearray(w * 2)
-        hi, lo = color & 0xFF, color >> 8  # thứ tự byte giống framebuf
+        hi, lo = color & 0xFF, color >> 8
         for i in range(0, w * 2, 2):
             line[i], line[i + 1] = hi, lo
         self.window(x, y, w, h)
@@ -116,7 +108,6 @@ class ST7735:
         return s
 
     def text_row(self, text, y, size, fg, bg):
-        """Vẽ một dòng chữ rộng hết màn hình (nền bg) tại y; cỡ 1 = 20 ký tự, cỡ 2 = 10 ký tự."""
         h = 8 * size
         buf, fb = self._strip(h)
         fb.fill(bg)

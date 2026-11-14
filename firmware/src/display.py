@@ -1,11 +1,8 @@
-# Màn hình TFT 1.8" 160x128 nằm ngang, 3 trang luân phiên 4 s: môi trường · khí gas/khói · dự báo.
-# Trang khí/khói luôn hiện khi cấp ≥ 2. Thanh tiêu đề đổi màu theo cấp cảnh báo.
-# compose_rows() là hàm thuần (test được trên PC); Display chỉ vẽ lại dòng nào đổi nội dung nên màn không nháy.
 import config
 from compat import isnan
 
 W, H = 160, 128
-COLS1, COLS2 = 20, 10  # số ký tự mỗi dòng ở cỡ chữ 1 và 2 (font 8x8)
+COLS1, COLS2 = 20, 10
 N_ROWS = 10
 
 LEVEL_TXT = ("AN TOAN", "CHU Y", "CANH BAO", "NGUY HIEM")
@@ -17,7 +14,6 @@ def _f(fmt, v):
 
 
 def wrap(text, cols, n):
-    """Ngắt chuỗi dài thành tối đa n dòng (ngắt ở dấu cách)."""
     out = []
     p = text.strip()
     for _ in range(n):
@@ -33,8 +29,6 @@ def wrap(text, cols, n):
 
 
 def compose_rows(st, page, clock, colors):
-    """Trả về danh sách N_ROWS phần tử (y, cỡ, màu chữ, màu nền, chữ) hoặc None cho dòng trống.
-    colors: bảng màu (từ st7735) — truyền vào để hàm không phụ thuộc phần cứng."""
     C = colors
     lv = st.level & 3
     level_bg = (C["DARKGREEN"], C["YELLOW"], C["ORANGE"], C["RED"])
@@ -44,7 +38,6 @@ def compose_rows(st, page, clock, colors):
     s = st.s
     rows = [None] * N_ROWS
     titles = ("MOI TRUONG", "KHI GAS / KHOI", "DU BAO")
-    # góc phải: W = Wi-Fi, M = MQTT, x = đang tắt còi
     flags = ("W" if st.wifi else "-") + ("M" if st.mqtt else "-") + (" x" if st.muted else "  ")
     rows[0] = (3, 1, hfg, hbg, "%-16s%s" % (titles[page], flags))
     if page == 0:
@@ -71,13 +64,9 @@ def compose_rows(st, page, clock, colors):
         else:
             rows[6] = (100, 1, C["WHITE"], C["BLACK"], "")
     else:
-        rows[1] = (18, 1, C["CYAN"], C["BLACK"], "Nowcast tai tram")
-        t = st.nc.text
-        rows[2] = (30, 2 if len(t) <= COLS2 else 1, C["WHITE"], C["BLACK"], t)
-        rows[3] = (50, 1, C["WHITE"], C["BLACK"], "Z=%s %+.1f hPa/3h" % (st.nc.zambretti, st.nc.trend3h))
-        rows[4] = (66, 1, C["CYAN"], C["BLACK"], "Cloud (AI du bao)")
-        for i, line in enumerate(wrap(st.cloud_forecast or "(chua co)", COLS1, 3)):
-            rows[5 + i] = (78 + 10 * i, 1, C["WHITE"], C["BLACK"], line)
+        rows[1] = (20, 1, C["CYAN"], C["BLACK"], "Cloud (AI du bao)")
+        for i, line in enumerate(wrap(st.cloud_forecast or "(chua co)", COLS1, 6)):
+            rows[2 + i] = (34 + 12 * i, 1, C["WHITE"], C["BLACK"], line)
     rows[N_ROWS - 1] = (H - 10, 1, C["GREY"], C["BLACK"], "%-5s fw %-6s %d/3" % (clock, config.FW_VERSION, page + 1))
     return rows
 
@@ -105,7 +94,7 @@ class Display:
         if self.last_flip is None or ticks_diff(now, self.last_flip) > 4000:
             self.page = (self.page + 1) % 3 if self.last_flip is not None else 0
             self.last_flip = now
-        page = 1 if st.level >= 2 else self.page  # cảnh báo cấp ≥ 2 luôn hiển thị
+        page = 1 if st.level >= 2 else self.page
         if page != self.shown:
             self.tft.fill(self.colors["BLACK"])
             self.rows = [None] * N_ROWS

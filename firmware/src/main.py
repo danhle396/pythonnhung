@@ -1,7 +1,3 @@
-# Trạm AIoT VKU — ESP32 + MicroPython: thu thập cảm biến, Edge AI cảnh báo khí/khói 4 cấp, nowcast, MQTT, đệm offline.
-#   Luồng chính : cảm biến 1 Hz -> Edge AI -> còi/LED (~20 lần/s) -> màn TFT (2 lần/s). Không phụ thuộc mạng.
-#   Luồng mạng  : Wi-Fi, NTP, MQTT, gửi bù đệm offline, status, hiệu chuẩn R0, OTA.
-#   Watchdog 30 s: luồng chính chỉ cho "chó canh" ăn khi luồng mạng còn sống (< 60 s) -> treo ở đâu cũng tự khởi động lại.
 import gc
 import sys
 
@@ -19,7 +15,6 @@ print("\n[BOOT] VKU AIoT Station fw", config.FW_VERSION, "model", gas_model.VERS
 
 
 class Hardware:
-    """Các thao tác phần cứng mà Station gọi từ luồng mạng."""
 
     def __init__(self, sensors, wdt):
         self.sensors = sensors
@@ -30,8 +25,14 @@ class Hardware:
         gc.collect()
         free = gc.mem_free()
         self.min_free = min(self.min_free, free)
-        return {"uptime_s": ticks_ms() // 1000, "free_heap": free, "min_free_heap": self.min_free,
+        info = {"uptime_s": ticks_ms() // 1000, "free_heap": free, "min_free_heap": self.min_free,
                 "reset_reason": machine.reset_cause()}
+        try:
+            import esp32
+            info["idf_free_heap"] = sum(h[1] for h in esp32.idf_heap_info(esp32.HEAP_DATA))
+        except (ImportError, AttributeError):
+            pass
+        return info
 
     def mean_rs_kohm(self, mq2_params):
         return self.sensors.mean_rs_kohm(mq2_params, 50, feed=self.feed)
@@ -58,7 +59,7 @@ class Hardware:
 
 def build_actuators():
     pins = {"green": Pin(config.PIN_LED_GREEN, Pin.OUT, value=0), "red": Pin(config.PIN_LED_RED, Pin.OUT, value=0),
-            "buzz": Pin(config.PIN_BUZZER, Pin.OUT, value=1 if config.BUZZER_ACTIVE_LOW else 0)}  # còi tắt
+            "buzz": Pin(config.PIN_BUZZER, Pin.OUT, value=1 if config.BUZZER_ACTIVE_LOW else 0)}
     if config.HAS_LED_YELLOW:
         pins["yellow"] = Pin(config.PIN_LED_YELLOW, Pin.OUT, value=0)
     if config.HAS_RELAY:
@@ -81,7 +82,7 @@ def network_thread(station, link):
     while True:
         try:
             station.net_step(link, ticks_ms())
-        except Exception as e:  # không để lỗi bất ngờ giết luồng mạng
+        except Exception as e:
             print("[NET] loi:", e)
             sys.print_exception(e)
         sleep_ms(20)
@@ -103,7 +104,7 @@ def main():
         tft = ST7735(config.TFT_SPI_ID, config.PIN_TFT_SCK, config.PIN_TFT_MOSI, config.PIN_TFT_CS, config.PIN_TFT_DC,
                      config.TFT_SPI_HZ, config.TFT_TAB, config.TFT_ROTATION)
         display = Display(tft)
-    except Exception as e:  # màn hình hỏng không được làm dừng cảnh báo
+    except Exception as e:
         print("[TFT] loi:", e)
 
     wdt = machine.WDT(timeout=config.WDT_TIMEOUT_MS)
@@ -114,7 +115,7 @@ def main():
         import credentials as cred
     except ImportError:
         cred = None
-        print("[NET] thieu credentials.py -> chay offline (chep credentials_example.py thanh credentials.py)")
+        print("[NET] thieu credentials.py -> chay offline (tao credentials.py: WIFI_SSID, WIFI_PASS, MQTT_*)")
     if cred:
         from net import NetLink
         ssl_ctx = None
@@ -125,9 +126,11 @@ def main():
         link = NetLink(cred.WIFI_SSID, cred.WIFI_PASS, cred.MQTT_HOST, cred.MQTT_PORT, cred.MQTT_USER,
                        cred.MQTT_PASS, on_message=station.on_message, ssl_context=ssl_ctx,
                        client_suffix="-" + "".join("%02x" % b for b in machine.unique_id()[-3:]))
-        _thread.stack_size(16 * 1024)
+        _thread.stack_size(config.NET_THREAD_STACK)
         _thread.start_new_thread(network_thread, (station, link))
 
+    gc.collect()
+    gc.threshold(config.GC_THRESHOLD)
     last_sample = last_disp = None
     while True:
         now = ticks_ms()
@@ -142,7 +145,6 @@ def main():
                 display.render(station.dstate, now, clock)
             except Exception as e:
                 print("[TFT] loi ve:", e)
-        # luồng mạng còn sống (hoặc chạy offline) mới cho chó canh ăn
         if not cred or ticks_diff(now, station.heartbeat) < config.NET_STALL_MS:
             wdt.feed()
         sleep_ms(50)

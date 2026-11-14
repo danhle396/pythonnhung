@@ -1,4 +1,6 @@
-"""Nạp firmware MicroPython lên ESP32 (chạy trên máy tính).
+from __future__ import annotations
+
+USAGE = """Nạp firmware MicroPython lên ESP32 (chạy trên máy tính).
 
     python firmware/deploy.py                 # biên dịch .mpy + chép lên board (cổng tự dò) + khởi động lại
     python firmware/deploy.py --port COM5     # chỉ định cổng
@@ -9,13 +11,12 @@
 Lần đầu với board mới: nạp MicroPython (ESP32_GENERIC) từ https://micropython.org/download/ESP32_GENERIC/
     python -m esptool --chip esp32 --port COM5 erase_flash
     python -m esptool --chip esp32 --port COM5 --baud 460800 write_flash 0x1000 ESP32_GENERIC-<phiên bản>.bin
-rồi chép firmware/src/credentials_example.py thành credentials.py, điền Wi-Fi/MQTT, chạy script này.
+rồi tạo firmware/src/credentials.py (WIFI_SSID, WIFI_PASS, MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS), chạy script này.
 Xem log: python -m mpremote connect COM5 repl   (Ctrl-] để thoát)
 
 Biên dịch sẵn .mpy giúp board không phải phân tích mã nguồn lúc chạy -> tiết kiệm RAM đáng kể.
 main.py, boot.py, credentials.py luôn chép dạng .py.
 """
-from __future__ import annotations
 
 import argparse
 import json
@@ -28,11 +29,10 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / "src"
 BUILD = HERE / "build"
 KEEP_SOURCE = {"main.py", "boot.py", "credentials.py"}
-SKIP = {"credentials_example.py"}
 
 
 def sources(ota=False):
-    skip = SKIP | ({"credentials.py"} if ota else set())  # không đẩy mật khẩu Wi-Fi qua OTA
+    skip = {"credentials.py"} if ota else set()
     return sorted(p for p in SRC.glob("*.py") if p.name not in skip)
 
 
@@ -62,7 +62,7 @@ def mpremote(port: str, *args: str):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=USAGE, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--port", default="auto", help="cổng nối tiếp (COM5, /dev/ttyUSB0); mặc định tự dò")
     ap.add_argument("--source", action="store_true", help="chép .py thay vì .mpy")
     ap.add_argument("--check", action="store_true", help="chỉ biên dịch kiểm tra, không nạp")
@@ -70,7 +70,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     if not (SRC / "credentials.py").exists() and not a.check:
-        print("! Chưa có firmware/src/credentials.py -> trạm chạy offline. Sao chép credentials_example.py và điền Wi-Fi/MQTT.")
+        print("! Chưa có firmware/src/credentials.py -> trạm chạy offline. Tạo file với WIFI_SSID, WIFI_PASS, MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS.")
     out = Path(a.ota) if a.ota else BUILD / "device"
     files = compile_all(out, a.source, bool(a.ota))
     print(f"Đã chuẩn bị {len(files)} file trong {out}")
@@ -84,7 +84,6 @@ def main(argv=None):
         print(f"Gói OTA {ver}: python -m http.server 8080 -d {out}\n"
               f'rồi gửi lệnh {{"cmd":"ota","url":"http://<IP máy>:8080/manifest.json"}} từ dashboard/API.')
         return
-    # xoá bản .py/.mpy cũ trùng tên trên board để MicroPython nạp đúng bản mới
     stale = [f.stem + (".py" if f.suffix == ".mpy" else ".mpy") for f in files if f.name not in KEEP_SOURCE]
     clean = "import os\nfor f in %r:\n try: os.remove(f)\n except OSError: pass\n" % stale
     mpremote(a.port, "exec", clean, "+", "fs", "cp", *[str(f) for f in files], ":", "+", "reset")

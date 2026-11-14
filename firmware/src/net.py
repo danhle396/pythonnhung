@@ -1,12 +1,10 @@
-# Kết nối mạng của trạm: Wi-Fi (tự kết nối lại), đồng bộ giờ NTP, MQTT (LWT, subscribe cmd/config/forecast,
-# thử lại với backoff tăng dần). Chạy trong luồng mạng. Trên PC (không có module network) coi như Wi-Fi luôn có.
 import config
 from compat import has_time, ticks_diff, ticks_ms
 from mqtt import MQTTClient
 
 try:
     import network
-except ImportError:  # CPython
+except ImportError:
     network = None
 
 
@@ -21,12 +19,11 @@ class NetLink:
             self.wlan = network.WLAN(network.STA_IF)
             self.wlan.active(True)
             try:
-                self.wlan.config(pm=0)  # tắt tiết kiệm điện Wi-Fi: phản hồi lệnh nhanh hơn
+                self.wlan.config(pm=0)
             except (ValueError, OSError, AttributeError):
                 pass
         self.client = MQTTClient(device_id + client_suffix, host, port, user, mqtt_pass, keepalive=15,
                                  ssl_context=ssl_context, timeout_s=5)
-        # LWT: broker tự publish {"state":"offline"} (retain) khi thiết bị mất kết nối bất thường
         self.client.set_last_will(self.prefix + "status", '{"state":"offline"}', retain=True, qos=1)
         self.client.set_callback(self._on_mqtt)
         self.mqtt_up = False
@@ -36,7 +33,6 @@ class NetLink:
         self.last_ntp_try = None
         self.reconnects = 0
 
-    # ------------------------------------------------------------------ Wi-Fi + NTP
     def wifi_connected(self):
         return True if self.wlan is None else self.wlan.isconnected()
 
@@ -65,7 +61,6 @@ class NetLink:
         return False
 
     def _ensure_time(self, now):
-        # Wi-Fi vừa lên mà chưa có giờ: hỏi NTP ngay, rồi thử lại mỗi 60 s tới khi được.
         if has_time() or (self.last_ntp_try is not None and ticks_diff(now, self.last_ntp_try) < 60000):
             return
         self.last_ntp_try = now
@@ -77,18 +72,17 @@ class NetLink:
             try:
                 ntptime.host = host
                 ntptime.timeout = 2
-                ntptime.settime()  # đặt RTC theo UTC; giờ địa phương tính bằng compat.local_tm()
+                ntptime.settime()
                 print("[NTP] da dong bo gio tu", host)
                 return
-            except Exception as e:  # OSError, timeout, IndexError khi gói hỏng
+            except Exception as e:
                 print("[NTP]", host, "loi", e)
 
-    # ------------------------------------------------------------------ MQTT
     def _on_mqtt(self, topic, payload):
         if self.on_message and topic.startswith(self.prefix):
             try:
                 self.on_message(topic[len(self.prefix):], payload)
-            except Exception as e:  # lỗi xử lý lệnh không được làm rớt kết nối
+            except Exception as e:
                 print("[MQTT] loi xu ly", topic, e)
 
     def _connect_mqtt(self):
@@ -103,7 +97,6 @@ class NetLink:
         return self.mqtt_up and self.wifi_connected()
 
     def step(self, now):
-        """Gọi liên tục trong luồng mạng. Trả về True nếu MQTT đang kết nối."""
         if not self._ensure_wifi(now):
             self._drop()
             return False
@@ -117,7 +110,7 @@ class NetLink:
                 self.mqtt_up = True
             except Exception as e:
                 self.client.close()
-                self.backoff = min(self.backoff * 2, 30000)  # exponential backoff
+                self.backoff = min(self.backoff * 2, 30000)
                 print("[MQTT] ket noi that bai (%s), thu lai sau %d ms" % (e, self.backoff))
                 return False
         try:

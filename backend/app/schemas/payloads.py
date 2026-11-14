@@ -1,4 +1,3 @@
-"""Schema Pydantic v2 cho payload MQTT và API. Giá trị ngoài dải vật lý bị loại (đặt None) và ghi lại."""
 from __future__ import annotations
 
 import datetime as dt
@@ -6,7 +5,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-# dải vật lý hợp lệ (task.md 7.2)
 PHYS_RANGES = {
     "temp_dht": (-10, 60), "temp_bmp": (-10, 60), "hum": (0, 100), "pressure": (900, 1100),
     "pressure_msl": (900, 1100), "lux": (0, 120000), "gas_ppm": (0, 100000), "gas_rs_r0": (0, 100),
@@ -19,7 +17,7 @@ def _to_dt(v):
     if isinstance(v, dt.datetime):
         return v if v.tzinfo else v.replace(tzinfo=dt.timezone.utc)
     if v in (None, 0):
-        return dt.datetime.now(dt.timezone.utc)  # thiết bị chưa đồng bộ NTP
+        return dt.datetime.now(dt.timezone.utc)
     return dt.datetime.fromtimestamp(float(v), tz=dt.timezone.utc)
 
 
@@ -99,22 +97,6 @@ class StatusIn(BaseModel):
     model_ver: str | None = None
 
 
-class NowcastIn(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    device_id: str
-    ts: dt.datetime
-    code: int | None = None
-    text: str | None = None
-    trend: int | None = None
-    trend_3h: float | None = None
-    zambretti: str | None = None
-
-    @field_validator("ts", mode="before")
-    @classmethod
-    def _ts(cls, v):
-        return _to_dt(v)
-
-
 class AckIn(BaseModel):
     model_config = ConfigDict(extra="allow")
     device_id: str | None = None
@@ -124,7 +106,6 @@ class AckIn(BaseModel):
     msg: str | None = None
 
 
-# ----------------------------------------------------------------- API
 class DeviceConfigIn(BaseModel):
     th1: float | None = Field(default=None, gt=0, lt=10000)
     th2: float | None = Field(default=None, gt=0, lt=10000)
@@ -150,7 +131,7 @@ class DeviceConfigIn(BaseModel):
 class CommandIn(BaseModel):
     cmd: str = Field(pattern="^(mute|test_alarm|calibrate|reboot|escalate|ota)$")
     level: int | None = Field(default=None, ge=0, le=3)
-    url: str | None = Field(default=None, pattern="^https?://", max_length=190)  # cho cmd ota
+    url: str | None = Field(default=None, pattern="^https?://", max_length=190)
 
 
 class AckRequest(BaseModel):

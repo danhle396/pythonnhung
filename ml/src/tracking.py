@@ -1,10 +1,3 @@
-"""MLOps tối giản tự viết: log thí nghiệm (CSV + JSON) và model registry có quy tắc thăng cấp.
-
-Registry (ml/models/registry.json):
-    {"<name>": {"active": {...entry...}, "history": [entry, ...]}}
-    entry = {model_ver, path, metric_name, metric_value, greater_is_better, metrics, created_at, data_hash}
-Model mới chỉ được thăng cấp (active) khi tốt hơn model đang active trên cùng tập kiểm tra.
-"""
 from __future__ import annotations
 
 import csv
@@ -44,7 +37,6 @@ class ModelRegistry:
         return self.data.get(name, {}).get("active")
 
     def propose(self, name, entry: dict, force=False) -> bool:
-        """Đăng ký model mới; trả về True nếu nó trở thành active."""
         entry = dict(entry)
         entry.setdefault("created_at", dt.datetime.now().isoformat(timespec="seconds"))
         slot = self.data.setdefault(name, {"active": None, "history": []})

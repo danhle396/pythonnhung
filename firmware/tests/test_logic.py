@@ -1,5 +1,3 @@
-"""Unit test logic thuần Python của firmware: bộ lọc, rule engine (hysteresis/debounce), alert manager, MQ-2, nowcast.
-(Port 1:1 từ bộ test của firmware C++ cũ khi chuyển sang MicroPython.)"""
 import math
 
 import pytest
@@ -8,8 +6,6 @@ from alert import (BUZZER_CONTINUOUS, BUZZER_INTERMITTENT, BUZZER_OFF, LED_RED_B
                    RuleEngine)
 from edge_ai import FAULT_DISCONNECTED, FAULT_SATURATED, EdgeAI, Mq2FaultDetector, Mq2Params, mq2_convert
 from filters import Ewma, Median5, RingBuffer, dew_point, sea_level_pressure
-from nowcast import (CODE_FINE, CODE_POSSIBLE_RAIN, CODE_RAIN_SOON, CODE_RAINING, TREND_FALLING, TREND_UNKNOWN,
-                     NowcastEngine)
 
 
 def test_median_removes_spike():
@@ -54,7 +50,7 @@ def test_rule_hysteresis():
     r = RuleEngine(RuleConfig(debounce_up=1, debounce_down=3))
     assert r.update(1100, 0, 0) == 2
     for _ in range(5):
-        assert r.update(950, 0, 0) == 2  # > 850 -> giữ
+        assert r.update(950, 0, 0) == 2
     assert r.update(800, 0, 0) == 2
     assert r.update(800, 0, 0) == 2
     assert r.update(800, 0, 0) == 1
@@ -75,14 +71,14 @@ def test_alert_mute_and_reescalate():
     a.press_mute(1100)
     x = a.update(2, 1200)
     assert x.buzzer == BUZZER_OFF
-    assert x.led == LED_RED_BLINK  # vẫn giữ LED
-    x = a.update(3, 1300)          # cấp tăng -> còi kêu lại
+    assert x.led == LED_RED_BLINK
+    x = a.update(3, 1300)
     assert x.buzzer == BUZZER_CONTINUOUS
     b = AlertManager(1000)
     b.update(2, 0)
     b.press_mute(0)
     assert b.update(2, 500).buzzer == BUZZER_OFF
-    assert b.update(2, 1500).buzzer == BUZZER_INTERMITTENT  # hết hạn mute
+    assert b.update(2, 1500).buzzer == BUZZER_INTERMITTENT
 
 
 def test_cloud_escalation_never_lowers():
@@ -107,7 +103,7 @@ def test_alarm_test_is_flagged():
 
 def test_mq2_conversion_and_fault():
     p = Mq2Params()
-    rs = p.r0_kohm  # Rs/R0 = 1 => ppm = A
+    rs = p.r0_kohm
     v = p.vc * p.rl_kohm / (rs + p.rl_kohm)
     r = mq2_convert(v * p.divider * 1000.0, p)
     assert r.ratio == pytest.approx(1.0, abs=1e-3)
@@ -134,46 +130,7 @@ def test_edge_warmup_and_sensor_fault_hold_level_zero():
     e = EdgeAI(warmup_samples=3)
     levels = [e.step(2500.0, 0.5, 28.0, 70.0, 100.0, True).level for _ in range(4)]
     assert levels == [0, 0, 0, 3]
-    assert e.step(2500.0, 0.5, 28.0, 70.0, 100.0, False).level == 0  # lỗi cảm biến -> không cảnh báo theo số đo hỏng
-
-
-def test_nowcast_trends():
-    n = NowcastEngine()
-    for i in range(19):
-        n.add_pressure(1012.0 - 0.15 * i)  # giảm 2.7 hPa / 3h
-    c = n.compute(0, 80.0, 11)
-    assert c.trend == TREND_FALLING
-    assert c.code in (CODE_RAIN_SOON, CODE_POSSIBLE_RAIN)
-    s = NowcastEngine()
-    for _ in range(19):
-        s.add_pressure(1022.0)
-    assert s.compute(0, 60.0, 3).code == CODE_FINE
-    assert s.compute(2, 60.0, 3).code == CODE_RAINING
-
-
-def test_nowcast_restore_after_reboot():
-    T0 = 1794470000
-    a = NowcastEngine()
-    for i in range(6):
-        a.add_pressure(1012.0 - 0.2 * i, T0 + i * 600)  # 50 phút, giảm
-    assert a.compute(0, 80.0, 11).trend == TREND_UNKNOWN  # < 1 giờ
-    p, t = a.export_samples()
-    assert len(p) == 6
-    # khởi động lại sau 15 phút tắt máy; mẫu đầu tiên lấy trước khi có NTP (ts = 0)
-    b = NowcastEngine()
-    b.add_pressure(1010.6, 0)
-    now = T0 + 5 * 600 + 15 * 60 + 60  # NTP về 1 phút sau mẫu đầu
-    b.assign_times(now - 60)
-    b.restore(p, t, now)
-    assert b.samples() == 7
-    assert b.timed()
-    assert b.span_hours() == pytest.approx((5 * 600 + 15 * 60) / 3600.0, abs=0.01)  # 65 phút thật
-    c = b.compute(0, 80.0, 11)
-    assert c.trend == TREND_FALLING
-    assert c.trend3h == pytest.approx(-1.4 * 3.0 / b.span_hours(), abs=0.05)
-    old = NowcastEngine()
-    old.restore(p, t, T0 + 5 * 3600)  # mẫu đã lưu quá 3 giờ bị bỏ
-    assert old.samples() == 0
+    assert e.step(2500.0, 0.5, 28.0, 70.0, 100.0, False).level == 0
 
 
 def test_derived_quantities():

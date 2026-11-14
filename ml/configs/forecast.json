@@ -1,15 +1,15 @@
 {
   "data_csv": "data/external/vku_hourly_2021_2025.csv",
   "split": {"train_end": "2023-12-31 23:00", "val_end": "2024-12-31 23:00"},
-  "targets": ["temp", "hum", "pres"],
+  "targets": ["temp", "hum"],
   "horizons": [1, 3, 6],
   "seed": 42,
   "ridge_alphas": [0.1, 1.0, 10.0, 100.0],
+  "logistic_C": [0.01, 0.1, 1.0, 10.0],
   "holt_winters": {"season_length": 24, "fit_last_hours": 17520},
-  "gbdt_reg": {"n_estimators": 1000, "learning_rate": 0.06, "max_depth": 6, "min_samples_leaf": 30,
-               "reg_lambda": 1.0, "subsample": 0.8, "colsample": 0.8, "max_bins": 64, "early_stopping_rounds": 40},
-  "gbdt_clf": {"n_estimators": 1000, "learning_rate": 0.05, "max_depth": 5, "min_samples_leaf": 40,
-               "reg_lambda": 1.0, "subsample": 0.8, "colsample": 0.8, "max_bins": 64, "early_stopping_rounds": 40},
-  "logistic": {"alpha": 1e-4, "lr": 0.01, "epochs": 60, "batch_size": 512},
+  "gbdt_reg": {"n_estimators": 2000, "learning_rate": 0.05, "max_depth": 6, "num_leaves": 63, "min_child_samples": 30,
+               "reg_lambda": 1.0, "subsample": 0.8, "colsample_bytree": 0.8, "max_bin": 63, "early_stopping_rounds": 50},
+  "gbdt_clf": {"n_estimators": 2000, "learning_rate": 0.05, "max_depth": 5, "num_leaves": 31, "min_child_samples": 40,
+               "reg_lambda": 1.0, "subsample": 0.8, "colsample_bytree": 0.8, "max_bin": 63, "early_stopping_rounds": 50},
   "gru": {"enabled": true, "window": 24, "hidden": 32, "epochs": 25, "lr": 0.003, "batch_size": 256}
 }

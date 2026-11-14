@@ -1,8 +1,3 @@
-"""FastAPI app: REST + WebSocket + MQTT ingest + scheduler (forecast, leo thang, offline, nhắc lại, tin 6h sáng).
-
-    uvicorn app.main:app --reload            (thư mục backend/)
-Swagger: http://localhost:8000/docs
-"""
 from __future__ import annotations
 
 import asyncio
@@ -61,7 +56,6 @@ def start_scheduler(r):
     sch.add_job(r.alerts.reminders, "interval", seconds=20, id="reminders")
     sch.add_job(r.forecast.daily_summary, "cron", hour=6, minute=0, id="daily_summary")
     sch.start()
-    # chạy forecast lần đầu sau 20 s (không chặn khởi động)
     threading.Timer(20, forecast_all).start()
     return sch
 
@@ -70,7 +64,7 @@ def start_scheduler(r):
 async def lifespan(app: FastAPI):
     settings = get_settings()
     get_engine()
-    create_all()  # production: alembic upgrade head (docker entrypoint) — create_all không làm gì nếu bảng đã có
+    create_all()
     _ensure_device(settings)
     r = build_runtime(settings)
     r.hub.attach_loop(asyncio.get_running_loop())
@@ -91,7 +85,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="VKU AIoT Station API", version="1.0.0", lifespan=lifespan,
-              description="Trạm quan trắc môi trường AIoT — dự báo thời tiết ngắn hạn & cảnh báo khí/khói đa cấp")
+              description="Trạm AIoT giám sát môi trường — dự báo thời tiết ngắn hạn & cảnh báo sớm khí dễ cháy, khói "
+                          "theo mức nguy hiểm")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(routes.router)
 app.include_router(ws.router)

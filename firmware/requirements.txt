@@ -1,5 +1,4 @@
-# Công cụ trên máy tính để nạp và kiểm tra firmware MicroPython (không chạy trên ESP32)
-esptool>=4.7      # nạp MicroPython lên ESP32
-mpremote>=1.22    # chép file, REPL, chạy script trên board
-mpy-cross>=1.22   # biên dịch .py -> .mpy (kiểm tra cú pháp MicroPython, tiết kiệm RAM)
+esptool>=4.7
+mpremote>=1.22
+mpy-cross>=1.22
 pytest>=8

@@ -1,14 +1,3 @@
-"""Alert service — Cloud AI cho cảnh báo (task.md 7.3).
-
-1. Nhận alert từ edge, lưu, gửi thông báo theo cấp:
-     cấp 1: chỉ log + dashboard | cấp 2: Telegram | cấp 3: Telegram + Email, nhắc lại mỗi 1 phút tới khi ack.
-   Cooldown theo (thiết bị, cấp) để tránh spam; thông báo khi trở về bình thường nếu trước đó ≥ 2.
-2. Xác nhận / leo thang ở cloud bằng ngữ cảnh dài hơn (10 phút):
-     - ppm tăng đều kéo dài (độ dốc ≥ ngưỡng ở cả hai nửa cửa sổ) ⇒ nâng 1 cấp so với edge;
-     - Isolation Forest (mlcore) trên đặc trưng cửa sổ 10 phút ⇒ phát hiện rò rỉ chậm edge bỏ sót.
-   Khi cloud leo thang: lưu alert source=cloud, gửi cmd `escalate` xuống thiết bị, thông báo.
-3. Phát hiện thiết bị offline (> 60 s không có dữ liệu hoặc LWT).
-"""
 from __future__ import annotations
 
 import datetime as dt
@@ -27,7 +16,6 @@ log = logging.getLogger(__name__)
 
 
 def _slope_per_min(ts: np.ndarray, y: np.ndarray) -> float:
-    """Độ dốc bình phương tối thiểu (đơn vị y / phút)."""
     if len(y) < 3:
         return 0.0
     t = (ts - ts[0]) / 60.0
@@ -50,7 +38,6 @@ class AlertService:
         self._anom = None
         self._anom_loaded = False
 
-    # ------------------------------------------------------------------ edge alert
     def on_edge_alert(self, a, recv_t: float | None = None):
         with self.lock, session_scope() as s:
             if a.seq is not None:
@@ -76,12 +63,10 @@ class AlertService:
         self.dispatch(row, recv_t=recv_t)
         return row
 
-    # ------------------------------------------------------------------ thông báo
     def dispatch(self, a: Alert, reminder=False, force=False, recv_t: float | None = None):
-        """Chọn kênh theo cấp + cooldown. Trả về danh sách kênh đã gửi."""
         channels = []
         if a.type == "test":
-            return []  # thử còi do người dùng bấm trên dashboard: không phải sự cố, không gửi Telegram/Email
+            return []
         if a.type in ("device_offline", "sensor_fault"):
             channels = ["telegram"]
         elif a.type == "anomaly":
@@ -91,7 +76,7 @@ class AlertService:
         elif a.level == 2:
             channels = ["telegram"]
         elif a.level == 0 and (a.prev_level or 0) >= 2:
-            channels = ["telegram"]  # đã trở lại bình thường
+            channels = ["telegram"]
         if not channels:
             return []
         key = (a.device_id, a.type, a.level)
@@ -124,7 +109,6 @@ class AlertService:
         return sent
 
     def ack(self, alert_id: int, by: str) -> bool:
-        """Xác nhận cảnh báo + mọi cảnh báo chưa ack trước đó của cùng thiết bị (cùng đợt sự cố)."""
         now = dt.datetime.now(dt.timezone.utc)
         with session_scope() as s:
             a = s.get(Alert, alert_id)
@@ -139,7 +123,6 @@ class AlertService:
         return True
 
     def reminders(self):
-        """Cấp 3 chưa ack -> nhắc lại mỗi reminder_every_s (tối đa 60 lần)."""
         now = dt.datetime.now(dt.timezone.utc)
         with session_scope() as s:
             rows = s.scalars(select(Alert).where(Alert.level >= 3, Alert.ack_ts.is_(None), Alert.type != "test",
@@ -152,12 +135,11 @@ class AlertService:
             self.dispatch(r, reminder=True)
         return len(due)
 
-    # ------------------------------------------------------------------ cloud AI
     def _anomaly_model(self):
         if not self._anom_loaded:
             self._anom_loaded = True
             try:
-                from mlcore.serialize import load_model
+                from aiot_ml.serialize import load_model
                 self._anom, _ = load_model(self.s.anomaly_model)
                 log.info("Đã nạp model bất thường %s", self.s.anomaly_model)
             except Exception as e:
@@ -165,7 +147,6 @@ class AlertService:
         return self._anom
 
     def evaluate(self, device_id: str, now: dt.datetime | None = None) -> int:
-        """Đánh giá ngữ cảnh dài hạn, leo thang nếu cần. Trả về cấp cloud (0 nếu không leo thang)."""
         now = now or dt.datetime.now(dt.timezone.utc)
         since = now - dt.timedelta(minutes=max(self.s.escalation_window_min, 60))
         with session_scope() as s:
@@ -196,7 +177,7 @@ class AlertService:
         if m is not None and len(rows) >= 30:
             try:
                 score = self._anomaly_score(m, rows)
-                if score is not None and score > m["iforest"].threshold_:
+                if score is not None and score < 0:
                     self.anomaly_hits[device_id] = self.anomaly_hits.get(device_id, 0) + 1
                 else:
                     self.anomaly_hits[device_id] = 0
@@ -216,7 +197,7 @@ class AlertService:
 
     def _anomaly_score(self, m, rows):
         import pandas as pd
-        from mlcore import preprocessing as pp
+        from aiot_ml import prep as pp
         df = pd.DataFrame({"ts": [as_utc(r.ts) for r in rows], "gas_ppm": [r.gas_ppm for r in rows],
                            "temp": [r.temp_dht for r in rows], "hum": [r.hum for r in rows]}).set_index("ts")
         df.index = df.index.tz_convert(self.s.station_tz)
@@ -233,7 +214,7 @@ class AlertService:
              "ppm_d60": last.gas_ppm.mean() - (prev.gas_ppm.mean() if len(prev) else last.gas_ppm.mean()),
              "temp": last.temp.mean(), "hum": last.hum.mean(), "hour_sin": hs[0], "hour_cos": hc[0]}
         X = np.array([[f[c] for c in m["features"]]])
-        return float(m["iforest"].score_samples(m["scaler"].transform(X))[0])
+        return float(m["iforest"].decision_function(m["scaler"].transform(X))[0])  # < 0: bất thường
 
     def _raise_cloud(self, device_id, level, edge, cause, ppm, typ, now):
         with session_scope() as s:
@@ -248,9 +229,8 @@ class AlertService:
         self.hub.publish_threadsafe("alert", self.to_dict(row))
         self.dispatch(row, force=True)
 
-    # ------------------------------------------------------------------ offline
     def mark_seen(self, device_ids):
-        pass  # last_seen đã cập nhật trong ingest; giữ hook để mở rộng
+        pass
 
     def device_offline(self, device_id, reason=""):
         now = dt.datetime.now(dt.timezone.utc)

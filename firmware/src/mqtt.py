@@ -1,14 +1,10 @@
-# MQTT 3.1.1 client tối giản tự viết bằng socket — chạy được trên MicroPython và CPython (test trên PC).
-# Hỗ trợ: CONNECT (user/pass, LWT, keepalive), PUBLISH QoS 0 (gửi), SUBSCRIBE QoS 1, nhận PUBLISH QoS 0/1 (có PUBACK),
-# PINGREQ. Mọi thao tác chặn đều có timeout -> luồng mạng không bị treo vô hạn khi broker không trả lời.
-# Độ tin cậy phía thiết bị: seq + đệm offline + chống trùng ở backend (thiết bị chỉ gửi QoS 0).
 import socket
 import struct
 
 from compat import ticks_diff, ticks_ms
 
-_WOULD_BLOCK = (11, 35, 115, 10035)  # EAGAIN (Linux/ESP32), EAGAIN (macOS), EINPROGRESS, WSAEWOULDBLOCK
-_TIMEOUT = (110, 116, 10060)         # ETIMEDOUT
+_WOULD_BLOCK = (11, 35, 115, 10035)
+_TIMEOUT = (110, 116, 10060)
 
 
 class MQTTException(Exception):
@@ -51,15 +47,12 @@ class MQTTClient:
         self.pid = 0
         self.last_tx = self.last_rx = 0
 
-    # ------------------------------------------------------------------ cấu hình
     def set_callback(self, f):
-        """f(topic: str, payload: bytes)"""
         self.cb = f
 
     def set_last_will(self, topic, msg, retain=False, qos=0):
         self.lw = (topic, msg, retain, qos)
 
-    # ------------------------------------------------------------------ I/O mức thấp
     def _send(self, data):
         mv = memoryview(data)
         sent = 0
@@ -74,7 +67,7 @@ class MQTTClient:
         buf = b""
         while len(buf) < n:
             chunk = self.sock.read(n - len(buf)) if hasattr(self.sock, "read") else self.sock.recv(n - len(buf))
-            if chunk is None:  # MicroPython: read() không chặn trả None khi chưa có dữ liệu
+            if chunk is None:
                 raise OSError(11)
             if not chunk:
                 raise MQTTException("socket closed")
@@ -93,7 +86,6 @@ class MQTTClient:
     def _packet(self, header, body):
         self._send(bytes([header]) + _varlen(len(body)) + body)
 
-    # ------------------------------------------------------------------ kết nối
     def connect(self, clean_session=True):
         addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         s = socket.socket()
@@ -150,9 +142,7 @@ class MQTTClient:
     def is_connected(self):
         return self.sock is not None
 
-    # ------------------------------------------------------------------ gửi
     def publish(self, topic, msg, retain=False):
-        """PUBLISH QoS 0."""
         if isinstance(msg, str):
             msg = msg.encode()
         self._packet(0x30 | (1 if retain else 0), _str(topic) + msg)
@@ -161,7 +151,6 @@ class MQTTClient:
         self.pid = self.pid % 65535 + 1
         pid = self.pid
         self._packet(0x82, struct.pack("!H", pid) + _str(topic) + bytes([qos]))
-        # chờ SUBACK; PUBLISH retain có thể tới trước SUBACK -> xử lý luôn
         while True:
             op = self.wait_msg()
             if op == 0x90:
@@ -172,21 +161,19 @@ class MQTTClient:
     def ping(self):
         self._send(b"\xc0\x00")
 
-    # ------------------------------------------------------------------ nhận
     def wait_msg(self):
-        """Đọc và xử lý 1 gói (chặn tối đa timeout_s). Trả về mã gói (byte đầu & 0xF0) hoặc None nếu không có gì."""
         try:
             first = self._recv_exact(1)[0]
         except OSError as e:
             if _would_block(e):
                 return None
             raise
-        self.sock.settimeout(self.timeout_s)  # đã có byte đầu: đọc phần còn lại của gói
+        self.sock.settimeout(self.timeout_s)
         n = self._read_varlen()
         body = self._recv_exact(n) if n else b""
         self.last_rx = ticks_ms()
         op = first & 0xF0
-        if op == 0x30:  # PUBLISH
+        if op == 0x30:
             tl = struct.unpack("!H", body[:2])[0]
             topic = body[2:2 + tl].decode()
             pos = 2 + tl
@@ -201,7 +188,6 @@ class MQTTClient:
         return op
 
     def check_msg(self):
-        """Không chặn: xử lý mọi gói đang chờ, gửi PINGREQ khi gần hết keepalive, phát hiện mất kết nối."""
         if self.sock is None:
             raise MQTTException("not connected")
         while True:

@@ -1,9 +1,3 @@
-# Dựng toàn bộ backend: docker compose up -d --build
-#   API + Swagger : http://localhost:8000/docs
-#   Dashboard     : http://localhost:8501
-#   MQTT          : localhost:1883 (user/pass tạo từ .env)
-#   Grafana (tuỳ chọn): docker compose --profile monitoring up -d  -> http://localhost:3000
-# Trùng cổng trên máy host? đặt MQTT_HOST_PORT / DB_HOST_PORT / API_HOST_PORT / DASHBOARD_HOST_PORT / GRAFANA_HOST_PORT
 name: vku-aiot
 
 services:
@@ -16,7 +10,6 @@ services:
       MQTT_DEVICE_PASS: ${MQTT_DEVICE_PASS:-change-me}
       MQTT_DASHBOARD_PASS: ${MQTT_DASHBOARD_PASS:-dashboard-pass}
       MQTT_DEVICES: ${MQTT_DEVICES:-station01 station02 station03}
-    # mỗi lần khởi động: sinh passwd từ biến môi trường (cùng tài khoản như broker/mosquitto/make_passwd.py) + chép acl vào /mosquitto/auth (chủ mosquitto, 0700) rồi chạy broker
     command:
       - sh
       - -c

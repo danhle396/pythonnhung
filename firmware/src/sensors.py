@@ -1,5 +1,3 @@
-# Đọc phần cứng cảm biến trên ESP32 (MicroPython): DHT22, BMP280, BH1750 (I2C), YL-83 và MQ-2 (ADC1).
-# Chỉ lấy số đo thô; lọc/quy đổi nằm ở readings.py (thuần Python, test được trên PC).
 import dht
 from machine import ADC, I2C, Pin
 
@@ -12,7 +10,7 @@ from readings import RawSample
 
 def _adc(pin):
     a = ADC(Pin(pin))
-    a.atten(ADC.ATTN_11DB)  # đo tới ~3,1 V
+    a.atten(ADC.ATTN_11DB)
     return a
 
 
@@ -44,7 +42,6 @@ class Sensors:
         print("[SENS] I2C", [hex(a) for a in found], "BMP280:%d BH1750:%d" % (self.bmp is not None, self.bh is not None))
 
     def read_mv(self, adc, n=16):
-        """Trung bình n mẫu; read_uv() dùng hệ số hiệu chỉnh eFuse của ESP32."""
         s = 0
         for _ in range(n):
             s += adc.read_uv()
@@ -52,7 +49,6 @@ class Sensors:
 
     def read_raw(self, now):
         r = RawSample(bmp_present=self.bmp is not None, bh_present=self.bh is not None)
-        # DHT22: tối đa 1 lần / 2 s
         if self.last_dht is None or ticks_diff(now, self.last_dht) >= config.DHT_PERIOD_MS:
             self.last_dht = now
             try:
@@ -72,7 +68,6 @@ class Sensors:
                 r.lux = self.bh.read()
             except OSError:
                 r.lux = -1.0
-        # YL-83: chỉ cấp nguồn khi đọc, mỗi 10 giây
         if self.last_rain is None or ticks_diff(now, self.last_rain) >= config.RAIN_PERIOD_MS:
             self.last_rain = now
             self.rain_pwr.value(1)
@@ -83,7 +78,6 @@ class Sensors:
         return r
 
     def mean_rs_kohm(self, mq2_params, samples=50, feed=None):
-        """Rs trung bình trong không khí sạch (lệnh calibrate, ~5 s)."""
         rs = 0.0
         for _ in range(samples):
             rs += mq2_convert(self.read_mv(self.adc_gas, 16), mq2_params).rs

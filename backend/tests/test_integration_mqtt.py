@@ -1,7 +1,3 @@
-"""Integration test: thiết bị (paho) → Mosquitto thật → ingest → DB → API; LWT → offline; cmd → thiết bị.
-
-Cần binary mosquitto (PATH, biến MOSQUITTO_BIN hoặc C:/Program Files/mosquitto). Không có thì test bị bỏ qua.
-"""
 import json
 import os
 import shutil
@@ -64,7 +60,7 @@ def live_app(tmp_path, monkeypatch, broker):
     monkeypatch.setenv("MQTT_USER", "")
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
     monkeypatch.setenv("TELEGRAM_TOKEN", "")
-    monkeypatch.setenv("USE_OPEN_METEO_FALLBACK", "false")
+    monkeypatch.setenv("USE_OPEN_METEO", "false")
     from app.core.config import get_settings
     get_settings.cache_clear()
     from app.db import session
@@ -99,23 +95,21 @@ def test_end_to_end_ingest_alert_cmd_and_lwt(live_app):
         dev.publish("vku/aiot/itdev01/telemetry", json.dumps({"device_id": "itdev01", "ts": now - 10 + i, "seq": i + 1,
                                                               "temp_dht": 28.0, "hum": 80, "gas_ppm": 5.0}), qos=1)
     dev.publish("vku/aiot/itdev01/telemetry", json.dumps({"device_id": "itdev01", "ts": now - 1, "seq": 10,
-                                                          "temp_dht": 28.0}), qos=1)  # gửi trùng (gửi bù)
+                                                          "temp_dht": 28.0}), qos=1)
     rows = wait_until(lambda: len(client.get("/api/telemetry", params={"device_id": "itdev01"}).json()) >= 10 and
                       client.get("/api/telemetry", params={"device_id": "itdev01"}).json())
-    assert len(rows) == 10  # bản trùng bị loại
+    assert len(rows) == 10
     t_pub = time.time()
     dev.publish("vku/aiot/itdev01/alert", json.dumps({"device_id": "itdev01", "ts": int(t_pub), "seq": 100, "level": 2,
                                                       "prev_level": 0, "cause": ["gas_ppm>1000"], "gas_ppm": 1300}), qos=1)
     al = wait_until(lambda: client.get("/api/alerts", params={"device_id": "itdev01", "min_level": 2}).json())
     assert al and al[0]["level"] == 2
-    assert time.time() - t_pub < 5  # end-to-end tới DB < 5 s (KPI)
-    # cmd từ API xuống thiết bị
+    assert time.time() - t_pub < 5
     tok = client.post("/api/auth/token", data={"username": "admin", "password": "admin123"}).json()["access_token"]
     client.post("/api/devices/itdev01/cmd", json={"cmd": "mute"}, headers={"Authorization": f"Bearer {tok}"})
     assert wait_until(lambda: got_cmd)[0]["cmd"] == "mute"
     assert client.get("/api/devices/itdev01").json()["status"] == "online"
-    # mất kết nối bất thường -> broker phát LWT -> backend đánh dấu offline
-    dev._sock.close()  # đóng socket thô, không gửi DISCONNECT
+    dev._sock.close()
     dev.loop_stop()
     st = wait_until(lambda: client.get("/api/devices/itdev01").json()["status"] == "offline", 15)
     assert st
