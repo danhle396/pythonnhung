@@ -5,20 +5,19 @@ Broker: Mosquitto 2.x (`broker/mosquitto/`). Xác thực username/password, ACL 
 
 ## Topic
 
-| Topic | Chiều | QoS | Retain | Tần suất | Nội dung |
-|---|---|---|---|---|---|
-| `…/telemetry` | Edge → Cloud | 0* | ❌ | 10 s (1 s khi cấp ≥ 1) | Dữ liệu cảm biến + kết quả edge AI |
-| `…/alert` | Edge → Cloud | 0* | ❌ | khi đổi cấp / lỗi cảm biến | Sự kiện cảnh báo khí/khói, `sensor_fault` |
-| `…/nowcast` | Edge → Cloud | 0 | ✅ | 10 phút | Nowcast Zambretti tại edge |
-| `…/status` | Edge → Cloud | 1 (LWT) | ✅ | 60 s + khi kết nối | `online` + RSSI, uptime, heap; LWT `{"state":"offline"}` |
-| `…/forecast` | Cloud → Edge | 1 | ✅ | 10 phút | Dự báo 1h/3h/6h + `summary` ASCII cho màn TFT |
-| `…/cmd` | Cloud → Edge | 1 | ❌ | theo yêu cầu | `mute`, `test_alarm`, `calibrate`, `reboot`, `escalate` |
-| `…/config` | Cloud → Edge | 1 | ✅ | khi đổi | Ngưỡng, chu kỳ, chế độ edge, R0, `version` |
-| `…/ack` | Edge → Cloud | 0* | ❌ | sau cmd/config | Xác nhận đã nhận/áp dụng |
+| Topic         | Chiều        | QoS     | Retain | Tần suất                   | Nội dung                                                 |
+| ------------- | ------------ | ------- | ------ | -------------------------- | -------------------------------------------------------- |
+| `…/telemetry` | Edge → Cloud | 0*      | ❌     | 10 s (1 s khi cấp ≥ 1)     | Dữ liệu cảm biến + kết quả edge AI                       |
+| `…/alert`     | Edge → Cloud | 0*      | ❌     | khi đổi cấp / lỗi cảm biến | Sự kiện cảnh báo khí/khói, `sensor_fault`                |
+| `…/status`    | Edge → Cloud | 1 (LWT) | ✅     | 60 s + khi kết nối         | `online` + RSSI, uptime, heap; LWT `{"state":"offline"}` |
+| `…/forecast`  | Cloud → Edge | 1       | ✅     | 10 phút                    | Dự báo 1h/3h/6h + `summary` ASCII cho màn TFT            |
+| `…/cmd`       | Cloud → Edge | 1       | ❌     | theo yêu cầu               | `mute`, `test_alarm`, `calibrate`, `reboot`, `escalate`  |
+| `…/config`    | Cloud → Edge | 1       | ✅     | khi đổi                    | Ngưỡng, chu kỳ, chế độ edge, R0, `version`               |
+| `…/ack`       | Edge → Cloud | 0*      | ❌     | sau cmd/config             | Xác nhận đã nhận/áp dụng                                 |
 
 \* MQTT client tự viết trên ESP32 (`firmware/src/mqtt.py`, MicroPython) chỉ publish QoS 0. Độ tin cậy "ít nhất một lần" được bảo đảm ở tầng ứng dụng:
 mỗi bản ghi có `seq` tăng dần (lưu `/seq.txt` trên flash), khi publish thất bại bản ghi vào đệm offline trên flash (2000 bản ghi) và
-được gửi bù khi kết nối lại; backend chống trùng theo `(device_id, ts, seq)`. Simulator và backend dùng QoS 1 thật.
+được gửi bù khi kết nối lại; backend chống trùng theo `(device_id, ts, seq)`. Backend và `tools/load_test.py` dùng QoS 1 thật.
 
 ## Payload
 
@@ -30,7 +29,7 @@ mỗi bản ghi có `seq` tăng dần (lưu `/seq.txt` trên flash), khi publish
  "gas_raw":812,"gas_rs_r0":7.9,"gas_ppm":210,"gas_slope":0.4,
  "edge_risk":0,"edge_score":0.03,"warming_up":false,
  "sensor_ok":{"dht":true,"bmp":true,"bh":true,"rain":true,"gas":true},
- "fw":"1.0.0","model_ver":"gas-v1"}
+ "fw":"2.0.0","model_ver":"gas-v1"}
 ```
 Giá trị lỗi gửi `null`. Backend loại giá trị ngoài dải vật lý (T −10..60 °C, P 900..1100 hPa, RH 0..100 %…) và lưu
 danh sách bị loại vào cột `extra.rejected`.
@@ -45,11 +44,10 @@ danh sách bị loại vào cột `extra.rejected`.
 `type`: `gas` | `sensor_fault` (`fault`: 1 stuck, 2 mất kết nối, 3 bão hoà) | `test`.
 Backend tự tạo thêm `device_offline` và `anomaly` (source = `cloud`).
 
-### status / nowcast / ack
+### status / ack
 ```json
 {"state":"online","device_id":"station01","rssi":-61,"uptime_s":86400,"free_heap":182000,
- "reconnects":3,"offline_pending":0,"fw":"1.0.0","model_ver":"gas-v1","inference_us":42.1}
-{"device_id":"station01","ts":1762671600,"code":1,"text":"Có thể mưa","trend":-1,"trend_3h":-2.1,"zambretti":"R"}
+ "reconnects":3,"offline_pending":0,"fw":"2.0.0","model_ver":"gas-v1","inference_us":42.1}
 {"device_id":"station01","ts":1762671630,"ref":"cmd","id":"<uuid>","ok":true,"msg":"mute"}
 ```
 

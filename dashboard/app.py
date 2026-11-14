@@ -1,8 +1,3 @@
-"""Dashboard trạm AIoT VKU (Streamlit) — task.md mục 9.
-
-    streamlit run dashboard/app.py
-Biến môi trường: API_URL (mặc định http://localhost:8000), DASHBOARD_USER / DASHBOARD_PASS (tự đăng nhập).
-"""
 from __future__ import annotations
 
 import datetime as dt
@@ -19,7 +14,7 @@ TZ = "Asia/Ho_Chi_Minh"
 REPO = Path(__file__).resolve().parents[1]
 LEVEL = {0: ("🟢", "Bình thường", "#2e7d32"), 1: ("🟡", "Chú ý", "#f9a825"),
          2: ("🟠", "Cảnh báo", "#ef6c00"), 3: ("🔴", "NGUY HIỂM", "#c62828")}
-TARGET_NAME = {"temp": "Nhiệt độ (°C)", "hum": "Độ ẩm (%)", "pres": "Áp suất MSL (hPa)", "rain_prob": "Xác suất mưa"}
+TARGET_NAME = {"temp": "Nhiệt độ (°C)", "hum": "Độ ẩm (%)", "rain_prob": "Xác suất mưa"}
 WINDOWS = {"1 giờ": (dt.timedelta(hours=1), "raw"), "24 giờ": (dt.timedelta(hours=24), "10m"),
            "7 ngày": (dt.timedelta(days=7), "1h")}
 SERIES = {"temp_dht": "Nhiệt độ DHT22 (°C)", "hum": "Độ ẩm (%)", "pressure_msl": "Áp suất MSL (hPa)",
@@ -29,7 +24,6 @@ SERIES = {"temp_dht": "Nhiệt độ DHT22 (°C)", "hum": "Độ ẩm (%)", "pre
 st.set_page_config(page_title="VKU AIoT Station", page_icon="🌦️", layout="wide")
 
 
-# ------------------------------------------------------------------ API helpers
 def api_get(path, **params):
     try:
         r = requests.get(f"{API}{path}", params={k: v for k, v in params.items() if v is not None}, timeout=15)
@@ -73,7 +67,6 @@ def fmt(v, nd=1, unit=""):
 
 
 def gas_banner(t, online, gas_status, last_alert):
-    """Banner cấp cảnh báo khí. Chỉ hiện cấp khi đánh giá được: trạm online, MQ-2 không lỗi, không phải đang thử còi."""
     lvl = int(t.get("edge_risk") or 0)
     if not t:
         return "⚪", "Chưa có dữ liệu từ trạm", "#757575"
@@ -96,7 +89,6 @@ SENSOR_STYLE = {"ok": ("🟢", "#2e7d32"), "warn": ("🟡", "#f9a825"), "error":
 
 
 def sensor_panel(health):
-    """Thẻ tình trạng từng cảm biến (API /api/sensors/{id}): cảm biến nào lỗi, lỗi gì, lần cuối còn tốt lúc nào."""
     st.subheader("Tình trạng cảm biến", help=f"Đánh giá từ số liệu {health.get('window_min', 10)} phút gần nhất")
     sensors = health.get("sensors") or []
     for c, s in zip(st.columns(len(sensors) or 1), sensors):
@@ -113,19 +105,17 @@ def sensor_panel(health):
         st.error(f"⚠ Cảm biến đang lỗi: {', '.join(bad)} — số liệu của cảm biến này không đáng tin.")
 
 
-# ------------------------------------------------------------------ sidebar
 if "token" not in st.session_state and os.environ.get("DASHBOARD_USER"):
     login(os.environ["DASHBOARD_USER"], os.environ.get("DASHBOARD_PASS", ""))
 
 with st.sidebar:
     st.title("🌦️ VKU AIoT")
-    st.caption("Trạm quan trắc môi trường — dự báo thời tiết & cảnh báo khí/khói")
+    st.caption("Trạm AIoT giám sát môi trường — dự báo thời tiết & cảnh báo khí dễ cháy, khói")
     devices = api_get("/api/devices") or []
     ids = [d["id"] for d in devices] or ["station01"]
     want = st.query_params.get("device", os.environ.get("DEFAULT_DEVICE_ID", "station01"))
     device = st.selectbox("Thiết bị", ids, index=ids.index(want) if want in ids else 0)
     pages = ["Tổng quan", "Biểu đồ", "Dự báo", "Cảnh báo", "Thiết bị", "Mô hình"]
-    # mở thẳng 1 trang qua URL: ?page=overview|charts|forecast|alerts|device|models (link Telegram, chụp ảnh)
     keys = ["overview", "charts", "forecast", "alerts", "device", "models"]
     qp = st.query_params.get("page", "overview")
     page = st.radio("Trang", pages, index=keys.index(qp) if qp in keys else 0)
@@ -147,7 +137,6 @@ with st.sidebar:
     st.caption("⚠ Nguyên mẫu học thuật — không thay thế thiết bị báo cháy/báo gas đã chứng nhận.")
 
 
-# ------------------------------------------------------------------ trang
 def page_overview():
     @st.fragment(run_every=5)
     def live():
@@ -164,7 +153,7 @@ def page_overview():
         c2.metric("Trạng thái", "🟢 Online" if online else "⚫ Offline")
         c3.metric("RSSI", f"{dev.get('rssi')} dBm" if dev.get("rssi") is not None else "—")
 
-        def val(sensor, text):  # cảm biến lỗi -> không hiện con số không đáng tin
+        def val(sensor, text):
             return "⚠ Lỗi" if stt.get(sensor) == "error" else text
 
         m = st.columns(6)
@@ -193,10 +182,6 @@ def page_overview():
                 st.caption(f"Nguồn dữ liệu: {fc.get('source')}")
             else:
                 st.info("Chưa có dự báo.")
-            nc = api_get(f"/api/nowcast/{device}", limit=1) or []
-            if nc:
-                st.write(f"**Nowcast tại edge:** {nc[0]['text']} (Zambretti {nc[0]['zambretti']}, "
-                         f"xu hướng {fmt(nc[0]['trend_3h'], 1)} hPa/3h)")
         with b:
             st.subheader("Cảnh báo gần đây")
             al = api_get("/api/alerts", device_id=device, limit=8) or []
@@ -236,6 +221,31 @@ def page_charts():
     st.link_button("⬇ Xuất CSV dữ liệu thô 24h (API)", f"{API}/api/export.csv?device_id={device}")
 
 
+def forecast_vs_station(h: pd.DataFrame, obs: pd.DataFrame, obs_col: dict) -> pd.DataFrame:
+    """MAE và độ lệch trung bình của dự báo so với số đo trạm, theo đại lượng × tầm dự báo."""
+    if not len(h) or not len(obs):
+        return pd.DataFrame()
+    o = obs.copy()
+    o["t_mid"] = o["ts"] + pd.Timedelta(minutes=30)
+    o = o.sort_values("t_mid")
+    rows = []
+    for tgt, col in obs_col.items():
+        if col not in o:
+            continue
+        for hz in (1, 3, 6):
+            d = h[(h.target == tgt) & (h.horizon == hz)].sort_values("valid_at").drop_duplicates("valid_at", keep="last")
+            if not len(d):
+                continue
+            m = pd.merge_asof(d[["valid_at", "value"]], o[["t_mid", col]].dropna(), left_on="valid_at", right_on="t_mid",
+                              direction="nearest", tolerance=pd.Timedelta(minutes=30)).dropna()
+            if not len(m):
+                continue
+            e = m["value"] - m[col]
+            rows.append({"Đại lượng": TARGET_NAME[tgt], "Tầm": f"+{hz}h", "Số giờ": len(m),
+                         "MAE": round(float(e.abs().mean()), 2), "Lệch TB (dự báo − đo)": round(float(e.mean()), 2)})
+    return pd.DataFrame(rows)
+
+
 def page_forecast():
     fc = api_get(f"/api/forecast/{device}", history_h=72) or {}
     if not fc.get("history"):
@@ -253,9 +263,9 @@ def page_forecast():
     if len(obs):
         obs["ts"] = to_local(obs["ts"])
     horizon = st.segmented_control("Tầm dự báo", [1, 3, 6], default=1, format_func=lambda x: f"+{x}h") or 1
-    obs_col = {"temp": "temp_dht", "hum": "hum", "pres": "pressure_msl"}
-    cols = st.columns(3)
-    for i, tgt in enumerate(["temp", "hum", "pres"]):
+    obs_col = {"temp": "temp_dht", "hum": "hum"}
+    cols = st.columns(2)
+    for i, tgt in enumerate(["temp", "hum"]):
         d = h[(h.target == tgt) & (h.horizon == horizon)].copy()
         if not len(d):
             continue
@@ -266,23 +276,24 @@ def page_forecast():
         line = base.mark_line(color="#ff7f0e", strokeDash=[4, 2],
                               point=alt.OverlayMarkDef(color="#ff7f0e", size=50)).encode(
             y="value:Q", tooltip=["valid_at:T", "value:Q", "lower:Q", "upper:Q"])
-        ci = base.mark_rule(color="#ff7f0e", strokeWidth=2).encode(y="lower:Q", y2="upper:Q")  # thấy được cả khi mới có 1 điểm
+        ci = base.mark_rule(color="#ff7f0e", strokeWidth=2).encode(y="lower:Q", y2="upper:Q")
         layers = [band, ci, line]
         if len(obs) and obs_col[tgt] in obs:
             layers.append(alt.Chart(obs).mark_line(color="#1f77b4").encode(x="ts:T", y=f"{obs_col[tgt]}:Q"))
         cols[i].altair_chart(alt.layer(*layers).properties(height=260), width="stretch")
-    st.caption("Xanh: đo thực tế (trung bình giờ). Cam nét đứt: dự báo, vùng tô: khoảng tin cậy 95 %.")
+    st.caption("Cam nét đứt: dự báo (đầu vào là quan trắc Open-Meteo tại toạ độ trạm), vùng tô: khoảng tin cậy 95 %. "
+               "Xanh: số đo tại trạm (trung bình giờ) — chỉ dùng để đối chiếu, có ý nghĩa khi trạm đặt ngoài trời.")
+    err = forecast_vs_station(h, obs, obs_col)
+    if len(err):
+        st.subheader("Sai số dự báo so với số đo tại trạm")
+        st.dataframe(err, hide_index=True, width="stretch")
+        st.caption("Chỉ tính các giờ có số đo trạm (ghép giờ dự báo với trung bình giờ gần nhất, lệch ≤ 30 phút). "
+                   "Chọn khoảng thời gian trạm đặt ngoài trời để đánh giá; số đo trong nhà không so được với dự báo ngoài trời.")
     r = h[h.target == "rain_prob"].sort_values("created_at").groupby("horizon").tail(1)
     st.subheader("Xác suất mưa")
     rc = st.columns(3)
     for i, (_, row) in enumerate(r.sort_values("horizon").iterrows()):
         rc[i].metric(f"Trong {row.horizon} giờ tới", f"{row.value * 100:.0f} %")
-    nc = api_get(f"/api/nowcast/{device}", limit=24) or []
-    if nc:
-        st.subheader("So sánh với nowcast tại edge")
-        n = pd.DataFrame(nc)
-        n["ts"] = to_local(n["ts"]).dt.strftime("%H:%M %d/%m")
-        st.dataframe(n[["ts", "text", "zambretti", "trend_3h"]], hide_index=True, width="stretch")
 
 
 def page_alerts():

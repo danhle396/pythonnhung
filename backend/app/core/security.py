@@ -1,4 +1,3 @@
-"""Xác thực JWT (HS256) cho các API ghi."""
 from __future__ import annotations
 
 import datetime as dt

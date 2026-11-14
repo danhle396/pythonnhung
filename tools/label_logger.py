@@ -1,4 +1,6 @@
-"""Ghi log nhãn cho thí nghiệm khí/khói (task.md 8.3).
+from __future__ import annotations
+
+USAGE = """Ghi log nhãn cho thí nghiệm khí/khói (task.md 8.3).
 
 Đặt thiết bị gửi telemetry 1 giây/lần (PUT /api/devices/station01/config {"telemetry_ms": 1000}), chạy:
     python tools/label_logger.py --device station01 --out ml/data/raw/gas_labeled.csv --session 1
@@ -13,7 +15,6 @@ Rồi gõ lệnh + Enter trong lúc thí nghiệm:
 ⚠ An toàn: lượng nhỏ, nơi thoáng, không có nguồn lửa khi xả gas, luôn có người giám sát.
 CSV đầu ra dùng trực tiếp cho: python -m aiot_ml.train_gas_edge --data <csv>
 """
-from __future__ import annotations
 
 import argparse
 import csv
@@ -28,7 +29,7 @@ FIELDS = ["t", "ts", "gas_ppm", "rs_r0", "temp", "hum", "lux", "label", "scenari
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=USAGE, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--port", type=int, default=1883)
     ap.add_argument("--user", default="backend")
@@ -68,7 +69,7 @@ def main():
     c.connect(a.host, a.port)
     c.subscribe(f"vku/aiot/{a.device}/telemetry", qos=1)
     c.loop_start()
-    print(__doc__.split("Rồi gõ")[1])
+    print(USAGE.split("Rồi gõ")[1])
     try:
         while True:
             cmd = input().strip().split()

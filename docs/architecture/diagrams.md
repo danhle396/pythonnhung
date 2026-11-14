@@ -25,22 +25,20 @@ flowchart TB
             P1["Tiền xử lý<br/>median-5 + EWMA<br/>Rs/R0 → ppm · kiểm tra lỗi"]
             P2["Trích 10 feature<br/>cửa sổ 10–60 s"]
             P3["Phân cấp khí/khói 0–3<br/>rule + hysteresis + debounce<br/>max(rule, model cây)"]
-            P4["Nowcast Zambretti<br/>xu hướng áp suất 3 h"]
             P1 --> P2 --> P3
-            P1 --> P4
         end
         MQ(["MQTT · Mosquitto<br/>seq + đệm offline"])
         subgraph CLOUD["Cloud — Docker Compose"]
             direction TB
             C1["Ingest<br/>validate · chống trùng<br/>lưu TimescaleDB"]
             C2["Alert service<br/>xác nhận · leo thang<br/>offline/LWT · nhắc lại"]
-            C3["Forecast service<br/>bias correction + GBDT<br/>1/3/6 h · KTC 95 %"]
+            C3["Forecast service<br/>Open-Meteo → GBDT<br/>1/3/6 h · KTC 95 %"]
             C4["REST API + JWT<br/>WebSocket"]
             C1 --> C2
             C1 --> C3
             C1 --> C4
         end
-        EDGE <== "→ telemetry · alert · nowcast<br/>← cmd · config · forecast" ==> MQ
+        EDGE <== "→ telemetry · alert · status<br/>← cmd · config · forecast" ==> MQ
         MQ <==> CLOUD
     end
 
@@ -86,16 +84,14 @@ flowchart TB
         RULE --> FUS{"max(rule, model)"}
         TREE --> FUS
         FUS --> ACT["LED xanh/đỏ · còi · TFT"]
-        FIL --> ZAM["Nowcast Zambretti"]
         FUS --> TX["MQTT client tự viết<br/>seq + đệm offline trên flash"]
-        ZAM --> TX
     end
-    TX <== "telemetry · alert · status · nowcast ⇅ cmd · config · forecast" ==> MQ(["Mosquitto 2<br/>auth + ACL · LWT · retain"])
+    TX <== "telemetry · alert · status ⇅ cmd · config · forecast" ==> MQ(["Mosquitto 2<br/>auth + ACL · LWT · retain"])
     subgraph CLOUD["Cloud — Docker Compose"]
         direction LR
         ING["Ingest<br/>validate · chống trùng · ghi lô"] --> DB[("TimescaleDB<br/>hypertable + aggregate")]
         ING --> ALS["Alert service<br/>leo thang (độ dốc 10 phút)<br/>offline/LWT · nhắc lại · ack"]
-        OM["Open-Meteo API"] --> FCS["Forecast service 10 phút<br/>GBDT mlcore + bias correction"]
+        OM["Open-Meteo API"] --> FCS["Forecast service 10 phút<br/>GBDT (LightGBM)"]
         FCS --> DB
         DB --> API["REST API + JWT<br/>WebSocket"] --> DASH["Dashboard Streamlit<br/>Grafana"]
         ALS <--> TG["Telegram · Email<br/>(ack inline)"]
@@ -112,7 +108,6 @@ erDiagram
     devices ||--o{ telemetry : "gửi"
     devices ||--o{ alerts : "phát"
     devices ||--o{ forecasts : "được dự báo"
-    devices ||--o{ nowcasts : "gửi"
     devices ||--o{ device_configs : "có phiên bản"
     devices ||--o{ commands : "nhận"
     alerts ||--o{ notifications : "được thông báo"
@@ -158,19 +153,12 @@ erDiagram
         string device_id
         datetime issued_for
         int horizon "1, 3, 6 h"
-        string target "temp, hum, pres, rain_prob"
+        string target "temp, hum, rain_prob"
         float value
         float lower
         float upper
         string model_ver
-        string source "station, open-meteo, fallback"
-    }
-    nowcasts {
-        int id PK
-        string device_id
-        datetime ts
-        string zambretti
-        float trend_3h
+        string source "open-meteo"
     }
     device_configs {
         int id PK

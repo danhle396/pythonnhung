@@ -1,5 +1,3 @@
-# Lớp tương thích MicroPython <-> CPython: để logic firmware chạy được trên ESP32 và trong pytest trên PC.
-# Trên ESP32 dùng thẳng time.ticks_ms()/ticks_diff() (đồng hồ ms quay vòng 2^30); trên PC dùng time.monotonic().
 import time
 
 try:
@@ -9,7 +7,7 @@ try:
     ticks_add = time.ticks_add
     sleep_ms = time.sleep_ms
     MICROPYTHON = True
-except AttributeError:  # CPython (chạy test trên máy tính)
+except AttributeError:
     MICROPYTHON = False
     _T0 = time.monotonic()
 
@@ -30,7 +28,7 @@ except AttributeError:  # CPython (chạy test trên máy tính)
 
 try:
     from _thread import allocate_lock
-except ImportError:  # bản MicroPython không có luồng
+except ImportError:
     class allocate_lock:
         def acquire(self, *a):
             return True
@@ -44,13 +42,11 @@ except ImportError:  # bản MicroPython không có luồng
         def __exit__(self, *a):
             pass
 
-# MicroPython trên một số bản dựng tính epoch từ 2000-01-01, CPython từ 1970-01-01.
 EPOCH_OFFSET = 946684800 if time.gmtime(0)[0] == 2000 else 0
-VALID_EPOCH = 1700000000  # nhỏ hơn = chưa đồng bộ NTP
+VALID_EPOCH = 1700000000
 
 
 def epoch():
-    """Giây Unix (UTC)."""
     return int(time.time()) + EPOCH_OFFSET
 
 
@@ -59,7 +55,6 @@ def has_time():
 
 
 def local_tm(ts=None, tz_h=7):
-    """(năm, tháng, ngày, giờ, phút, giây, ...) theo giờ Việt Nam (UTC+7, không có giờ mùa hè)."""
     t = epoch() if ts is None else ts
     return time.gmtime(t - EPOCH_OFFSET + tz_h * 3600)
 

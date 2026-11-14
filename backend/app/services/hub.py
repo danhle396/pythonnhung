@@ -1,4 +1,3 @@
-"""Hub phát realtime tới các kết nối WebSocket. Thread MQTT gọi publish_threadsafe()."""
 from __future__ import annotations
 
 import asyncio
@@ -28,7 +27,7 @@ class Hub:
         for q in list(self.clients):
             try:
                 q.put_nowait(text)
-            except asyncio.QueueFull:  # client chậm -> bỏ bớt tin cũ
+            except asyncio.QueueFull:
                 try:
                     q.get_nowait()
                     q.put_nowait(text)

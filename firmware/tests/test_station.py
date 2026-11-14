@@ -1,6 +1,3 @@
-"""Chạy toàn bộ luồng xử lý của trạm trên PC với phần cứng/mạng thay thế:
-cảm biến -> Edge AI -> cảnh báo -> bản tin MQTT; lệnh/cấu hình từ cloud; đệm offline khi mất mạng.
-Bản tin được kiểm tra bằng chính schema Pydantic của backend để bảo đảm firmware và backend khớp nhau."""
 import json
 import sys
 from pathlib import Path
@@ -52,7 +49,7 @@ class FakeHW:
         return {"uptime_s": 1, "free_heap": 100000, "min_free_heap": 90000, "reset_reason": 1}
 
     def mean_rs_kohm(self, mq2):
-        return 98.3  # -> R0 = 10 kΩ
+        return 98.3
 
     def ota(self, url, station):
         return False, "ota failed: test"
@@ -62,7 +59,6 @@ class FakeHW:
 
 
 def gas_mv_for_ppm(ppm, st):
-    """Điện áp ADC (mV) cho ppm mong muốn — nghịch đảo công thức MQ-2 của trạm (để dựng đầu vào test)."""
     p = st.proc.mq2
     ratio = (ppm / p.curve_a) ** (1.0 / p.curve_b)
     rs = ratio * p.r0_kohm
@@ -71,7 +67,7 @@ def gas_mv_for_ppm(ppm, st):
 
 
 def raw(st, ppm, t=28.0, h=75.0):
-    return RawSample(dht=(t, h), bmp=(25.0, 1009.0), lux=300.0, rain_mv=3130, gas_mv=gas_mv_for_ppm(ppm, st),
+    return RawSample(dht=(t, h), bmp=(25.0, 1009.0), lux=300.0, rain_mv=3134, gas_mv=gas_mv_for_ppm(ppm, st),
                      bmp_present=True, bh_present=True)
 
 
@@ -96,18 +92,18 @@ def test_warmup_then_gas_alert_and_telemetry(station):
     assert tel and tel[0]["warming_up"] and not tel[-1]["warming_up"]
     assert tel[-1]["gas_ppm"] == pytest.approx(50.0, rel=0.05)
     assert link.of("status") and link.of("status")[0]["state"] == "online"
-    assert link.of("nowcast")
-    run(station, link, [2500.0] * 15, now)  # median-5 + EWMA cần vài giây để bắt kịp
+    assert not link.of("nowcast")
+    run(station, link, [2500.0] * 15, now)
     alerts = [a for a in link.of("alert") if a["type"] == "gas"]
     assert alerts[-1]["level"] == 3 and "gas_ppm>2000" in alerts[-1]["cause"]
     assert "buzzer_continuous" in alerts[-1]["action"]
-    assert station.actuator_states(now)[3]  # còi kêu
+    assert station.actuator_states(now)[3]
 
 
 def test_config_and_commands(station):
     link = FakeLink()
     station.on_message("config", b'{"th1": 250, "th2": 900, "th3": 1800, "version": 7, "mode": "rule"}')
-    station.on_message("config", b'{"th1": 5000}')  # sai thứ tự ngưỡng -> từ chối
+    station.on_message("config", b'{"th1": 5000}')
     station.on_message("cmd", b'{"cmd": "mute", "id": "c1"}')
     station.on_message("cmd", b'{"cmd": "fly", "id": "c2"}')
     station.on_message("cmd", b'not json')
@@ -123,7 +119,7 @@ def test_config_and_commands(station):
     assert any(a["ref"] == "calibrate" and "R0=10.00" in a["msg"] for a in acks)
     assert station.edge.rules.cfg.th1 == 250 and station.edge.mode == 0
     assert station.dstate.cloud_forecast.startswith("3h:")
-    assert Storage(station.storage.base).load_config().version == 7  # đã lưu flash
+    assert Storage(station.storage.base).load_config().version == 7
 
 
 def test_cloud_escalation_raises_level(station):
@@ -139,7 +135,7 @@ def test_offline_buffer_then_replay(station):
     link = FakeLink()
     link.up = False
     now = run(station, link, [50.0] * 30)
-    assert station.storage.pending() >= 3  # telemetry 10 s/lần được giữ lại
+    assert station.storage.pending() >= 3
     link.up = True
     run(station, link, [50.0], now)
     assert station.storage.pending() == 0
@@ -151,7 +147,7 @@ def test_payloads_match_backend_schema(station):
     pytest.importorskip("pydantic")
     sys.path.insert(0, str(BACKEND))
     try:
-        from app.schemas.payloads import AlertIn, NowcastIn, StatusIn, TelemetryIn
+        from app.schemas.payloads import AlertIn, StatusIn, TelemetryIn
     finally:
         sys.path.remove(str(BACKEND))
     link = FakeLink()
@@ -163,8 +159,6 @@ def test_payloads_match_backend_schema(station):
         AlertIn.model_validate(a)
     for s in link.of("status"):
         StatusIn.model_validate(s)
-    for n in link.of("nowcast"):
-        NowcastIn.model_validate(n)
 
 
 @pytest.mark.parametrize("level,warming,muted", [(0, True, False), (1, False, False), (3, False, True)])

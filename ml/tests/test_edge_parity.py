@@ -1,5 +1,3 @@
-"""Firmware MicroPython (firmware/src/edge_ai.py, alert.py) và bản tham chiếu NumPy (aiot_ml.gas_edge) phải cho
-cùng feature và cùng cấp cảnh báo trên cùng chuỗi đầu vào — model huấn luyện bằng gas_edge mới phản ánh đúng thiết bị."""
 import importlib
 import sys
 from pathlib import Path
@@ -20,10 +18,9 @@ def _firmware():
 
 
 def _stream(seed, n=600):
-    """Chuỗi đầu vào tổng hợp chỉ để so sánh hai bản cài đặt (không dùng để huấn luyện/báo cáo)."""
     rng = np.random.default_rng(seed)
     ppm = np.clip(80 + np.cumsum(rng.normal(0, 25, n)), 0, None)
-    ppm[200:260] += np.linspace(0, 2600, 60)  # đoạn tăng nhanh để đi qua mọi cấp
+    ppm[200:260] += np.linspace(0, 2600, 60)
     temp = 28 + np.cumsum(rng.normal(0, 0.02, n))
     hum = 75 + np.cumsum(rng.normal(0, 0.05, n))
     lux = np.abs(300 + np.cumsum(rng.normal(0, 3, n)))

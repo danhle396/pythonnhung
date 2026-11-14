@@ -1,9 +1,3 @@
-"""Ingestion service: subscribe vku/aiot/+/{telemetry,alert,status,nowcast,ack}, validate (Pydantic),
-chống trùng theo (device_id, seq), ghi DB theo lô và đẩy realtime sang WebSocket.
-
-Luồng: thread paho (on_message) -> queue -> worker thread: alert xử lý ngay (độ trễ thấp),
-telemetry gom lô (≤ 200 bản ghi hoặc 0.5 s) rồi INSERT ... ON CONFLICT DO NOTHING.
-"""
 from __future__ import annotations
 
 import datetime as dt
@@ -19,19 +13,18 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.core.config import Settings
-from app.db.models import Command, Device, DeviceConfig, Nowcast, Telemetry
+from app.db.models import Command, Device, DeviceConfig, Telemetry
 from app.db.session import session_scope
-from app.schemas.payloads import AckIn, AlertIn, NowcastIn, StatusIn, TelemetryIn
+from app.schemas.payloads import AckIn, AlertIn, StatusIn, TelemetryIn
 
 log = logging.getLogger(__name__)
 TELEMETRY_COLS = [c.name for c in Telemetry.__table__.columns if c.name not in ("received_at", "extra")]
 
 
-MIN_VALID_EPOCH = 1577836800  # 2020-01-01: ts nhỏ hơn = thiết bị chưa có giờ NTP
+MIN_VALID_EPOCH = 1577836800
 
 
 def insert_ignore(session, table, rows):
-    """INSERT bỏ qua bản ghi trùng khoá — hỗ trợ PostgreSQL và SQLite."""
     if not rows:
         return 0
     dialect = session.bind.dialect.name
@@ -39,14 +32,12 @@ def insert_ignore(session, table, rows):
         from sqlalchemy.dialects.postgresql import insert
     else:
         from sqlalchemy.dialects.sqlite import insert
-    # Đếm bằng RETURNING: hypertable TimescaleDB trả rowcount = -1 cho INSERT ... ON CONFLICT DO NOTHING
     pk = list(table.primary_key.columns)[0]
     res = session.execute(insert(table).values(rows).on_conflict_do_nothing().returning(pk))
     return len(res.fetchall())
 
 
 class Deduper:
-    """LRU các khoá (device_id, seq) đã thấy — chặn trùng nhanh trước khi chạm DB."""
 
     def __init__(self, maxlen=20000):
         self.seen = OrderedDict()
@@ -76,7 +67,6 @@ class MqttService:
         self.stats = {"received": 0, "telemetry": 0, "duplicates": 0, "invalid": 0, "alerts": 0, "batches": 0,
                       "connected": False, "latency_ms_last": None}
 
-    # ------------------------------------------------------------------ vòng đời
     def start(self):
         self.worker = threading.Thread(target=self._work, name="ingest-worker", daemon=True)
         self.worker.start()
@@ -106,7 +96,7 @@ class MqttService:
 
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         p = self.s.mqtt_topic_prefix
-        for suffix in ("telemetry", "alert", "status", "nowcast", "ack"):
+        for suffix in ("telemetry", "alert", "status", "ack"):
             client.subscribe(f"{p}/+/{suffix}", qos=1)
         self.stats["connected"] = True
         log.info("MQTT đã kết nối %s:%s (rc=%s)", self.s.mqtt_host, self.s.mqtt_port, reason_code)
@@ -121,9 +111,7 @@ class MqttService:
         except queue.Full:
             log.error("Hàng đợi ingest đầy — bỏ tin")
 
-    # ------------------------------------------------------------------ xử lý
     def handle(self, topic: str, payload: bytes, recv_t: float | None = None):
-        """Xử lý đồng bộ 1 tin (dùng trực tiếp trong test). Telemetry trả về dict hàng để gom lô."""
         self.stats["received"] += 1
         parts = topic.split("/")
         if len(parts) < 3:
@@ -131,15 +119,13 @@ class MqttService:
         device_id, kind = parts[-2], parts[-1]
         try:
             text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else payload
-            if not text.strip():  # bản tin rỗng = lệnh xoá retained trên broker, không phải dữ liệu thiết bị
+            if not text.strip():
                 return None
             data = json.loads(text) if text.strip().startswith("{") else {"state": text.strip()}
         except Exception:
             self.stats["invalid"] += 1
             return None
         data.setdefault("device_id", device_id)
-        # Vừa khởi động, ESP32 chưa đồng bộ NTP -> ts = số giây từ lúc bật (năm 1970). Bản tin đến gần như tức thời
-        # nên lấy giờ backend nhận được; đánh dấu ts_server để biết giờ này do server gán.
         ts = data.get("ts")
         if isinstance(ts, (int, float)) and ts < MIN_VALID_EPOCH:
             data["ts"] = int(recv_t or time.time())
@@ -160,12 +146,6 @@ class MqttService:
                 self.alerts.on_edge_alert(a, recv_t=recv_t)
             elif kind == "status":
                 self._on_status(device_id, StatusIn.model_validate(data))
-            elif kind == "nowcast":
-                n = NowcastIn.model_validate(data)
-                with session_scope() as s:
-                    s.add(Nowcast(device_id=n.device_id, ts=n.ts, code=n.code, text=n.text, trend=n.trend,
-                                  trend_3h=n.trend_3h, zambretti=n.zambretti))
-                self.hub.publish_threadsafe("nowcast", n.model_dump(mode="json"))
             elif kind == "ack":
                 self._on_ack(device_id, AckIn.model_validate(data))
         except ValidationError as e:

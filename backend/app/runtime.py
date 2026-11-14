@@ -1,4 +1,3 @@
-"""Nơi giữ các service dùng chung (singleton) — khởi tạo trong lifespan của FastAPI."""
 from __future__ import annotations
 
 from dataclasses import dataclass

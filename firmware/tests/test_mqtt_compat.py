@@ -1,5 +1,3 @@
-"""MQTT client tự viết (giao thức kiểm tra bằng broker tối giản trong tiến trình + Mosquitto thật nếu có)
-và kiểm tra toàn bộ firmware biên dịch được bằng mpy-cross (cú pháp MicroPython)."""
 import os
 import socket
 import struct
@@ -47,15 +45,15 @@ def test_protocol_with_minimal_broker():
 
     def broker():
         conn, _ = srv.accept()
-        h, body = _read_packet(conn)  # CONNECT
+        h, body = _read_packet(conn)
         seen["connect"] = (h, body)
         conn.sendall(b"\x20\x02\x00\x00")
-        h, body = _read_packet(conn)  # SUBSCRIBE
+        h, body = _read_packet(conn)
         pid = body[:2]
         conn.sendall(b"\x90\x03" + pid + b"\x01")
         topic, msg = b"vku/aiot/st/cmd", b'{"cmd":"mute"}'
         pkt = struct.pack("!H", len(topic)) + topic + b"\x00\x07" + msg
-        conn.sendall(bytes([0x32]) + _varlen(len(pkt)) + pkt)  # PUBLISH QoS 1
+        conn.sendall(bytes([0x32]) + _varlen(len(pkt)) + pkt)
         seen["puback"] = _read_packet(conn)
         seen["publish"] = _read_packet(conn)
         conn.close()
@@ -78,7 +76,7 @@ def test_protocol_with_minimal_broker():
     c.close()
     h, body = seen["connect"]
     assert h == 0x10 and body[2:6] == b"MQTT" and body[6] == 4
-    assert body[7] == 0x80 | 0x40 | 0x20 | 0x08 | 0x04 | 0x02  # user, pass, will retain, will QoS1, will, clean
+    assert body[7] == 0x80 | 0x40 | 0x20 | 0x08 | 0x04 | 0x02
     assert got == [("vku/aiot/st/cmd", b'{"cmd":"mute"}')]
     assert seen["puback"] == (0x40, b"\x00\x07")
     h, body = seen["publish"]
@@ -138,7 +136,7 @@ def test_gas_model_placeholder_or_real():
     k, p = gas_model.predict_proba([0.0] * 10)
     assert 0 <= k < gas_model.N_CLASSES and abs(sum(p) - 1.0) < 1e-5
     vec = FW / "tests" / "gas_model_testvec.json"
-    if gas_model.AVAILABLE and vec.exists():  # vector kiểm thử do train_gas_edge sinh ra
+    if gas_model.AVAILABLE and vec.exists():
         import json
         tv = json.loads(vec.read_text())
         bad = sum(gas_model.predict_proba(x)[0] != c for x, c in zip(tv["x"], tv["class_idx"]))

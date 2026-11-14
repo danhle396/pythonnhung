@@ -1,4 +1,3 @@
-"""Chạy logic firmware MicroPython trên CPython: thêm firmware/src vào sys.path."""
 import sys
 from pathlib import Path
 

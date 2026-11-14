@@ -1,5 +1,3 @@
-"""Test backend: validate schema, ingest + chống trùng, logic cảnh báo (cấp, cooldown, leo thang, offline, ack),
-API (JWT, config, cmd, telemetry, export), forecast service, WebSocket."""
 import datetime as dt
 import json
 import time
@@ -28,7 +26,6 @@ def rt():
     return _rt()
 
 
-# ------------------------------------------------------------------ schema
 def test_schema_rejects_out_of_range():
     t = TelemetryIn.model_validate({"device_id": "x", "ts": 1762671600, "seq": 1, "temp_dht": 99.0,
                                     "pressure": 1009, "hum": 120, "foo": "bar"})
@@ -39,14 +36,13 @@ def test_schema_rejects_out_of_range():
         AlertIn.model_validate({"device_id": "x", "ts": 1, "level": 7})
 
 
-# ------------------------------------------------------------------ ingest
 def test_ingest_dedupe_and_api(app_client):
     m = rt().mqtt
     rows = [m.handle("vku/aiot/station01/telemetry", tel(i, now_ts() - 60 + i)) for i in range(1, 6)]
-    rows.append(m.handle("vku/aiot/station01/telemetry", tel(3, now_ts() - 60 + 3)))  # trùng
+    rows.append(m.handle("vku/aiot/station01/telemetry", tel(3, now_ts() - 60 + 3)))
     assert rows[-1] is None and m.stats["duplicates"] == 1
     assert m.flush([r for r in rows if r]) == 5
-    assert m.flush([r for r in rows[:2] if r]) == 0  # chống trùng ở DB
+    assert m.flush([r for r in rows[:2] if r]) == 0
     data = app_client.get("/api/telemetry", params={"device_id": "station01"}).json()
     assert len(data) == 5 and data[0]["temp_dht"] == 28.5
     latest = app_client.get("/api/telemetry/latest", params={"device_id": "station01"}).json()
@@ -65,7 +61,7 @@ def test_ingest_invalid_json_and_status(app_client):
     assert m.stats["invalid"] >= 1
     m.handle("vku/aiot/station01/status", json.dumps({"state": "online", "rssi": -60, "fw": "1.0.0"}).encode())
     assert app_client.get("/api/devices/station01").json()["rssi"] == -60
-    m.handle("vku/aiot/station01/status", json.dumps({"state": "offline"}).encode())  # LWT
+    m.handle("vku/aiot/station01/status", json.dumps({"state": "offline"}).encode())
     assert app_client.get("/api/devices/station01").json()["status"] == "offline"
     a = app_client.get("/api/alerts", params={"device_id": "station01"}).json()
     assert a[0]["type"] == "device_offline"
@@ -77,10 +73,10 @@ def test_sensor_health_reports_each_sensor(app_client):
     t0 = now_ts() - 50
     rows = []
     for i in range(5):
-        flags = dict(ok, gas=i < 3, bh=i != 1)  # MQ-2 lỗi từ mẫu 3; BH1750 lỗi 1 lần
+        flags = dict(ok, gas=i < 3, bh=i != 1)
         kw = {"sensor_ok": flags, "gas_raw": 142}
         if i == 4:
-            kw["temp_dht"] = None  # DHT22 mất dữ liệu ở mẫu mới nhất
+            kw["temp_dht"] = None
         rows.append(r.mqtt.handle("vku/aiot/station01/telemetry", tel(100 + i, t0 + i * 10, **kw)))
     r.mqtt.flush(rows)
     h = app_client.get("/api/sensors/station01").json()
@@ -90,12 +86,25 @@ def test_sensor_health_reports_each_sensor(app_client):
     assert st["gas"]["status"] == "error" and "142 mV" in st["gas"]["message"]
     assert st["bh"]["status"] == "warn" and "1/5" in st["bh"]["message"]
     assert st["bmp"]["status"] == st["rain"]["status"] == "ok"
-    assert st["gas"]["last_ok"] is not None  # biết lần cuối MQ-2 còn tốt
+    assert st["gas"]["last_ok"] is not None
     assert app_client.get("/api/sensors/khongco").json()["sensors"][0]["status"] == "unknown"
 
 
+def test_sensor_health_flags_rain_stuck_at_adc_ceiling(app_client):
+    r = rt()
+    t0 = now_ts() - 50
+    rows = [r.mqtt.handle("vku/aiot/station01/telemetry", tel(200 + i, t0 + i * 10, rain_raw=3134))
+            for i in range(5)]
+    r.mqtt.flush(rows)
+    st = {s["sensor"]: s for s in app_client.get("/api/sensors/station01").json()["sensors"]}
+    assert st["rain"]["status"] == "warn" and "trần ADC" in st["rain"]["message"]
+    rows = [r.mqtt.handle("vku/aiot/station01/telemetry", tel(300, t0 + 55, rain_raw=3010))]
+    r.mqtt.flush(rows)
+    st = {s["sensor"]: s for s in app_client.get("/api/sensors/station01").json()["sensors"]}
+    assert st["rain"]["status"] == "ok"
+
+
 def test_unsynced_device_time_replaced_by_server_time(app_client):
-    """ESP32 chưa có NTP gửi ts = giây từ lúc bật -> dùng giờ server, không lưu thành năm 1970."""
     m = rt().mqtt
     before = int(time.time())
     row = m.handle("vku/aiot/station01/telemetry", tel(7, ts=74))
@@ -104,16 +113,14 @@ def test_unsynced_device_time_replaced_by_server_time(app_client):
 
 
 def test_empty_payload_is_retained_clear_not_status(app_client):
-    """Bản tin rỗng = xoá retained trên broker: không được tạo thiết bị / đếm là invalid."""
     m = rt().mqtt
     invalid = m.stats["invalid"]
-    for kind in ("status", "nowcast", "telemetry", "forecast"):
+    for kind in ("status", "telemetry", "forecast"):
         m.handle(f"vku/aiot/ghost99/{kind}", b"")
     assert app_client.get("/api/devices/ghost99").status_code == 404
     assert m.stats["invalid"] == invalid
 
 
-# ------------------------------------------------------------------ alerts
 def alert_payload(level, prev, seq, ppm=1200.0):
     return json.dumps({"device_id": "station01", "ts": now_ts(), "seq": seq, "type": "gas", "level": level,
                        "prev_level": prev, "cause": ["gas_ppm>1000"], "gas_ppm": ppm, "score": 0.9,
@@ -121,7 +128,6 @@ def alert_payload(level, prev, seq, ppm=1200.0):
 
 
 def test_test_alarm_not_notified_or_reminded(app_client):
-    """Thử còi (type test, cấp 3) là thao tác của người dùng: không gửi Telegram/Email, không nhắc lại."""
     r = rt()
     p = json.loads(alert_payload(3, 0, 900))
     p.update(type="test", cause=["test_alarm"])
@@ -135,14 +141,14 @@ def test_notification_policy_and_cooldown(app_client):
     r = rt()
     r.notifier.sent.clear()
     r.mqtt.handle("vku/aiot/station01/alert", alert_payload(1, 0, 101, 400))
-    assert r.notifier.sent == []  # cấp 1: chỉ log/dashboard
+    assert r.notifier.sent == []
     r.mqtt.handle("vku/aiot/station01/alert", alert_payload(2, 1, 102))
     assert [s["channel"] for s in r.notifier.sent] == ["telegram"]
-    r.mqtt.handle("vku/aiot/station01/alert", alert_payload(2, 2, 103))  # lặp trong cooldown
+    r.mqtt.handle("vku/aiot/station01/alert", alert_payload(2, 2, 103))
     assert len(r.notifier.sent) == 1
     r.mqtt.handle("vku/aiot/station01/alert", alert_payload(3, 2, 104, 2500))
     assert [s["channel"] for s in r.notifier.sent[1:]] == ["telegram", "email"]
-    r.mqtt.handle("vku/aiot/station01/alert", alert_payload(3, 2, 104, 2500))  # trùng seq -> bỏ
+    r.mqtt.handle("vku/aiot/station01/alert", alert_payload(3, 2, 104, 2500))
     alerts = app_client.get("/api/alerts", params={"device_id": "station01"}).json()
     assert len(alerts) == 4
 
@@ -154,7 +160,7 @@ def test_level3_reminders_until_ack(app_client, token):
     n0 = len(r.notifier.sent)
     assert r.alerts.reminders() == 1 and len(r.notifier.sent) > n0
     aid = app_client.get("/api/alerts", params={"min_level": 3}).json()[0]["id"]
-    assert app_client.post(f"/api/alerts/{aid}/ack").status_code == 401  # cần JWT
+    assert app_client.post(f"/api/alerts/{aid}/ack").status_code == 401
     assert app_client.post(f"/api/alerts/{aid}/ack", headers=token).json()["ok"]
     assert r.alerts.reminders() == 0
     a = app_client.get("/api/alerts", params={"min_level": 3}).json()[0]
@@ -176,7 +182,7 @@ def test_cloud_escalation_on_sustained_rise(app_client):
     m = r.mqtt
     t0 = now_ts() - 600
     rows = []
-    for i in range(60):  # 10 phút, ppm tăng đều 40 ppm/phút từ 300
+    for i in range(60):
         ppm = 300 + 40 * (i * 10 / 60)
         rows.append(m.handle("vku/aiot/station01/telemetry", tel(1000 + i, t0 + i * 10, gas_ppm=ppm, edge_risk=1)))
     m.flush(rows)
@@ -185,7 +191,7 @@ def test_cloud_escalation_on_sustained_rise(app_client):
     cloud = app_client.get("/api/alerts", params={"source": "cloud"}).json()
     assert cloud and cloud[0]["level"] == 2 and cloud[0]["prev_level"] == 1
     assert any(t.endswith("/cmd") and p["cmd"] == "escalate" and p["level"] == 2 for t, p, _ in r.publisher.published)
-    assert r.alerts.evaluate("station01") == 0  # không lặp lại
+    assert r.alerts.evaluate("station01") == 0
 
 
 def test_no_escalation_when_flat(app_client):
@@ -217,11 +223,10 @@ def test_delete_device_removes_all_its_data(app_client, token):
     assert res["deleted"]["telemetry"] == 3 and res["deleted"]["device"] == 1
     assert app_client.get("/api/devices/loadtest000").status_code == 404
     assert app_client.get("/api/telemetry", params={"device_id": "loadtest000"}).json() == []
-    assert len(app_client.get("/api/telemetry", params={"device_id": "station01"}).json()) == 1  # trạm thật còn nguyên
-    assert ("vku/aiot/loadtest000/forecast", {}, True) in r.publisher.published  # xoá retained
+    assert len(app_client.get("/api/telemetry", params={"device_id": "station01"}).json()) == 1
+    assert ("vku/aiot/loadtest000/forecast", {}, True) in r.publisher.published
 
 
-# ------------------------------------------------------------------ config & cmd
 def test_config_and_cmd_require_auth_and_publish(app_client, token):
     r = rt()
     assert app_client.put("/api/devices/station01/config", json={"th1": 250}).status_code == 401
@@ -233,7 +238,6 @@ def test_config_and_cmd_require_auth_and_publish(app_client, token):
     assert t == "vku/aiot/station01/config" and retain and p["version"] == 1
     ok2 = app_client.put("/api/devices/station01/config", json={"telemetry_ms": 5000}, headers=token).json()
     assert ok2["config"] == {"th1": 250, "mode": "hybrid", "telemetry_ms": 5000, "version": 2}
-    # ack từ thiết bị
     r.mqtt.handle("vku/aiot/station01/ack", json.dumps({"ref": "config", "ok": True, "msg": "v2"}).encode())
     assert app_client.get("/api/devices/station01").json()["config"]["acked"] is True
     c = app_client.post("/api/devices/station01/cmd", json={"cmd": "test_alarm"}, headers=token).json()
@@ -243,34 +247,59 @@ def test_config_and_cmd_require_auth_and_publish(app_client, token):
     assert app_client.post("/api/devices/station01/cmd", json={"cmd": "format_disk"}, headers=token).status_code == 422
 
 
-# ------------------------------------------------------------------ forecast
-def test_forecast_from_station_data(app_client):
+def _open_meteo_frame(hours=96, temp_mean=24.0):
+    """Khung Open-Meteo giả (đã chuẩn hoá) cho test, không gọi mạng."""
+    import pandas as pd
+    from aiot_ml import features as fe
+    idx = pd.date_range(end=pd.Timestamp.now().floor("h"), periods=hours, freq="1h")
+    hr = idx.hour.to_numpy()
+    raw = pd.DataFrame({
+        "temperature_2m": temp_mean + 3 * np.sin(2 * np.pi * (hr - 9) / 24),
+        "relative_humidity_2m": 80 - 8 * np.sin(2 * np.pi * (hr - 9) / 24),
+        "pressure_msl": 1010 + 0.5 * np.sin(np.arange(hours) / 20),
+        "dew_point_2m": temp_mean - 4.0,
+        "shortwave_radiation": np.clip(800 * np.sin(np.pi * (hr - 6) / 12), 0, None),
+        "precipitation": 0.0,
+        "cloud_cover": 40.0,
+    }, index=idx)
+    return fe.open_meteo_to_canonical(raw)
+
+
+def test_forecast_uses_open_meteo_not_station(app_client, monkeypatch):
     r = rt()
     m = r.mqtt
     start = now_ts() - 40 * 3600
-    rows = []
-    for i in range(40 * 6):  # 40 giờ, 1 mẫu / 10 phút
-        ts = start + i * 600
-        h = ((ts + 7 * 3600) % 86400) / 3600
-        rows.append(m.handle("vku/aiot/station01/telemetry",
-                             tel(5000 + i, ts, temp_dht=27 + 3 * np.sin(2 * np.pi * (h - 9) / 24),
-                                 hum=80 - 8 * np.sin(2 * np.pi * (h - 9) / 24), pressure_msl=1010 + 0.5 * np.sin(i / 20),
-                                 lux=max(0.0, 40000 * np.sin(np.pi * (h - 6) / 12)) if 6 < h < 18 else 0.0)))
+    rows = [m.handle("vku/aiot/station01/telemetry", tel(5000 + i, start + i * 600, temp_dht=33.0, hum=55.0, lux=150.0))
+            for i in range(40 * 6)]
     m.flush(rows)
+    monkeypatch.setattr(r.forecast.s, "use_open_meteo", True)
+    monkeypatch.setattr(r.forecast, "_open_meteo_recent", lambda: _open_meteo_frame(temp_mean=24.0))
     p = r.forecast.run_once("station01")
-    assert p["source"] == "station"
+    assert p["source"] == "open-meteo"
     targets = {(i["target"], i["h"]) for i in p["items"]}
-    assert ("temp", 1) in targets and ("rain_prob", 3) in targets
+    assert ("temp", 1) in targets and ("hum", 6) in targets and ("rain_prob", 3) in targets
+    assert not any(t == "pres" for t, _ in targets)
     t1 = next(i for i in p["items"] if i["target"] == "temp" and i["h"] == 1)
-    assert 15 < t1["value"] < 40 and t1["lower"] < t1["value"] < t1["upper"]
+    assert 18 < t1["value"] < 30, "dự báo phải theo Open-Meteo (≈24 °C), không theo số đo trong nhà 33 °C"
+    assert t1["lower"] < t1["value"] < t1["upper"]
     assert any(t.endswith("/forecast") for t, _, ret in r.publisher.published)
     fc = app_client.get("/api/forecast/station01").json()
     assert len(fc["latest"]) == len(p["items"])
 
 
-def test_forecast_fallback_when_no_data(app_client):
-    p = rt().forecast.run_once("station01")
-    assert p["source"] == "fallback"
+def test_forecast_skipped_when_open_meteo_unavailable(app_client, monkeypatch):
+    r = rt()
+    n_pub = len(r.publisher.published)
+    p = r.forecast.run_once("station01")
+    assert p["source"] == "unavailable" and p["items"] == []
+
+    def boom():
+        raise OSError("mất mạng")
+    monkeypatch.setattr(r.forecast.s, "use_open_meteo", True)
+    monkeypatch.setattr(r.forecast, "_open_meteo_recent", boom)
+    assert r.forecast.run_once("station01")["source"] == "unavailable"
+    assert len(r.publisher.published) == n_pub
+    assert app_client.get("/api/forecast/station01").json()["latest"] == []
 
 
 def test_models_endpoint_and_health(app_client):

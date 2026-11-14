@@ -1,4 +1,3 @@
-"""WS /ws/live — đẩy telemetry, alert, status, forecast realtime cho dashboard."""
 from __future__ import annotations
 
 import asyncio

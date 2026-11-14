@@ -1,5 +1,3 @@
-"""Gửi thông báo Telegram (gọi thẳng HTTP Bot API, có nút inline "Đã xử lý") và Email (SMTP).
-Khi chưa cấu hình token/SMTP, thông báo chỉ được ghi log (chế độ dev) và lưu vào self.sent để test."""
 from __future__ import annotations
 
 import datetime as dt
@@ -86,7 +84,6 @@ class Notifier:
             log.warning("Email lỗi: %s", e)
             return False
 
-    # ------------------------------------------------------- nhận callback nút "Đã xử lý"
     def poll_forever(self, on_ack, stop: threading.Event):
         if not self.telegram_enabled:
             return

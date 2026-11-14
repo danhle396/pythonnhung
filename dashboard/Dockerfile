@@ -1,4 +1,3 @@
-# Build từ thư mục gốc repo: docker build -f dashboard/Dockerfile .
 FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 PYTHONUTF8=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app

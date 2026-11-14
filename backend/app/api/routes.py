@@ -1,4 +1,3 @@
-"""REST API (task.md 7.5). Đọc: công khai cho dashboard. Ghi: cần JWT (POST /api/auth/token)."""
 from __future__ import annotations
 
 import datetime as dt
@@ -14,7 +13,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import authenticate, create_token, require_user
-from app.db.models import (Alert, Command, Device, DeviceConfig, Forecast, ModelRegistryEntry, Notification, Nowcast,
+from app.db.models import (Alert, Command, Device, DeviceConfig, Forecast, ModelRegistryEntry, Notification,
                            Telemetry)
 from app.db.session import as_utc, get_db
 from app.runtime import rt
@@ -40,7 +39,6 @@ def _parse_time(v: str | None, default: dt.datetime) -> dt.datetime:
         return (t.tz_localize("UTC") if t.tzinfo is None else t).to_pydatetime()
 
 
-# ------------------------------------------------------------------ auth & health
 @router.post("/auth/token", tags=["auth"])
 def login(form: OAuth2PasswordRequestForm = Depends()):
     if not authenticate(form.username, form.password):
@@ -56,7 +54,6 @@ def health(db: Session = Depends(get_db)):
             "telegram": r.notifier.telegram_enabled, "last_forecast": (r.forecast.last_run or {}).get("ts")}
 
 
-# ------------------------------------------------------------------ devices
 @router.get("/devices", tags=["devices"])
 def list_devices(db: Session = Depends(get_db)):
     return [_row(d) for d in db.scalars(select(Device).order_by(Device.id))]
@@ -74,10 +71,9 @@ def get_device(device_id: str, db: Session = Depends(get_db)):
 
 @router.delete("/devices/{device_id}", tags=["devices"])
 def delete_device(device_id: str, db: Session = Depends(get_db), user: str = Depends(require_user)):
-    """Xoá thiết bị cùng toàn bộ dữ liệu của nó (vd. thiết bị load test) và bản tin retained trên broker."""
     alert_ids = select(Alert.id).where(Alert.device_id == device_id)
     n = {"notifications": db.execute(delete(Notification).where(Notification.alert_id.in_(alert_ids))).rowcount}
-    for name, model in (("alerts", Alert), ("telemetry", Telemetry), ("forecasts", Forecast), ("nowcasts", Nowcast),
+    for name, model in (("alerts", Alert), ("telemetry", Telemetry), ("forecasts", Forecast),
                         ("configs", DeviceConfig), ("commands", Command)):
         n[name] = db.execute(delete(model).where(model.device_id == device_id)).rowcount
     n["device"] = db.execute(delete(Device).where(Device.id == device_id)).rowcount
@@ -126,31 +122,29 @@ def list_commands(device_id: str, db: Session = Depends(get_db)):
                                         .order_by(Command.created_at.desc()).limit(50))]
 
 
-# ------------------------------------------------------------------ tình trạng từng cảm biến
-# (khoá sensor_ok do firmware gửi, tên, đại lượng đo, cột bắt buộc có giá trị)
 SENSORS = [("dht", "DHT22", "Nhiệt độ, độ ẩm", ["temp_dht", "hum"]),
            ("bmp", "BMP280", "Áp suất", ["pressure_msl"]),
            ("bh", "BH1750", "Ánh sáng", ["lux"]),
            ("rain", "YL-83", "Mưa", ["rain_raw"]),
            ("gas", "MQ-2", "Khí gas, khói", ["gas_raw", "gas_ppm"])]
-ADC_FLOOR_MV = 150   # ADC ESP32 (11 dB) không đọc được dưới ≈ 142 mV
+ADC_FLOOR_MV = 150
+RAIN_ADC_CEIL_MV = 3130
 STATION_STALE_S = 60
 
 
 @router.get("/sensors/{device_id}", tags=["devices"])
 def sensor_health(device_id: str, minutes: int = Query(10, ge=1, le=1440), db: Session = Depends(get_db)):
-    """Tình trạng từng cảm biến trong `minutes` phút gần nhất: ok | warn | error | unknown + lý do."""
     now = dt.datetime.now(dt.timezone.utc)
     rows = list(db.scalars(select(Telemetry).where(Telemetry.device_id == device_id,
                                                    Telemetry.ts >= now - dt.timedelta(minutes=minutes))
                            .order_by(Telemetry.ts)))
     last = rows[-1] if rows else None
-    if last is None:  # trong cửa sổ không có gì: lấy bản ghi cuối cùng để biết mất từ lúc nào
+    if last is None:
         last = db.scalars(select(Telemetry).where(Telemetry.device_id == device_id)
                           .order_by(Telemetry.ts.desc()).limit(1)).first()
     last_ts = as_utc(last.ts) if last else None
     online = bool(rows) and (now - as_utc(rows[-1].ts)).total_seconds() <= STATION_STALE_S
-    hhmm = lambda t: t.astimezone(dt.timezone(dt.timedelta(hours=7))).strftime("%H:%M:%S %d/%m")  # noqa: E731
+    hhmm = lambda t: t.astimezone(dt.timezone(dt.timedelta(hours=7))).strftime("%H:%M:%S %d/%m")
 
     def ok_row(r, key, cols):
         flags = ((r.extra or {}).get("sensor_ok") or {})
@@ -187,6 +181,10 @@ def sensor_health(device_id: str, minutes: int = Query(10, ge=1, le=1440), db: S
             s["status"], s["message"] = "warn", f"Chập chờn: {bad}/{len(oks)} lần đọc lỗi trong {minutes} phút"
         elif key == "gas" and (rows[-1].extra or {}).get("warming_up"):
             s["status"], s["message"] = "warn", "Đang làm nóng — chưa đánh giá khí"
+        elif key == "rain" and all((r.rain_raw or 0) >= RAIN_ADC_CEIL_MV for r in rows):
+            s["status"] = "warn"
+            s["message"] = (f"AO kẹt ở mức trần ADC (≈ 3134 mV) suốt {minutes} phút. Nếu đang có nước trên tấm: "
+                            "tấm cảm biến chưa nối vào module — kiểm tra dây 2 chân giữa tấm và module LM393")
         else:
             s["status"], s["message"] = "ok", "Hoạt động bình thường"
         out.append(s)
@@ -194,7 +192,6 @@ def sensor_health(device_id: str, minutes: int = Query(10, ge=1, le=1440), db: S
             "last_ts": last_ts.isoformat() if last_ts else None, "sensors": out}
 
 
-# ------------------------------------------------------------------ telemetry
 def _telemetry_df(db, device_id, t_from, t_to):
     q = select(Telemetry).where(Telemetry.device_id == device_id, Telemetry.ts >= t_from, Telemetry.ts <= t_to) \
         .order_by(Telemetry.ts)
@@ -254,7 +251,6 @@ def export_csv(device_id: str | None = None, from_: str | None = Query(None, ali
                              headers={"Content-Disposition": f"attachment; filename={device_id}_telemetry.csv"})
 
 
-# ------------------------------------------------------------------ alerts
 @router.get("/alerts", tags=["alerts"])
 def list_alerts(device_id: str | None = None, level: int | None = Query(None, ge=0, le=3),
                 min_level: int | None = Query(None, ge=0, le=3), source: str | None = None,
@@ -285,7 +281,6 @@ def ack_alert(alert_id: int, body: AckRequest | None = None, user: str = Depends
     return {"ok": True, "alert_id": alert_id}
 
 
-# ------------------------------------------------------------------ forecast & nowcast
 @router.get("/forecast/{device_id}", tags=["forecast"])
 def get_forecast(device_id: str, history_h: int = Query(48, le=24 * 30), db: Session = Depends(get_db)):
     latest = db.scalars(select(Forecast).where(Forecast.device_id == device_id)
@@ -311,13 +306,6 @@ def run_forecast(device_id: str, user: str = Depends(require_user)):
     return rt().forecast.run_once(device_id)
 
 
-@router.get("/nowcast/{device_id}", tags=["forecast"])
-def get_nowcast(device_id: str, limit: int = 50, db: Session = Depends(get_db)):
-    return [_row(n) for n in db.scalars(select(Nowcast).where(Nowcast.device_id == device_id)
-                                        .order_by(Nowcast.ts.desc()).limit(limit))]
-
-
-# ------------------------------------------------------------------ models
 @router.get("/models", tags=["models"])
 def models(db: Session = Depends(get_db)):
     rows = db.scalars(select(ModelRegistryEntry).order_by(ModelRegistryEntry.name,
@@ -326,7 +314,6 @@ def models(db: Session = Depends(get_db)):
 
 
 def sync_registry(db: Session, path: str):
-    """Đồng bộ ml/models/registry.json vào bảng model_registry."""
     p = Path(path)
     if not p.exists():
         return 0

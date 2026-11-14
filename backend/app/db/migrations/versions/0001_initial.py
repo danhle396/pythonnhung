@@ -1,9 +1,3 @@
-"""Khởi tạo lược đồ + (nếu là TimescaleDB) hypertable, continuous aggregate 1m/10m/1h, retention 90 ngày.
-
-Revision ID: 0001
-Revises:
-Create Date: 2026-11-09
-"""
 import sqlalchemy as sa
 from alembic import op
 
@@ -29,7 +23,7 @@ def _has_timescale(bind) -> bool:
 
 
 def upgrade():
-    from app.db.models import Base  # ảnh chụp lược đồ ban đầu
+    from app.db.models import Base
     bind = op.get_bind()
     Base.metadata.create_all(bind=bind)
     if not _has_timescale(bind):

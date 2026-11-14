@@ -1,10 +1,10 @@
-# Build từ thư mục gốc repo: docker build -f backend/Dockerfile .
 FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 PYTHONUTF8=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
+# LightGBM cần thư viện OpenMP (libgomp) trên image slim
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
 COPY backend/requirements.txt backend/requirements.txt
 RUN pip install -r backend/requirements.txt
-# thư viện mlcore + pipeline (dùng chung code với phần huấn luyện) và model đã huấn luyện
 COPY ml/ ml/
 RUN pip install -e ml
 COPY backend/ backend/

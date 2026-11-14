@@ -1,7 +1,3 @@
-# Edge AI cảnh báo khí/khói: chuyển đổi MQ-2, trích feature cửa sổ trượt, model cây (gas_model.py; khi
-# AVAILABLE = False — chưa có dữ liệu đo thật để huấn luyện — chỉ chạy rule engine), debounce model, hợp nhất
-# với rule engine, phát hiện lỗi cảm biến. Thuần Python (test được trên PC).
-# Feature và công thức GIỐNG HỆT ml/src/gas_edge.py.
 import math
 
 import gas_model
@@ -13,7 +9,6 @@ N_FEATURES = 10
 MODE_RULE, MODE_MODEL, MODE_HYBRID = 0, 1, 2
 MODE_NAMES = ("rule", "model", "hybrid")
 
-# Lỗi MQ-2
 FAULT_NONE, FAULT_STUCK, FAULT_DISCONNECTED, FAULT_SATURATED = 0, 1, 2, 3
 
 if gas_model.N_FEATURES != N_FEATURES:
@@ -32,22 +27,20 @@ class Mq2Reading:
 
 
 def mq2_convert(adc_mv, p):
-    """Từ điện áp ADC (mV, sau phân áp) -> Rs (kΩ), Rs/R0 và ppm LPG."""
-    v = adc_mv / 1000.0 / p.divider  # điện áp thật ở chân AO
+    v = adc_mv / 1000.0 / p.divider
     if v < 0.001:
         v = 0.001
     if v > p.vc - 0.001:
         v = p.vc - 0.001
-    rs = p.rl_kohm * (p.vc - v) / v  # Rs = RL·(Vc − Vout)/Vout
+    rs = p.rl_kohm * (p.vc - v) / v
     ratio = rs / p.r0_kohm
     if ratio < 1e-3:
         ratio = 1e-3
-    ppm = p.curve_a * math.pow(ratio, p.curve_b)  # ppm = A·(Rs/R0)^B
+    ppm = p.curve_a * math.pow(ratio, p.curve_b)
     return Mq2Reading(v, rs, ratio, ppm)
 
 
 def mq2_calibrate_r0(rs_clean_kohm, clean_air_ratio=9.83):
-    """R0 = Rs_không_khí_sạch / 9.83"""
     return rs_clean_kohm / clean_air_ratio
 
 
@@ -92,7 +85,6 @@ class FeatureExtractor:
 
 
 class ModelLevelFilter:
-    """Debounce đầu ra model: tăng cấp khi model dự đoán ≥ cấp đó N mẫu liên tiếp, hạ cấp sau M mẫu."""
 
     def __init__(self, n_up=3, n_down=5):
         self.n_up, self.n_down = n_up, n_down
@@ -116,7 +108,6 @@ class ModelLevelFilter:
 
 
 class Mq2FaultDetector:
-    """Phát hiện lỗi MQ-2: giá trị đứng yên (stuck), mất kết nối (0 mV), bão hoà ADC."""
 
     def __init__(self):
         self.last = -1.0
@@ -132,7 +123,7 @@ class Mq2FaultDetector:
             self.fault = FAULT_DISCONNECTED
         elif self.high >= 5:
             self.fault = FAULT_SATURATED
-        elif self.same >= 300:  # tín hiệu MOS luôn có nhiễu; 5 phút y nguyên = bất thường
+        elif self.same >= 300:
             self.fault = FAULT_STUCK
         else:
             self.fault = FAULT_NONE
@@ -144,7 +135,7 @@ class EdgeOutput:
         self.level = 0
         self.rule_level = 0
         self.model_level = 0
-        self.score = 0.0  # 1 − P(Normal)
+        self.score = 0.0
         self.cause = 0
         self.warming_up = True
         self.f = None
@@ -168,7 +159,6 @@ class EdgeAI:
         o.f = f
         o.rule_level = self.rules.update(f[0], f[2], f[6])
         o.cause = self.rules.cause
-        # Chưa có model huấn luyện trên dữ liệu đo thật (AVAILABLE = False) -> chỉ chạy rule.
         m = self.mode if self.model.AVAILABLE else MODE_RULE
         if m != MODE_RULE:
             t0 = ticks_us()
@@ -185,7 +175,7 @@ class EdgeAI:
         elif m == MODE_MODEL:
             o.level = o.model_level
         else:
-            o.level = max(o.rule_level, o.model_level)  # model không hạ cấp rule
+            o.level = max(o.rule_level, o.model_level)
         if o.model_level > o.rule_level and m != MODE_RULE:
             o.cause |= CAUSE_MODEL
         return o

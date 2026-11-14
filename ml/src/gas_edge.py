@@ -1,23 +1,3 @@
-"""Bản tham chiếu (NumPy) cho logic Edge AI cảnh báo khí/khói — firmware/src/edge_ai.py và alert.py (MicroPython)
-cài đặt Y HỆT các công thức dưới đây (cùng thứ tự feature; ml/tests/test_edge_parity.py kiểm tra).
-
-MQ-2:  Rs = RL·(Vc − Vout)/Vout,  ratio = Rs/R0,  ppm(LPG) = A·ratio^B  (A = 574.25, B = −2.222)
-Feature (lấy mẫu 1 Hz):
-    x0 gas_ppm   : ppm sau lọc median-5 + EWMA
-    x1 rs_r0     : Rs/R0
-    x2 slope10   : độ dốc bình phương tối thiểu của ppm trong 10 s gần nhất (ppm/s)
-    x3 std30     : độ lệch chuẩn ppm trong 30 s
-    x4 dev_base  : ppm − baseline động (baseline EWMA α=0.005, chỉ cập nhật khi |ppm − baseline| < 100)
-    x5 temp      : nhiệt độ (°C)
-    x6 dtemp_min : độ dốc nhiệt độ trong 60 s (°C/phút)
-    x7 hum       : độ ẩm (%)
-    x8 dhum_min  : độ dốc độ ẩm trong 60 s (%/phút)
-    x9 lux_rel   : (lux − lux_base) / (lux_base + 10), lux_base = EWMA α=0.005, chỉ cập nhật khi |lux_rel| < 0.08
-                   (khói che sáng làm lux giảm so với nền chậm; nền không bị kéo theo khi đang có khói)
-Rule engine 4 cấp với hysteresis & debounce; fusion: level = max(rule_level, model_level)
-(model không bao giờ hạ cấp do rule đưa ra). Không có model (chưa có dữ liệu đo thật để huấn luyện,
-gas_model.AVAILABLE = False trong firmware) -> mọi chế độ đều chạy như 'rule'.
-"""
 from __future__ import annotations
 
 from collections import deque
@@ -80,14 +60,14 @@ class FeatureExtractor:
 
 @dataclass
 class RuleConfig:
-    th1: float = 300.0      # ppm: Advisory
-    th2: float = 1000.0     # ppm: Warning
-    th3: float = 2000.0     # ppm: Danger (≈10% LEL của LPG)
-    slope1: float = 15.0    # ppm/s: tăng bất thường -> Advisory
-    dtemp3: float = 1.0     # °C/phút: Warning + nhiệt tăng nhanh -> Danger
-    hyst: float = 0.15      # phải xuống dưới ngưỡng·(1 − hyst) mới hạ cấp
-    debounce_up: int = 3    # số mẫu liên tiếp để tăng cấp (cấp 3 tăng ngay)
-    debounce_down: int = 5  # số mẫu liên tiếp để hạ cấp
+    th1: float = 300.0
+    th2: float = 1000.0
+    th3: float = 2000.0
+    slope1: float = 15.0
+    dtemp3: float = 1.0
+    hyst: float = 0.15
+    debounce_up: int = 3
+    debounce_down: int = 5
 
 
 class RuleEngine:
@@ -143,7 +123,6 @@ class RuleEngine:
 
 
 class ModelLevelFilter:
-    """Debounce cho đầu ra model: tăng cấp khi model dự đoán ≥ cấp đó N mẫu liên tiếp, hạ cấp sau M mẫu."""
 
     def __init__(self, n_up=3, n_down=5):
         self.n_up, self.n_down = n_up, n_down
@@ -168,7 +147,6 @@ class ModelLevelFilter:
 
 
 class EdgeEngine:
-    """Bản Python của toàn bộ chuỗi xử lý tại ESP32. mode: 'rule' | 'model' | 'hybrid' ('rule' nếu model=None)."""
 
     def __init__(self, model=None, mode="hybrid", rule_cfg: RuleConfig | None = None, warmup_s=0):
         self.fx = FeatureExtractor()
@@ -193,14 +171,12 @@ class EdgeEngine:
 
 
 def extract_features_stream(df):
-    """Tính feature cho cả chuỗi (DataFrame 1 Hz có gas_ppm, rs_r0, temp, hum, lux)."""
     fx = FeatureExtractor()
     cols = [df[c].to_numpy(dtype=float) for c in ["gas_ppm", "rs_r0", "temp", "hum", "lux"]]
     return np.vstack([fx.update(*vals) for vals in zip(*cols)])
 
 
 def run_levels_vectorized(F, model_classes_pred, mode, rule_cfg=None):
-    """Chạy rule engine + debounce model trên ma trận feature đã tính sẵn (nhanh hơn EdgeEngine)."""
     rules = RuleEngine(rule_cfg)
     mf = ModelLevelFilter()
     out = np.zeros(len(F), dtype=int)
