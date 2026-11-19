@@ -90,14 +90,14 @@ def test_sensor_health_reports_each_sensor(app_client):
     assert app_client.get("/api/sensors/khongco").json()["sensors"][0]["status"] == "unknown"
 
 
-def test_sensor_health_flags_rain_stuck_at_adc_ceiling(app_client):
+def test_sensor_health_dry_rain_plate_at_adc_ceiling_is_ok(app_client):
     r = rt()
     t0 = now_ts() - 50
     rows = [r.mqtt.handle("vku/aiot/station01/telemetry", tel(200 + i, t0 + i * 10, rain_raw=3134))
             for i in range(5)]
     r.mqtt.flush(rows)
     st = {s["sensor"]: s for s in app_client.get("/api/sensors/station01").json()["sensors"]}
-    assert st["rain"]["status"] == "warn" and "trần ADC" in st["rain"]["message"]
+    assert st["rain"]["status"] == "ok"
     rows = [r.mqtt.handle("vku/aiot/station01/telemetry", tel(300, t0 + 55, rain_raw=3010))]
     r.mqtt.flush(rows)
     st = {s["sensor"]: s for s in app_client.get("/api/sensors/station01").json()["sensors"]}
@@ -300,6 +300,95 @@ def test_forecast_skipped_when_open_meteo_unavailable(app_client, monkeypatch):
     assert r.forecast.run_once("station01")["source"] == "unavailable"
     assert len(r.publisher.published) == n_pub
     assert app_client.get("/api/forecast/station01").json()["latest"] == []
+
+
+def _members(fracs, n=10):
+    """Ensemble giả theo giờ địa phương (giờ hiện tại = fracs[0]): tỉ lệ thành viên mưa 5 mm = fracs[k], không gọi mạng."""
+    import pandas as pd
+    t0 = pd.Timestamp.now(tz="Asia/Ho_Chi_Minh").tz_localize(None).floor("h")
+    idx = [t0 + pd.Timedelta(hours=k) for k in range(len(fracs))]
+    rows = [[5.0 if j < round(f * n) else 0.0 for j in range(n)] for f in fracs]
+    df = pd.DataFrame(rows, index=pd.DatetimeIndex(idx), columns=[f"m{j}" for j in range(n)])
+    return {"ecmwf": df, "gfs": df.copy(), "icon": df.copy()}
+
+
+FRACS = [0.6, 0.1, 0.5, 0.3, 0.5, 0.6, 0.7, 0.8]
+
+
+def test_rain_from_free_ensemble_with_station_adjustment(app_client, monkeypatch):
+    r = rt()
+    monkeypatch.setattr(r.forecast.s, "use_open_meteo", True)
+    monkeypatch.setattr(r.forecast.s, "use_rain_ensemble", True)
+    monkeypatch.setattr(r.forecast, "_open_meteo_recent", lambda: _open_meteo_frame(temp_mean=24.0))
+    monkeypatch.setattr(r.forecast, "_ensemble_members", lambda: _members(FRACS))
+    p = r.forecast.run_once("station01")
+    assert p["source"] == "open-meteo+ensemble" and p["rain_source"] == "ensemble"
+    get = {(i["target"], i["h"]): i["value"] for i in p["items"]}
+    for h in (1, 3, 6):
+        assert get[("rain_ens", h)] == pytest.approx(FRACS[h]), "mặc định: gộp 3 mô hình, ngưỡng 1 mm"
+        assert get[("rain_prob", h)] == pytest.approx(FRACS[h]), "trạm không báo mưa → giữ nguyên"
+        assert ("rain_ml", h) in get
+    assert ("temp", 1) in get
+    fc = app_client.get("/api/forecast/station01").json()
+    assert {x["target"] for x in fc["latest"]} >= {"rain_prob", "rain_ens", "rain_ml", "temp", "hum"}
+
+    # YL-83 đang báo mưa → +10 điểm ở +1h, +5 ở +3h, 0 ở +6h
+    m = r.mqtt
+    m.flush([m.handle("vku/aiot/station01/telemetry", tel(9000, rain_level=2))])
+    get = {(i["target"], i["h"]): i["value"] for i in r.forecast.run_once("station01")["items"]}
+    assert get[("rain_prob", 1)] == pytest.approx(0.20)
+    assert get[("rain_prob", 3)] == pytest.approx(0.35)
+    assert get[("rain_prob", 6)] == pytest.approx(0.70)
+
+
+def test_rain_ensemble_without_open_meteo_and_lightgbm_fallback(app_client, monkeypatch):
+    r = rt()
+    monkeypatch.setattr(r.forecast.s, "use_rain_ensemble", True)
+    monkeypatch.setattr(r.forecast, "_ensemble_members", lambda: _members([0.5] * 8))
+    p = r.forecast.run_once("station01")
+    assert p["source"] == "ensemble"
+    assert {i["target"] for i in p["items"]} == {"rain_prob", "rain_ens"}
+
+    def boom():
+        raise OSError("mất mạng")
+    monkeypatch.setattr(r.forecast, "_ensemble_members", boom)
+    monkeypatch.setattr(r.forecast.s, "use_open_meteo", True)
+    monkeypatch.setattr(r.forecast, "_open_meteo_recent", lambda: _open_meteo_frame(temp_mean=24.0))
+    p = r.forecast.run_once("station01")
+    assert p["source"] == "open-meteo" and p["rain_source"] == "lightgbm"
+    assert ("rain_prob", 3) in {(i["target"], i["h"]) for i in p["items"]}
+
+
+def test_google_numbers_entered_by_hand_then_calibrate(app_client, token, monkeypatch):
+    import pandas as pd
+    r = rt()
+    fracs = [0.1 * (k % 11) for k in range(60)]
+    monkeypatch.setattr(r.forecast, "_ensemble_members", lambda: _members(fracs))
+    t0 = pd.Timestamp.now(tz="Asia/Ho_Chi_Minh").tz_localize(None).floor("h")
+    google = lambda k: 20 + 50 * fracs[k]  # "Google" nén thang xác suất: 0 % → 20 %, 100 % → 70 %
+    body = {"items": [{"valid_at": (t0 + pd.Timedelta(hours=k)).isoformat(), "pct": google(k)} for k in range(1, 6)]}
+    assert app_client.post("/api/rain/google", json=body).status_code == 401
+    res = app_client.post("/api/rain/google", json=body, headers=token).json()
+    assert len(res["saved"]) == 5 and res["skipped"] == []
+    out = app_client.get("/api/rain/google").json()
+    assert out["metrics"]["n"] == 5 and out["calibration"]["version"] == "ens-default"
+    assert app_client.post("/api/rain/calibrate", headers=token).status_code == 422, "chưa đủ dữ liệu"
+    bad = {"items": [{"valid_at": t0.isoformat(), "pct": 130}]}
+    assert app_client.post("/api/rain/google", json=bad, headers=token).status_code == 422
+
+    body = {"items": [{"valid_at": (t0 + pd.Timedelta(hours=k)).isoformat(), "pct": google(k)} for k in range(6, 54)]}
+    assert len(app_client.post("/api/rain/google", json=body, headers=token).json()["saved"]) == 48
+    before = app_client.get("/api/rain/google").json()["metrics"]
+    c = app_client.post("/api/rain/calibrate", headers=token).json()
+    assert c["version"].startswith("ens-") and c["n"] == 53
+    after = app_client.get("/api/rain/google").json()
+    assert after["calibration"]["version"] == c["version"]
+    assert after["metrics"]["MAE"] < before["MAE"] and after["metrics"]["within10"] == 1.0
+
+    # lượt dự báo sau dùng ngay hiệu chỉnh mới
+    monkeypatch.setattr(r.forecast.s, "use_rain_ensemble", True)
+    get = {(i["target"], i["h"]): i["value"] for i in r.forecast.run_once("station01")["items"]}
+    assert get[("rain_ens", 1)] * 100 == pytest.approx(google(1), abs=2)
 
 
 def test_models_endpoint_and_health(app_client):

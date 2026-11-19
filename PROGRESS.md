@@ -4,11 +4,11 @@
 > Phiên làm việc tiếp theo: đọc `task.md` (mục 0 — 3 nguyên tắc bắt buộc, trong đó **Nguyên tắc 3: luôn đồng bộ mọi thứ**)
 > → file này, rồi làm tiếp mục "CÒN LẠI" theo thứ tự. Cập nhật file này và `task.md` sau mỗi hạng mục hoàn thành.
 
-Cập nhật lần cuối: 2026-11-13 (đồng bộ task.md với code, thêm nguyên tắc đồng bộ)
+Cập nhật lần cuối: 2026-11-19 (đợt 12: task.md theo template, có khối TRẠNG THÁI; 97 test pass)
 
 ## ĐÃ XONG (đã chạy và kiểm chứng)
 
-### ML — `ml/` (task.md §8), chỉ dùng NumPy/pandas, không dùng thư viện ML
+### ML — `ml/` (task.md §1.2–1.11), chỉ dùng NumPy/pandas, không dùng thư viện ML
 - [x] `ml/mlcore/`: preprocessing, model_selection, metrics, linear (OLS/Ridge/Logistic + GD), smoothing (Holt-Winters),
       tree (CART histogram: hồi quy MSE/Newton, phân loại Gini/Entropy có trọng số lớp), ensemble (RF, GBDT MSE/log-loss,
       early stopping), anomaly (Isolation Forest, CUSUM, z-score theo giờ), nn (MLP, GRU + BPTT), optim (SGD/Momentum/Adam),
@@ -27,7 +27,7 @@ Cập nhật lần cuối: 2026-11-13 (đồng bộ task.md với code, thêm ng
       `gas_model` → không có model (`AVAILABLE = False`), firmware/`gas_edge.py` tự chạy rule khi chưa có model.
 - [x] `ml/src/forecast_infer.py`: suy luận dùng chung, bias correction trạm→Open-Meteo, khoảng tin cậy, fallback.
 
-### Firmware — `firmware/` (task.md §6) — **MicroPython** (từ 2026-11-12, xem Đợt 4)
+### Firmware — `firmware/` (task.md §2.2.2–2.2.4) — **MicroPython** (từ 2026-11-12, xem Đợt 4)
 - [x] 2 luồng (chính: cảm biến/edge/còi/TFT; mạng: `_thread`), `machine.WDT` 30 s, NTP, Wi-Fi/MQTT reconnect + LWT,
       đọc DHT22/BMP280/BH1750/YL-83/MQ-2 + lọc median/EWMA, rule engine 4 cấp (hysteresis/debounce), model cây,
       fusion hybrid, mute 5 phút, sensor_fault, đệm offline trên flash (2000 bản ghi), `/config.json` + ack,
@@ -36,7 +36,7 @@ Cập nhật lần cuối: 2026-11-13 (đồng bộ task.md với code, thêm ng
 - [x] `pytest firmware/tests` **33 test pass** (logic port từ bộ test C++, driver, đệm offline, toàn luồng trạm với
       schema backend, MQTT với broker tối giản + Mosquitto thật, mpy-cross biên dịch toàn bộ 20 module).
 
-### Backend — `backend/` (task.md §7, §10)
+### Backend — `backend/` (task.md §2.2.6–2.2.7)
 - [x] FastAPI + SQLAlchemy 2 (Postgres/Timescale hoặc SQLite), Alembic migration (hypertable, continuous aggregate, retention 90 ngày).
 - [x] MQTT ingest (validate Pydantic, loại giá trị ngoài dải vật lý, chống trùng, ghi lô, WebSocket), publisher cmd/config/forecast.
 - [x] Alert service: chính sách thông báo theo cấp, cooldown, nhắc lại cấp 3 tới khi ack, leo thang cloud (xu hướng ppm 10 phút,
@@ -182,13 +182,101 @@ Cập nhật lần cuối: 2026-11-13 (đồng bộ task.md với code, thêm ng
 - [x] Sơ đồ chân `wiring.drawio` (sửa tại chỗ): bỏ dòng chú thích ký hiệu và 2 câu ghi chú trang 2; `gen_wiring_drawio.py` bỏ theo;
       xuất lại `wiring-1/2.png` (cả `docs/report/figures/`), cập nhật slide 5–6 và `bao_cao.docx`. Slide viết gọn: bỏ câu bình
       luận, ghi chú trong ngoặc; nguồn số liệu trang 7–9 chỉ ghi tác giả — tên bài báo.
+- [x] **Giao diện dashboard theo phong cách bản giữa kỳ (mid)**: `.streamlit/config.toml` (bảng màu sáng/tối), `dashboard/theme.py`
+      (CSS + HTML tĩnh: thanh trên cùng, thanh thông tin, thẻ số đo viền màu, panel, bảng, biểu đồ Altair cùng tông); thanh điều
+      hướng chuyển từ sidebar lên đầu trang, đăng nhập trong nút tài khoản; Dockerfile chép `.streamlit/`. Test dashboard cập nhật (8 pass).
+- [x] **Docker đã kiểm tra lại** (Docker 29.9): build lại backend + dashboard; container backend nạp 9 mô hình LightGBM
+      (lightgbm 4.7.0, scikit-learn 1.9.1, có `libgomp1`), `POST /api/forecast/station01/run` trả dự báo mới từ Open-Meteo;
+      dashboard trong container đọc `.streamlit/config.toml`, hiển thị giao diện mới với dữ liệu trạm thật.
+### Đợt 8 (2026-11-16 → 19) — hiệu chỉnh phần cứng trạm thật, dashboard gọn, giảm độ trễ
+- [x] **Bỏ cầu phân áp MQ-2 (2026-11-16)**: AO nối thẳng GPIO32, `MQ2_DIVIDER = 1.0` (`config.py`, mặc định `Mq2Params`).
+      `wiring.drawio` sửa tại chỗ (xoá R1/R2, nối thẳng AO → GPIO32, rút ngắn thanh GND), `gen_wiring_drawio.py` theo;
+      xuất lại `wiring-1/2.png`; cập nhật `docs/hardware/README.md`, `task.md` §0.1/§2.1/§2.2, `ipo.md`, báo cáo §3.2. Nạp lại firmware lên bo.
+- [x] **YL-83**: AO kẹt ≈ 1,2 V cả khô lẫn ướt (DO ≈ 0,6 V) do **cắm sai dây module LM393**; sau khi sửa: khô 3134 mV, DO cao,
+      nhỏ vài giọt 2761–2964 mV (ngưỡng cũ 3130/3000/2900 báo nhầm "mưa to") → khô ≥ 3130, mưa phùn 2600–3129, mưa vừa
+      2000–2599, mưa to < 2000 mV. Ngưỡng tạm 1100/800/500 đặt nhầm lúc dây sai đã bỏ. ⚙ Thử thêm nhiều nước để chốt mưa vừa/to.
+- [x] **MQ-2 đo được**: trước đó GPIO32 bị ghim 0 V (142 mV = sàn ADC) do cắm sai dây AO; sửa xong: sạch ≈ 360–440 mV,
+      xịt gas bật lửa 2868 mV (Rs/R0 0,37 ≈ 5170 ppm) → edge báo cấp 3 (đèn đỏ + còi), hạ dần về 0 khi gas tan. AO max < 3,3 V.
+- [x] Backend `/api/sensors`: bỏ cảnh báo "YL-83 AO kẹt mức trần ADC 10 phút" — tấm khô đúng là đọc 3134 mV (trần), không phải lỗi.
+- [x] Dashboard trang Tổng quan: bỏ mục Firmware / Mô hình edge / Điểm AI edge khỏi thanh thông tin (vẫn xem ở trang Thiết bị).
+- [x] **Giảm độ trễ hiển thị**: telemetry 10 s → 5 s (`TELEMETRY_PERIOD_MS = 5000`, vẫn 1 s khi cấp ≥ 1), trang Tổng quan
+      làm mới 5 s → 2 s; cập nhật `mqtt.md`, `ipo.md`, `sequences.md` (vẽ lại PNG), báo cáo, kịch bản demo. Độ trễ đo thật
+      trạm → server: trung vị 1,47 s, P95 2,33 s (86 bản tin). Dashboard đã build lại; **firmware chưa nạp** (bo chưa cắm).
+- [x] Dashboard: bỏ dòng chân trang (địa chỉ API + câu "nguyên mẫu học thuật"); câu lưu ý vẫn giữ trong README và báo cáo.
+- [x] Slide `VKU-SLIDE.pptx`: bỏ dòng "Ràng buộc: 100 % Python, firmware MicroPython" (trang 2) và xoá ghi chú thuyết trình
+      (notes) của cả 10 trang; sửa bằng python-pptx, giữ nguyên chỉnh sửa tay của nhóm.
+- [x] `system_block_diagram.drawio` (sửa tại chỗ): ô TFT bỏ chữ "3 trang", nhãn MQTT "telemetry 10 s" → "telemetry 5 s";
+      xuất lại ảnh và thay vào slide 4 (cùng kích thước 3754×1014).
+
+### Đợt 9 (2026-11-19) — xác suất mưa miễn phí, học bắt chước Google
+- [x] **Chẩn đoán dự báo mưa sai**: nhãn Open-Meteo "mưa ≥ 0,1 mm/h" có ở 35 % số giờ, ~80 % số ngày (mô hình lưới ECMWF IFS
+      ô ≈ 9 km, tâm ô cách VKU ≈ 4 km, rải mưa phùn khắp ô); GBDT mưa chủ yếu học persistence (`is_rain` + `hours_since_rain`
+      = 52 % gain; F1 1h 0,830 so với 0,826). Đo thật 15:00 19/11: LightGBM 72/65/93 %, Open-Meteo 51/51/74 %;
+      giờ 17–21 h 20/11: Open-Meteo 100 % so với Google 70/70/60/40/50 % (lệch 30–60 điểm).
+- [x] **Yêu cầu mới**: xác suất mưa không lệch quá 10 điểm % so với Google tra cùng giờ tại VKU; **không tốn tiền**.
+- [x] Thử Google Maps Platform Weather API (cần bật billing) → **bỏ** theo yêu cầu không tốn tiền; đã xoá code
+      (`google_weather.py`) và biến `GOOGLE_WEATHER_API_KEY`.
+- [x] So nguồn miễn phí với 5 giờ Google: Open-Meteo ≥ 0,1 mm lệch TB 42; ensemble ICON ≥ 0,5 mm 15; gộp ECMWF + GFS + ICON
+      ≥ 1 mm 12 (chọn làm mặc định); ECMWF ≥ 2 mm 9. MET Norway và các mô hình JMA/KMA/CMA không có xác suất mưa ở VKU.
+- [x] `ml/src/rain_ensemble.py`: Open-Meteo Ensemble (ECMWF 51 + GFS 31 + ICON 40 phương án), đặc trưng = tỉ lệ phương án
+      ≥ 0,1/0,25/0,5/1/2/3 mm từng mô hình; `fit_calibration` (tìm kiếm lưới θ + trọng số, chấm MAE sau khớp tuyến tính;
+      IsotonicRegression nếu giảm MAE trên 30 % dữ liệu mới nhất; cần ≥ 40 giờ) → `ml/models/rain_calib.json`;
+      điều chỉnh trạm YL-83 (+10 / +5 / 0 điểm, tối đa 10).
+- [x] Backend: bảng `google_rain_obs` (migration `0003`), `POST/GET /api/rain/google`, `POST /api/rain/calibrate`;
+      forecast lưu `rain_prob` (hiển thị), `rain_ens`, `rain_ml`; bản tin `forecast` có `rain_source` (`ensemble`/`lightgbm`).
+      Cấu hình: `USE_RAIN_ENSEMBLE`, `RAIN_CALIB_PATH` (Docker: volume `backend-data`, giữ qua lần build lại), `RAIN_MAX_DEV_PCT = 10`, `STATION_FRESH_MIN = 15`.
+- [x] Dashboard trang Dự báo: thẻ "Mưa lúc +h giờ" (số ensemble + phần của trạm); khung "Xác suất mưa so với Google":
+      form nhập 5 ô, bảng Google vs hệ thống, % số giờ lệch ≤ 10, nút "Học lại hiệu chỉnh" (khoá khi < 40 giờ).
+- [x] Test: ml +10 (`test_rain_ensemble.py`), backend +3, dashboard +1 → **97 test pass** (ml 31, backend 24, firmware 33, dashboard 9).
+      Chạy thật với mạng: lấy được 51 + 31 + 40 phương án; 5 giờ trong ảnh Google → mặc định 65/64/63/65/70 %.
+- [x] Đồng bộ: `task.md` (§1, §1.2, §5 cây thư mục, §7.1, §7.4, §7.5, §8.1, §8.2, §8.5, §9, §10, §12.1), `README.md`,
+      `ipo.md` + `sequences.md` + `diagrams.md` (vẽ lại PNG), `mqtt.md`, báo cáo (§1.3, §3, §4.4, §4.5, §5.1, §6.1, phụ lục,
+      tài liệu tham khảo [22]) + `.docx`, khung báo cáo, kịch bản demo, slide 4.
+- [ ] ⚙ **Nhập số Google** ở trang Dự báo (2–3 lần/ngày, 5 ô) tới ≥ 40 giờ → bấm "Học lại hiệu chỉnh" → điền kết quả vào báo cáo §5.1.
+
+### Đợt 10 (2026-11-19) — dọn tài liệu .md
+- [x] Xoá `docs/report/bao_cao_khung.md` (khung báo cáo), `docs/report/kich_ban_demo.md`, `docs/hardware/README.md`
+      — không code nào đọc. Kịch bản demo (chuẩn bị + bảng mốc thời gian) chuyển vào phụ lục B `bao_cao.md` (+ `.docx`);
+      checklist cấp điện chuyển sang `firmware/README.md`. Giữ các `.md` mà code đọc: `bao_cao.md` (→ `.docx`),
+      `docs/architecture/*.md` (→ PNG sơ đồ), `results_forecast.md`, `results_load_*.md` (dashboard, hình báo cáo).
+
+### Đợt 11 (2026-11-19) — tài liệu kiến trúc dễ đọc hơn
+- [x] Viết lại `docs/architecture/{ipo,diagrams,sequences,mqtt}.md` cho dễ đọc: mỗi file mở đầu bằng "dùng để làm gì", bảng
+      Input/Xử lý/Output tách thành gạch đầu dòng + bảng nhỏ, bảng tổng quan đánh số khớp IPO-1..6 (MQTT không có sơ đồ
+      riêng), `mqtt.md` tách topic chiều lên/chiều xuống và thêm bảng giải thích trường telemetry. Khối mermaid và tiêu đề
+      `##` giữ nguyên → không cần vẽ lại PNG.
+
+### Đợt 12 (2026-11-19) — `task.md` theo template
+- [x] Viết lại `task.md` theo template Task List: tiêu đề + Platform/Tool/Goal, **khối TRẠNG THÁI** ở đầu (số liệu chính, số
+      test, cảnh báo, bước tiếp theo — cập nhật sau mỗi lần thay đổi), đối tượng xử lý Type 1/Type 2, Pipeline; giữ §0 (3 nguyên
+      tắc, bảng đồng bộ thêm dòng "KPI / số liệu kết quả"); **Phase 1** phần mềm & ML (1.1 môi trường … 1.7 mưa miễn phí, 1.8
+      fusion edge, 1.11 kiểm chứng tương đương), **Phase 2** phần cứng/firmware/cloud/triển khai (2.1 kiến trúc + cấu trúc
+      repo, 2.2.1–2.2.8 hiện thực, 2.3 kiểm thử, 2.4 build & nạp, 2.5 hiện trường, 2.6 sign-off + Definition of Done, 2.8 báo
+      cáo); Timeline, Metrics Mục Tiêu (KPI), Rủi ro, Tài liệu tham khảo. Nội dung cũ giữ nguyên, chỉ sắp xếp lại.
+- [x] Sửa tham chiếu số mục cũ: `PROGRESS.md` (tiêu đề ML/Firmware/Backend), báo cáo §1.2 (`task.md` §1.2 → mục Metrics
+      Mục Tiêu) + sinh lại `.docx`.
+
+### Đợt 13 (2026-11-19) — hình chỉ còn sơ đồ draw.io
+- [x] Xoá toàn bộ `docs/report/figures/` (12 ảnh Mermaid, 5 biểu đồ matplotlib, 2 bản sao ảnh đấu dây).
+- [x] `system_block_diagram.drawio` thêm 2 trang (trang 1 giữ nguyên): **2 — Lược đồ CSDL** (9 bảng theo `models.py`),
+      **3 — Luồng cảnh báo khí** (sơ đồ tuần tự 13 bước). Xuất `system_block_diagram-1/2/3.png` bằng `tools/render_drawio.py`.
+- [x] Báo cáo còn 4 hình: 3.1 sơ đồ khối, 3.2 đấu dây (`docs/hardware/wiring-1/2.png`), 3.3 CSDL, 3.4 luồng cảnh báo;
+      bỏ 6 hình IPO (giữ bảng), 2 sơ đồ tuần tự (thay bằng mô tả từng bước) và 4 biểu đồ chương 5 (giữ bảng số liệu);
+      sinh lại `.docx`. Slide không đổi (vốn dùng ảnh draw.io).
+- [x] Xoá `tools/render_mermaid.py`, `tools/make_report_figures.py`; `train_forecast.py` không vẽ hình nữa; bỏ `matplotlib`
+      khỏi `ml/requirements.txt`; dashboard trang Mô hình bỏ lưới ảnh. `docs/architecture/*.md` bỏ khối Mermaid, trỏ tới trang draw.io.
+- [x] Đồng bộ: `README.md`, `task.md` (bảng đồng bộ §0, §1.1, §1.6, §2.1, cây thư mục), báo cáo phụ lục A. **97 test pass.**
 
 ## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
+- [ ] **Nhập số Google** (trang Dự báo → "Xác suất mưa so với Google") ≥ 40 giờ rồi bấm "Học lại hiệu chỉnh"; ghi % số giờ
+      lệch ≤ 10 trước/sau khi học vào báo cáo §5.1.
+- [ ] **Nạp firmware** có `TELEMETRY_PERIOD_MS = 5000` (`python firmware/deploy.py --port COM3`; nếu lỗi truyền thì chép từng file
+      bằng `mpremote fs cp`) — hoặc đặt `telemetry_ms = 5000` ở trang Thiết bị khi trạm online.
 - [ ] **Nguồn trạm**: board tự khởi động lại khi bật Wi-Fi (POWERON_RESET) khi cấp nguồn qua USB → dùng nguồn 5 V/2 A vào VIN.
-- [ ] **YL-83**: ADC kẹt 3134 mV (trần) kể cả khi nhỏ nước → kiểm tra dây tấm cảm biến ↔ LM393, AO (không phải DO) → GPIO34.
-- [ ] **MQ-2**: ADC kẹt 142 mV, `sensor_ok.gas = false` → kiểm tra VCC 5 V (VIN) và cầu phân áp 10k/20k → GPIO32.
+- [ ] Trạm mất kết nối MQTT (LWT) ≈ 15–20 s sau mỗi lần báo động cấp 3 (còi + đèn đỏ + đốt MQ-2) khi cấp nguồn USB → nguồn 5 V/2 A vào VIN.
+- [ ] YL-83: thử ướt nửa tấm / cả tấm để chốt ngưỡng mưa vừa/to (đang ước lượng 2600/2000 mV); ghi bảng hiệu chuẩn vào báo cáo §3.2.
 - [ ] Điền GVHD ở đầu `docs/report/bao_cao.md` (họ tên, MSSV đã điền) rồi chạy lại `python tools/md_to_docx.py docs/report/bao_cao.md`.
-- [ ] Quay video demo theo `docs/report/kich_ban_demo.md` (cần trạm thật).
+- [ ] Quay video demo theo phụ lục B `docs/report/bao_cao.md` (cần trạm thật).
 - [ ] Thu dữ liệu khí thật → `python -m aiot_ml.train_gas_edge --data ...`;
       cập nhật báo cáo 5.2, chạy lại `tools/make_report_figures.py`.
 - [ ] Chụp lại ảnh dashboard/Grafana khi trạm thật đã gửi dữ liệu (ảnh cũ chụp từ dữ liệu giả lập đã bị xoá).
@@ -197,12 +285,10 @@ Cập nhật lần cuối: 2026-11-13 (đồng bộ task.md với code, thêm ng
       sẵn Wi-Fi/MQTT từ cấu hình cũ). Đo `firmware/bench_device.py` (µs/bước edge, RAM trống) để điền báo cáo 5.5.
 - [ ] Đo đạc phần cứng (⚙ trong báo cáo chương 5): độ trễ edge, end-to-end Telegram P50/P95, 72 h, mất Wi-Fi, báo động giả,
       công suất; chụp ảnh lắp ráp.
-- [ ] Chạy thử `docker compose up -d` sau khi đổi lệnh sinh passwd của container mosquitto (đã kiểm tra `docker compose
-      config`; Docker Desktop chưa bật lúc chuyển đổi).
 
 ## VIỆC CẦN NGƯỜI LÀM (phần cứng — Claude không làm được)
 - Phần cứng của nhóm: còi active 2 chân (nối thẳng GPIO25, `BUZZER_ACTIVE_LOW = False`), màn TFT 1.8" ST7735 (SPI), LED xanh/đỏ (không có LED vàng, S8050, relay — `config.py`: `HAS_LED_YELLOW = False`, `HAS_RELAY = False`).
-- Mua MQ-2, điện trở phân áp 10k/20k; lắp theo `firmware/src/config.py`; đo lại `MQ2_RL_KOHM` trên module.
+- MQ-2 AO nối thẳng GPIO32 (không phân áp); lắp theo `firmware/src/config.py`; đo lại `MQ2_RL_KOHM` trên module.
 - `firmware/src/credentials.py` (Wi-Fi/MQTT). Nạp: `python firmware/deploy.py --port COM3` (hoặc Thonny với `--source`).
 - Burn-in MQ-2 24–48 h → lệnh `calibrate` (đo R0). Hiệu chuẩn YL-83 (`RAIN_MV_*`).
 - `python -m mpremote connect COM3 run firmware/bench_device.py` trên ESP32 thật để đo µs suy luận (khi đã có model).

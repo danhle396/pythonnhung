@@ -46,6 +46,19 @@ python -m mpremote connect COM5 repl         # xem log, Ctrl-] để thoát
   lệnh `{"cmd":"ota","url":"http://<IP máy>:8080/manifest.json"}` từ dashboard/API.
 - Đo thời gian Edge AI trên ESP32: `python -m mpremote connect COM5 run firmware/bench_device.py`.
 
+## Đấu dây và kiểm tra trước khi cấp điện
+
+Sơ đồ đấu dây: `docs/hardware/wiring-1.png` (cảm biến), `wiring-2.png` (còi, LED, màn TFT); chân theo `src/config.py`.
+Đổi chân: sửa `src/config.py` **và** `docs/hardware/gen_wiring_drawio.py`, rồi chạy
+`python docs/hardware/gen_wiring_drawio.py` và `python tools/render_drawio.py docs/hardware/wiring.drawio`.
+
+1. Đo thông mạch GND chung; không chập 5V–GND, 3V3–GND.
+2. Đo điện áp AO của MQ-2 (cấp 5 V) trong không khí sạch: phải ≤ 3,3 V vì AO nối thẳng GPIO32, không phân áp.
+3. Nạp firmware, mở REPL: log `[SENS] I2C ['0x23', '0x76'] BMP280:1 BH1750:1`; màn TFT hiện "Tram AIoT" rồi 3 trang luân phiên.
+4. Màn TFT trắng xoá / sai màu / lệch 1–2 hàng điểm ở mép → đổi `TFT_TAB` (`"black"` → `"green"` hoặc `"red"`); hình ngược →
+   `TFT_ROTATION = 3`. Cấp VCC màn = 3V3; **không** cấp 5 V nếu jumper J1 đã được hàn nối.
+5. MQ-2 cần làm nóng 24–48 giờ trước khi hiệu chuẩn R0 (lệnh `calibrate` trên dashboard).
+
 ## Kiểm thử trên PC
 
 ```bash

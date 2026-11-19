@@ -136,3 +136,12 @@ class CommandIn(BaseModel):
 
 class AckRequest(BaseModel):
     by: str | None = None
+
+
+class GoogleRainItem(BaseModel):
+    valid_at: dt.datetime = Field(description="Giờ địa phương (Asia/Ho_Chi_Minh) mà Google hiển thị, vd 2026-11-20T17:00")
+    pct: float = Field(ge=0, le=100, description="Xác suất mưa Google hiển thị (%)")
+
+
+class GoogleRainIn(BaseModel):
+    items: list[GoogleRainItem] = Field(min_length=1, max_length=48)

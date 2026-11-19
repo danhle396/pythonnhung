@@ -120,19 +120,10 @@ p1.comp(f"<b>BMP280</b> (GY-BMP280)<br>Áp suất<br>{g}I2C địa chỉ 0x76 (S
         [("VCC", "3V3"), ("GND", "GND"), ("SDA", "G21"), ("SCL", "G22"), ("CSB", ("3V3", "dashed")), ("SDO", ("GND", "dashed"))])
 p1.comp(f"<b>YL-83 + LM393</b><br>Mưa (4 mức)<br>{g}VCC lấy từ GPIO18: chỉ cấp khi đọc<br>(giảm ăn mòn tấm cảm biến)</font>",
         [("VCC", "G18"), ("GND", "GND"), ("DO", "G35"), ("AO", "G34")])
-ys = p1.comp(f"<b>MQ-2</b><br>Khí gas, khói · đốt nóng 5 V ≈ 150 mA<br>{g}AO → R1 → GPIO32; GPIO32 → R2 → GND<br>"
-             f"(AO tới 5 V → ≤ 3,33 V vào ADC)<br>"
-             f"DO: để trống (mức 5 V)</font>",
-             [("VCC", "5V"), ("GND", "GND"), ("AO", ("via", "R1 10 kΩ", "G32")), ("DO", None)], min_h=160, gap=90)
-cy = ys["AO"]
-nx = p1.pin_x - 240
-p1.dot(nx, cy, "#3949AB")
-p1.box(nx - 60, cy - 34, 120, 22, "→ GPIO32", "text;html=1;align=center;fontSize=12;fontColor=#3949AB;")
-p1.box(nx - 32, cy + 30, 64, 44, "R2<br>20 kΩ", S_RES)
-p1.line([(nx, cy), (nx, cy + 30)], "#3949AB", jump=False)
-p1.line([(nx, cy + 74), (nx, cy + 100), (p1.col["GND"][0], cy + 100)], GND, jump=False)
-p1.dot(p1.col["GND"][0], cy + 100, GND)
-p1.max_y["GND"] = cy + 100
+p1.comp(f"<b>MQ-2</b><br>Khí gas, khói · đốt nóng 5 V ≈ 150 mA<br>{g}AO nối thẳng GPIO32 (không phân áp)<br>"
+        f"ADC 11 dB đo tới ≈ 3,3 V<br>"
+        f"DO: để trống (mức 5 V)</font>",
+        [("VCC", "5V"), ("GND", "GND"), ("AO", "G32"), ("DO", None)], min_h=160, gap=90)
 p1.legend([(P5V, "5 V (VIN)", False), (P3V3, "3,3 V", False), (GND, "GND", False), (SDA, "I2C SDA", False),
            (SCL, "I2C SCL", False), (DHT, "DHT22 data", False)])
 

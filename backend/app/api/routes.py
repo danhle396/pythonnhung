@@ -17,7 +17,7 @@ from app.db.models import (Alert, Command, Device, DeviceConfig, Forecast, Model
                            Telemetry)
 from app.db.session import as_utc, get_db
 from app.runtime import rt
-from app.schemas.payloads import AckRequest, CommandIn, DeviceConfigIn
+from app.schemas.payloads import AckRequest, CommandIn, DeviceConfigIn, GoogleRainIn
 
 router = APIRouter(prefix="/api")
 RES = {"1m": "1min", "10m": "10min", "1h": "1h", "1d": "1D"}
@@ -128,7 +128,6 @@ SENSORS = [("dht", "DHT22", "Nhiệt độ, độ ẩm", ["temp_dht", "hum"]),
            ("rain", "YL-83", "Mưa", ["rain_raw"]),
            ("gas", "MQ-2", "Khí gas, khói", ["gas_raw", "gas_ppm"])]
 ADC_FLOOR_MV = 150
-RAIN_ADC_CEIL_MV = 3130
 STATION_STALE_S = 60
 
 
@@ -181,10 +180,6 @@ def sensor_health(device_id: str, minutes: int = Query(10, ge=1, le=1440), db: S
             s["status"], s["message"] = "warn", f"Chập chờn: {bad}/{len(oks)} lần đọc lỗi trong {minutes} phút"
         elif key == "gas" and (rows[-1].extra or {}).get("warming_up"):
             s["status"], s["message"] = "warn", "Đang làm nóng — chưa đánh giá khí"
-        elif key == "rain" and all((r.rain_raw or 0) >= RAIN_ADC_CEIL_MV for r in rows):
-            s["status"] = "warn"
-            s["message"] = (f"AO kẹt ở mức trần ADC (≈ 3134 mV) suốt {minutes} phút. Nếu đang có nước trên tấm: "
-                            "tấm cảm biến chưa nối vào module — kiểm tra dây 2 chân giữa tấm và module LM393")
         else:
             s["status"], s["message"] = "ok", "Hoạt động bình thường"
         out.append(s)
@@ -304,6 +299,33 @@ def get_forecast(device_id: str, history_h: int = Query(48, le=24 * 30), db: Ses
 @router.post("/forecast/{device_id}/run", tags=["forecast"])
 def run_forecast(device_id: str, user: str = Depends(require_user)):
     return rt().forecast.run_once(device_id)
+
+
+@router.post("/rain/google", tags=["forecast"])
+def add_google_rain(body: GoogleRainIn, user: str = Depends(require_user)):
+    """Nhập xác suất mưa Google tra trên Google Search (miễn phí) để so sánh và học hiệu chỉnh ensemble."""
+    tz = rt().settings.station_tz
+    stamps = [pd.Timestamp(i.valid_at) for i in body.items]
+    entries = [((t.tz_convert(tz).tz_localize(None) if t.tzinfo else t).floor("h"), i.pct)
+               for t, i in zip(stamps, body.items)]
+    try:
+        return rt().forecast.record_google(entries, user)
+    except Exception as e:
+        raise HTTPException(503, f"Không lấy được Open-Meteo Ensemble để chụp đặc trưng: {e}")
+
+
+@router.get("/rain/google", tags=["forecast"])
+def google_rain(limit: int = Query(200, le=2000)):
+    return rt().forecast.google_comparison(limit)
+
+
+@router.post("/rain/calibrate", tags=["forecast"])
+def calibrate_rain(user: str = Depends(require_user)):
+    try:
+        c = rt().forecast.calibrate()
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return {k: c[k] for k in ("version", "threshold", "weights", "n", "metrics")} | {"isotonic": bool(c["isotonic"])}
 
 
 @router.get("/models", tags=["models"])

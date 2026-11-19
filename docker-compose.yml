@@ -58,6 +58,8 @@ services:
       MQTT_USER: backend
       MQTT_PASS: ${MQTT_PASS:-backend-pass}
       DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:8501}
+      RAIN_CALIB_PATH: /app/data/rain_calib.json  # hiệu chỉnh mưa học từ số Google, giữ qua các lần build lại
+    volumes: [backend-data:/app/data]
     depends_on:
       db: {condition: service_healthy}
       mosquitto: {condition: service_healthy}
@@ -103,4 +105,5 @@ services:
 volumes:
   mosquitto-data:
   db-data:
+  backend-data:
   grafana-data:

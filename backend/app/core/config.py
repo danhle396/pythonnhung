@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     anomaly_model: str = str(REPO_DIR / "ml" / "models" / "gas_anomaly.json")
     scheduler_enabled: bool = True
     use_open_meteo: bool = True
+    # Xác suất mưa: Open-Meteo Ensemble (miễn phí) + hiệu chỉnh học bắt chước số Google nhập tay + trạm (YL-83)
+    use_rain_ensemble: bool = True
+    rain_calib_path: str = str(REPO_DIR / "ml" / "models" / "rain_calib.json")
+    rain_max_dev_pct: float = 10.0
+    station_fresh_min: int = 15
 
 
 @lru_cache

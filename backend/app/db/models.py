@@ -97,6 +97,17 @@ class Forecast(Base):
     source: Mapped[str | None] = mapped_column(String(16))
 
 
+class GoogleRainObs(Base):
+    """Xác suất mưa Google (tra trên Google Search, nhập tay) + đặc trưng ensemble chụp cùng lúc → học hiệu chỉnh."""
+    __tablename__ = "google_rain_obs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entered_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    valid_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
+    google_pct: Mapped[float] = mapped_column(Float)
+    features: Mapped[dict | None] = mapped_column(JSON)
+    entered_by: Mapped[str | None] = mapped_column(String(64))
+
+
 class DeviceConfig(Base):
     __tablename__ = "device_configs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

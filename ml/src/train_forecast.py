@@ -28,7 +28,6 @@ from .mdtable import align_tables
 from .serialize import dataset_hash, save_model
 from .tracking import ModelRegistry, log_experiment
 
-FIG_DIR = REPO_DIR / "docs" / "report" / "figures"
 GRU_NAME = "GRU (PyTorch)"
 
 
@@ -226,7 +225,6 @@ def main(argv=None):
         "n_features": len(cols), "features": cols, "train": [str(tr.min()), str(tr.max()), len(tr)],
         "val": [str(va.min()), str(va.max()), len(va)], "test": [str(te.min()), str(te.max()), len(te)],
         "data_hash": dhash, "seed": seed}}
-    test_preds = {}
     model_dir = MODELS_DIR / "forecast"
 
     gru_pred = {}
@@ -302,7 +300,6 @@ def main(argv=None):
             for name in preds:
                 print(f"  {name:15s} MAE={res[name]['MAE']:.3f} RMSE={res[name]['RMSE']:.3f}")
             results["regression"][key] = res
-            test_preds[key] = {k: base_te + v for k, v in preds.items()} | {"true": true_te}
             use_gbdt = res["_val_MAE"]["GBDT"] <= res["_val_MAE"]["Ridge"]
             bundle = {"features": cols, "target": target, "horizon": h, "kind": "delta",
                       "model": gb if use_gbdt else ridge, "scaler": None if use_gbdt else scaler,
@@ -370,7 +367,6 @@ def main(argv=None):
                                         "greater_is_better": True, "data_hash": dhash}, force=a.force_promote)
         log_experiment(f"forecast_{key}", cfg["gbdt_clf"], {k: v["F1"] for k, v in res.items() if not k.startswith("_")},
                        seed, gc_s)
-        test_preds[key] = {"true": yte, **probs_te}
         if key == "rain_3h":
             results["importance"]["rain_3h_split_gain"] = gain_importance(gc, cols)
 
@@ -378,11 +374,11 @@ def main(argv=None):
     EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
     (EXPERIMENTS_DIR / "forecast_results.json").write_text(json.dumps(results, indent=2, ensure_ascii=False,
                                                                       default=float), encoding="utf-8")
-    write_report(results, test_preds, te)
+    write_report(results)
     print(f"\nXong trong {results['timing']['total_s']:.0f}s. Kết quả: {EXPERIMENTS_DIR / 'forecast_results.json'}")
 
 
-def write_report(results, test_preds, te_idx):
+def write_report(results):
     lines = ["# Kết quả dự báo thời tiết (tập test 2025)", "",
              f"Dữ liệu: Open-Meteo theo giờ tại VKU. Train {results['meta']['train'][0][:10]} → "
              f"{results['meta']['train'][1][:10]}, val 2024, test {results['meta']['test'][0][:10]} → "
@@ -430,36 +426,6 @@ def write_report(results, test_preds, te_idx):
     out = REPO_DIR / "docs" / "report" / "results_forecast.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(align_tables("\n".join(lines) + "\n"), encoding="utf-8")
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        FIG_DIR.mkdir(parents=True, exist_ok=True)
-        idx = pd.DatetimeIndex(te_idx)
-        win = (idx >= "2025-11-01") & (idx < "2025-11-15")
-        fig, axes = plt.subplots(2, 1, figsize=(12, 6.5), sharex=True)
-        for ax, key, unit in zip(axes, ["temp_3h", "hum_3h"], ["°C", "%"]):
-            tp = test_preds[key]
-            ax.plot(idx[win], tp["true"][win], "k-", lw=1.4, label="Thực tế")
-            for name, style in [("Persistence", ":"), ("Ridge", "--"), ("GBDT", "-")]:
-                ax.plot(idx[win], tp[name][win], style, lw=1, label=name)
-            ax.set_ylabel(f"{key} ({unit})")
-            ax.grid(alpha=0.3)
-        axes[0].legend(ncol=4, fontsize=8)
-        axes[0].set_title("Dự báo 3h — 1–14/11/2025 (tập test, mùa mưa)")
-        fig.tight_layout()
-        fig.savefig(FIG_DIR / "forecast_3h_nov2025.png", dpi=120)
-        plt.close(fig)
-        sg = results["importance"].get("temp_1h_split_gain")
-        if sg:
-            fig, ax = plt.subplots(figsize=(7, 5))
-            ax.barh([s[0] for s in sg[:12]][::-1], [s[1] for s in sg[:12]][::-1])
-            ax.set_title("Gain importance — LightGBM temp_1h")
-            fig.tight_layout()
-            fig.savefig(FIG_DIR / "importance_temp_1h.png", dpi=120)
-            plt.close(fig)
-    except Exception as e:
-        print("Bỏ qua vẽ hình:", e)
 
 
 if __name__ == "__main__":
