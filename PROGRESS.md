@@ -4,7 +4,7 @@
 > Phiên làm việc tiếp theo: đọc `task.md` (mục 0 — 3 nguyên tắc bắt buộc, trong đó **Nguyên tắc 3: luôn đồng bộ mọi thứ**)
 > → file này, rồi làm tiếp mục "CÒN LẠI" theo thứ tự. Cập nhật file này và `task.md` sau mỗi hạng mục hoàn thành.
 
-Cập nhật lần cuối: 2026-11-19 (đợt 12: task.md theo template, có khối TRẠNG THÁI; 97 test pass)
+Cập nhật lần cuối: 2026-11-19 (đợt 14: sơ đồ khối khớp code, slide + báo cáo thay ảnh; 97 test pass)
 
 ## ĐÃ XONG (đã chạy và kiểm chứng)
 
@@ -266,6 +266,17 @@ Cập nhật lần cuối: 2026-11-19 (đợt 12: task.md theo template, có kh�
 - [x] Xoá `tools/render_mermaid.py`, `tools/make_report_figures.py`; `train_forecast.py` không vẽ hình nữa; bỏ `matplotlib`
       khỏi `ml/requirements.txt`; dashboard trang Mô hình bỏ lưới ảnh. `docs/architecture/*.md` bỏ khối Mermaid, trỏ tới trang draw.io.
 - [x] Đồng bộ: `README.md`, `task.md` (bảng đồng bộ §0, §1.1, §1.6, §2.1, cây thư mục), báo cáo phụ lục A. **97 test pass.**
+
+### Đợt 14 (2026-11-19) — sơ đồ khối khớp code, quy tắc "đồng bộ dự án = đồng bộ hết"
+- [x] So từng ô `system_block_diagram.drawio` trang 1 với code, sửa trực tiếp các ô (không sinh lại trang):
+      Backend "GBDT nhiệt độ, độ ẩm; Mưa: ensemble hiệu chỉnh theo Google + YL-83"; Open-Meteo thêm "Ensemble ECMWF/GFS/ICON → mưa";
+      nhãn mũi tên "4 ngày gần nhất + ensemble mưa"; Dashboard "Nhập số mưa Google"; TimescaleDB thêm `google_rain_obs`;
+      ml "RF khí (chờ dữ liệu MQ-2)"; ESP32 → Mosquitto "QoS 0 + seq" (client MicroPython chỉ publish QoS 0, trước ghi sai QoS 1).
+      Trang 2–3 và `wiring.drawio` đã kiểm tra: PNG xuất lại trùng khớp, không đổi.
+- [x] Xuất lại `system_block_diagram-1.png`; thay ảnh trang 4 `VKU-SLIDE.pptx` (`ppt/media/image3.png`); sinh lại `bao_cao.docx`
+      (Hình 3.1). `diagrams.md` mô tả trang 1 thêm phần mưa và QoS 0; `task.md` Metrics sửa "QoS 1" → "trạm QoS 0 + seq".
+- [x] `task.md` Nguyên tắc 3 thêm checklist **"ĐỒNG BỘ DỰ ÁN" = đồng bộ hết** (vẽ lại draw.io → PNG → slide → báo cáo → tài liệu
+      → test) và dòng bảng "Ảnh sơ đồ PNG → slide trang 4–6". **97 test pass.**
 
 ## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
 - [ ] **Nhập số Google** (trang Dự báo → "Xác suất mưa so với Google") ≥ 40 giờ rồi bấm "Học lại hiệu chỉnh"; ghi % số giờ

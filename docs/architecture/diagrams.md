@@ -22,9 +22,12 @@ python tools/md_to_docx.py docs/report/bao_cao.md
 Đọc từ trái sang phải:
 
 1. **Cảm biến** (5 loại) → **ESP32**: lọc nhiễu và tự quyết định cấp cảnh báo khí, bật còi, LED, màn TFT.
-2. ESP32 ⇄ **Mosquitto** ⇄ **Backend** qua MQTT. Trạm gửi số đo và cảnh báo lên; cloud gửi lệnh, cấu hình và dự báo xuống.
-3. **Backend** lưu dữ liệu vào TimescaleDB, dự báo thời tiết từ Open-Meteo, gửi Telegram/Email và phục vụ dashboard.
-4. **Huấn luyện offline** (`ml/`) tạo mô hình cho backend.
+2. ESP32 ⇄ **Mosquitto** ⇄ **Backend** qua MQTT. Trạm gửi số đo và cảnh báo lên (QoS 0, kèm số thứ tự `seq` và đệm
+   offline); cloud gửi lệnh, cấu hình và dự báo xuống.
+3. **Backend** lưu dữ liệu vào TimescaleDB, dự báo nhiệt độ/độ ẩm bằng GBDT từ Open-Meteo, gửi Telegram/Email và phục vụ
+   dashboard. Xác suất mưa lấy từ Open-Meteo Ensemble (ECMWF/GFS/ICON), hiệu chỉnh theo số Google nhập ở dashboard,
+   cộng thêm khi YL-83 đang báo mưa.
+4. **Huấn luyện offline** (`ml/`) tạo mô hình cho backend. Mô hình khí Random Forest cho edge chờ dữ liệu MQ-2 đo thật.
 
 Ý chính: **trạm tự quyết định cảnh báo, cloud lo phần nặng.**
 

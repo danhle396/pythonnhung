@@ -15,11 +15,13 @@
 > - Edge: rule 4 cấp ✅ | model khí ❌ (`gas_model.AVAILABLE = False`) | MQ-2 ✅ đo được | YL-83 ✅ ngưỡng tạm 2600/2000 mV
 > - ⚠️ Chưa có dữ liệu khí đo thật → edge chạy rule, bảng rule/model/hybrid còn trống; Isolation Forest/CUSUM đã cài nhưng không triển khai
 > - ⚠️ Firmware `TELEMETRY_PERIOD_MS = 5000` + ngưỡng YL-83 mới **chưa nạp** lên board; cấp nguồn USB làm board reset khi bật Wi-Fi
+> - Sơ đồ khối (drawio trang 1) khớp code: mưa = ensemble hiệu chỉnh theo Google + YL-83, trạm gửi QoS 0 + seq, RF khí chờ dữ liệu MQ-2 → đã thay ảnh ở slide 4 và báo cáo Hình 3.1
 > - **Bước tiếp theo NGAY:** `docker compose up -d --build backend dashboard` (~5 phút) → trang Dự báo nhập số Google 2–3 lần/ngày tới ≥ 40 giờ → bấm **Học lại hiệu chỉnh**
 
 **Cách cập nhật file này (sau MỖI lần thay đổi):** (1) sửa khối **TRẠNG THÁI** ở trên — ngày, số liệu, số test, cảnh báo, bước
 tiếp theo; (2) đánh dấu `[x]` / sửa mô tả mục liên quan cho khớp code; (3) ghi một đợt mới trong `PROGRESS.md` (nhật ký + CÒN LẠI);
-(4) rà bảng đồng bộ ở Nguyên tắc 3. Ký hiệu: `[x]` đã làm và đã kiểm chứng (test/chạy thật) · `[ ]` chưa làm · ⚙ cần phần
+(4) rà bảng đồng bộ ở Nguyên tắc 3; (5) khi người dùng nói **"đồng bộ dự án"** → làm **toàn bộ** checklist
+"ĐỒNG BỘ DỰ ÁN" ở Nguyên tắc 3, gồm cả vẽ lại draw.io và sửa slide. Ký hiệu: `[x]` đã làm và đã kiểm chứng (test/chạy thật) · `[ ]` chưa làm · ⚙ cần phần
 cứng/người làm · ~~gạch ngang~~ đã bỏ khỏi đề tài (có lý do) · ✅ xong · ⚠️ một phần/có vấn đề · ❌ chưa bắt đầu.
 
 **Mục tiêu chức năng:**
@@ -67,6 +69,18 @@ Open-Meteo Ensemble → tỉ lệ phương án ≥ θ mm → hiệu chỉnh theo
 > cùng một điều. **Mỗi thay đổi code phải cập nhật luôn mọi chỗ liên quan trong cùng một lần sửa**, không để "sửa sau".
 > Trước khi coi một việc là xong, rà theo bảng dưới và chạy lại toàn bộ test.
 >
+> **"ĐỒNG BỘ DỰ ÁN" = ĐỒNG BỘ HẾT, không chỉ phần chữ** (yêu cầu của người dùng, 2026-11-19). Khi được yêu cầu đồng bộ
+> dự án, hoặc khi có thay đổi mới, phải làm đủ các bước sau rồi mới báo xong:
+> 1. **Sơ đồ draw.io:** so từng ô/mũi tên của `system_block_diagram.drawio` (trang 1 sơ đồ khối, 2 CSDL, 3 luồng cảnh báo)
+>    và `wiring.drawio` với code hiện tại; chỗ nào thay đổi thì **vẽ lại** — sửa trực tiếp ô trong file (người dùng có chỉnh
+>    tay, không sinh lại cả trang) → xuất PNG `tools/render_drawio.py` → mở ảnh kiểm tra chữ không tràn ô.
+> 2. **Slide `VKU-SLIDE.pptx`:** thay ảnh (trang 4 = `system_block_diagram-1.png`, trang 5–6 = `wiring-1/2.png`) và sửa chữ
+>    trên slide cho khớp; kiểm tra ảnh trong slide trùng với PNG mới nhất.
+> 3. **Báo cáo:** sửa `bao_cao.md` (chữ + chú thích hình) → sinh lại `bao_cao.docx`.
+> 4. **Tài liệu:** `README.md`, `docs/architecture/*.md`, `firmware/README.md`, `task.md` (TRẠNG THÁI + mục liên quan),
+>    `PROGRESS.md` (đợt mới).
+> 5. `grep` tham chiếu cũ, chạy đủ 4 bộ test, số test ghi giống nhau ở mọi nơi.
+>
 > | Khi thay đổi…                                   | Phải cập nhật đồng bộ                                                                                                                                                                                         |
 > | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 > | Bất kỳ code nào                                 | `task.md` (**khối TRẠNG THÁI**, đánh dấu `[x]`, sửa mô tả cho khớp code), `PROGRESS.md` (nhật ký + mục CÒN LẠI), `README.md`                                                                                  |
@@ -75,7 +89,8 @@ Open-Meteo Ensemble → tỉ lệ phương án ≥ θ mm → hiệu chỉnh theo
 > | Bảng / cột CSDL (`backend/app/db/models.py`)    | migration Alembic mới trong `backend/app/db/migrations/versions/`, ERD: trang 2 của `system_block_diagram.drawio` (xuất lại PNG) + bảng trong `diagrams.md`, `task.md` §2.2.6, báo cáo chương 3                                                              |
 > | API REST/WS (`backend/app/api/`)                | `dashboard/app.py` + `dashboard/tests/` (fixture), `task.md` §2.2.6, `README.md`, báo cáo chương 4                                                                                                            |
 > | Target / feature / model ML                     | `ml/configs/*.json`, `ml/src/features.py`, `ml/models/registry.json`, `docs/report/results_*.md`, forecast service, dashboard, `task.md` §1.3–1.7, báo cáo chương 5, slide |
-> | Kiến trúc / luồng xử lý                         | `docs/architecture/system_block_diagram.drawio`, `ipo.md`, `diagrams.md`, `sequences.md`, xuất PNG `tools/render_drawio.py` → `system_block_diagram-N.png`, `task.md` Pipeline + §2.1, báo cáo chương 3                                   |
+> | Kiến trúc / luồng xử lý                         | `docs/architecture/system_block_diagram.drawio`, `ipo.md`, `diagrams.md`, `sequences.md`, xuất PNG `tools/render_drawio.py` → `system_block_diagram-N.png`, `task.md` Pipeline + §2.1, báo cáo chương 3, **slide 4** (thay ảnh + chữ)                                   |
+> | Ảnh sơ đồ PNG bất kỳ                            | slide `VKU-SLIDE.pptx` (trang 4: sơ đồ khối; trang 5–6: đấu dây) phải dùng đúng ảnh mới; sinh lại `bao_cao.docx`                                                                                              |
 > | Số lượng test                                   | `README.md` (mục Kiểm thử), `PROGRESS.md`, `docs/report/bao_cao.md` (chương 4, 6, phụ lục B), `task.md` TRẠNG THÁI + §2.3                                                                                     |
 > | KPI / số liệu kết quả                           | `task.md` TRẠNG THÁI + Metrics Mục Tiêu, `README.md`, báo cáo chương 5–6, slide                                                                                                                               |
 > | Báo cáo nguồn                                   | sinh lại `bao_cao.docx` (`tools/md_to_docx.py`, cần MS Word)                                                                                                                                                 |
@@ -804,7 +819,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | Hạng mục | Config | Current (đã đo) | Target | Pass Criterion trung gian |
 |----------|--------|-----------------|--------|---------------------------|
 | **Độ trễ cảnh báo tại edge** (vượt ngưỡng → còi) | rule, debounce 3 | ⚙ chờ đo (trường `edge_latency_ms`) | < 1 s | — |
-| **Độ trễ end-to-end** (cảm biến → Telegram) | QoS 1, cấp 2–3 | ⚙ chờ đo (trạm → server: P95 2,33 s) | < 5 s | — |
+| **Độ trễ end-to-end** (cảm biến → Telegram) | trạm QoS 0 + seq, cấp 2–3 | ⚙ chờ đo (trạm → server: P95 2,33 s) | < 5 s | — |
 | **Tỉ lệ mất gói MQTT** | QoS 1, 50 thiết bị × 1 msg/s | **0 %** | < 1 % | — |
 | **MAE nhiệt độ 1h** | GBDT, test 2025 | **0,299 °C** | < 1,0 °C | — |
 | **MAE độ ẩm 1h** | GBDT, test 2025 | **1,870 %RH** | < 5 %RH | — |
