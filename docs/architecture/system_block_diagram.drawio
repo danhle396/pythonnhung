@@ -13,10 +13,10 @@
                 <mxCell id="brk" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:17px&quot;&gt;Mosquitto broker&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Xác thực user / mật khẩu&lt;br&gt;ACL theo thiết bị&lt;br&gt;LWT online / offline&lt;br&gt;Retain status, config, forecast&lt;br&gt;vku/aiot/station01/…&lt;/span&gt;" vertex="1">
                     <mxGeometry height="260" width="230" x="820" y="40" as="geometry"/>
                 </mxCell>
-                <mxCell id="be" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:17px&quot;&gt;Backend · FastAPI&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Ingest: validate, chống trùng&lt;br&gt;Alert: độ dốc ppm, nhắc tới khi ack&lt;br&gt;Forecast GBDT từ Open-Meteo, 10 phút&lt;br&gt;nhiệt độ, độ ẩm, mưa · 1/3/6 h&lt;br&gt;REST API, WebSocket, JWT&lt;/span&gt;" vertex="1">
+                <mxCell id="be" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:17px&quot;&gt;Backend · FastAPI&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Ingest: validate, chống trùng&lt;br&gt;Alert: độ dốc ppm, nhắc tới khi ack&lt;br&gt;Dự báo 1/3/6 h, 10 phút: GBDT nhiệt độ, độ ẩm&lt;br&gt;Mưa: ensemble hiệu chỉnh theo Google + YL-83&lt;br&gt;REST API, WebSocket, JWT&lt;/span&gt;" vertex="1">
                     <mxGeometry height="260" width="320" x="1200" y="40" as="geometry"/>
                 </mxCell>
-                <mxCell id="dash" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Dashboard web&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Điện thoại hoặc laptop&lt;br&gt;Ack cảnh báo, cấu hình&lt;/span&gt;" vertex="1">
+                <mxCell id="dash" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Dashboard web&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Điện thoại hoặc laptop&lt;br&gt;Ack cảnh báo, cấu hình&lt;br&gt;Nhập số mưa Google&lt;/span&gt;" vertex="1">
                     <mxGeometry height="120" width="230" x="1650" y="40" as="geometry"/>
                 </mxCell>
                 <mxCell id="tele" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Telegram / Email&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Cảnh báo cấp 2–3&lt;br&gt;Bản tin dự báo 6 h sáng&lt;/span&gt;" vertex="1">
@@ -34,7 +34,7 @@
                 <mxCell id="e2" edge="1" parent="1" source="esp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.3076923076923077;exitDx=0;exitDy=0;entryX=0;entryY=0.3076923076923077;entryDx=0;entryDy=0;" target="brk">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="l2a" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" value="&lt;b&gt;MQTT / Wi-Fi&lt;/b&gt;&lt;br&gt;&lt;b&gt;QoS 1&lt;/b&gt;" vertex="1">
+                <mxCell id="l2a" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" value="&lt;b&gt;MQTT / Wi-Fi&lt;/b&gt;&lt;br&gt;&lt;b&gt;QoS 0 + seq&lt;/b&gt;" vertex="1">
                     <mxGeometry height="40" width="150" x="670" y="74" as="geometry"/>
                 </mxCell>
                 <mxCell id="l2b" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="telemetry 5 s&lt;br&gt;alert · status · ack" vertex="1">
@@ -91,13 +91,13 @@
                 <mxCell id="l8" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="SPI" vertex="1">
                     <mxGeometry height="22" width="60" x="625" y="340" as="geometry"/>
                 </mxCell>
-                <mxCell id="db" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;TimescaleDB&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;telemetry · alerts · forecasts&lt;/span&gt;" vertex="1">
+                <mxCell id="db" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;TimescaleDB&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;telemetry · alerts · forecasts&lt;br&gt;google_rain_obs&lt;/span&gt;" vertex="1">
                     <mxGeometry height="90" width="180" x="1155" y="440" as="geometry"/>
                 </mxCell>
-                <mxCell id="om" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Open-Meteo API&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Lịch sử 2021–2025 → huấn luyện&lt;br&gt;4 ngày gần nhất → đầu vào dự báo&lt;/span&gt;" vertex="1">
+                <mxCell id="om" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Open-Meteo API&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Lịch sử 2021–2025 → huấn luyện&lt;br&gt;4 ngày gần nhất → đầu vào dự báo&lt;br&gt;Ensemble ECMWF/GFS/ICON → mưa&lt;/span&gt;" vertex="1">
                     <mxGeometry height="90" width="216" x="1347" y="440" as="geometry"/>
                 </mxCell>
-                <mxCell id="ml" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Huấn luyện offline · ml/&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Học trên Open-Meteo 2021–2025&lt;br&gt;scikit-learn · LightGBM · statsmodels&lt;br&gt;LightGBM (dự báo) · Random Forest (khí)&lt;/span&gt;" vertex="1">
+                <mxCell id="ml" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Huấn luyện offline · ml/&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Học trên Open-Meteo 2021–2025&lt;br&gt;scikit-learn · LightGBM · statsmodels&lt;br&gt;LightGBM (dự báo) · RF khí (chờ dữ liệu MQ-2)&lt;/span&gt;" vertex="1">
                     <mxGeometry height="90" width="296" x="1584" y="440" as="geometry"/>
                 </mxCell>
                 <mxCell id="e9" edge="1" parent="1" source="be" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;startArrow=block;startFill=1;startSize=7;exitX=0.140625;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="db">
@@ -120,8 +120,8 @@
                 <mxCell id="l9" parent="1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="SQLAlchemy" vertex="1">
                     <mxGeometry height="22" width="100" x="1252" y="340" as="geometry"/>
                 </mxCell>
-                <mxCell id="l10" parent="1" style="text;html=1;align=right;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="4 ngày gần nhất" vertex="1">
-                    <mxGeometry height="22" width="110" x="1340" y="340" as="geometry"/>
+                <mxCell id="l10" parent="1" style="text;html=1;align=right;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="4 ngày gần nhất&lt;br&gt;+ ensemble mưa" vertex="1">
+                    <mxGeometry height="40" width="110" x="1340" y="331" as="geometry"/>
                 </mxCell>
                 <mxCell id="l11" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="model registry" vertex="1">
                     <mxGeometry height="22" width="160" x="1560" y="356" as="geometry"/>
