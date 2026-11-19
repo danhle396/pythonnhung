@@ -16,6 +16,8 @@ def app_client(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_TOKEN", "")
     monkeypatch.setenv("SMTP_HOST", "")
     monkeypatch.setenv("USE_OPEN_METEO", "false")
+    monkeypatch.setenv("USE_RAIN_ENSEMBLE", "false")
+    monkeypatch.setenv("RAIN_CALIB_PATH", str(tmp_path / "rain_calib.json"))
     monkeypatch.setenv("NOTIFY_COOLDOWN_S", "120")
     from app.core.config import get_settings
     get_settings.cache_clear()

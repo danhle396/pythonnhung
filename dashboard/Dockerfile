@@ -4,6 +4,7 @@ WORKDIR /app
 COPY dashboard/requirements.txt dashboard/requirements.txt
 RUN pip install -r dashboard/requirements.txt
 COPY dashboard/ dashboard/
+COPY .streamlit/ .streamlit/
 COPY docs/report/ docs/report/
 EXPOSE 8501
 CMD ["streamlit", "run", "dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]

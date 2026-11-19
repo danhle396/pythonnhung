@@ -18,10 +18,9 @@ thư viện chuẩn: **LightGBM** (GBDT dự báo), **scikit-learn** (Ridge, Log
 firmware/   ESP32 + MicroPython: cảm biến, edge AI, cảnh báo, MQTT client tự viết, đệm offline, màn TFT ST7735
 ml/         pipeline huấn luyện/suy luận (scikit-learn, LightGBM, statsmodels, PyTorch) + xuất Random Forest sang MicroPython
 backend/    FastAPI + SQLAlchemy + MQTT ingest + alert/forecast service + Telegram
-dashboard/  Streamlit (6 trang) + smoke test · grafana/  dashboard Grafana provision sẵn (tuỳ chọn)
+dashboard/  Streamlit (6 trang, giao diện `theme.py` + `.streamlit/config.toml`) + smoke test · grafana/  dashboard Grafana provision sẵn (tuỳ chọn)
 broker/     cấu hình Mosquitto (auth + ACL theo thiết bị, TLS tuỳ chọn)
-tools/      label_logger.py (thu dữ liệu khí có nhãn), load_test.py, make_report_figures.py, render_mermaid.py,
-            render_drawio.py, md_to_docx.py
+tools/      label_logger.py (thu dữ liệu khí có nhãn), load_test.py, render_drawio.py (draw.io → PNG), md_to_docx.py
 docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, báo cáo + slide (docs/report/)
 ```
 
@@ -64,10 +63,10 @@ Model mới chỉ được thăng cấp trong `ml/models/registry.json` khi tố
 
 ## Kiểm thử
 ```bash
-cd ml && pytest -q                    # 21 test: feature, luật edge ≡ firmware, Holt-Winters ≡ statsmodels, khớp MicroPython ↔ scikit-learn
-cd backend && pytest -q tests         # 21 test API, ingest, cảnh báo, forecast, integration với Mosquitto thật
+cd ml && pytest -q                    # 31 test: feature, luật edge ≡ firmware, Holt-Winters ≡ statsmodels, khớp MicroPython ↔ scikit-learn, ensemble mưa
+cd backend && pytest -q tests         # 24 test API, ingest, cảnh báo, forecast (mưa ensemble, học theo số Google), integration với Mosquitto thật
 pytest -q firmware/tests              # 33 test firmware MicroPython chạy trên PC (logic, driver, toàn luồng, mpy-cross)
-pytest -q dashboard/tests             # 8 test: 6 trang dashboard + ack + gửi cấu hình (API giả)
+pytest -q dashboard/tests             # 9 test: 6 trang dashboard + ack + gửi cấu hình + khung mưa so với Google (API giả)
 python tools/load_test.py --devices 50 --duration 60 --api http://localhost:8000
 ```
 
@@ -77,6 +76,7 @@ python tools/load_test.py --devices 50 --duration 60 --api http://localhost:8000
 | MAE nhiệt độ 1h (GBDT, test 2025)           | < 1.0 °C | **0.30 °C**                                                   |
 | MAE độ ẩm 1h                                | < 5 %RH  | **1.87 %RH**                                                  |
 | F1 mưa 3h tới                               | > 0.75   | **0.833**                                                     |
+| Xác suất mưa lệch Google (cùng giờ)         | ≤ 10 điểm % | ⚙ miễn phí: Open-Meteo Ensemble học theo số Google nhập tay ở trang Dự báo (5 giờ đo thử: lệch TB 12) |
 | Mất gói MQTT (50 thiết bị × 1 msg/s, QoS 1) | < 1 %    | **0 %**                                                       |
 | Độ trễ cảm biến → gửi thông báo             | < 5 s    | ⚙ chờ đo trên trạm thật                                       |
 | Mất gói, Docker + TimescaleDB (50 thiết bị) | < 1 %    | **0 %**, P95 broker 3.4 ms, CPU backend ≈ 10 %                |
@@ -89,15 +89,16 @@ hình ML cảnh báo khí: firmware chạy luật ngưỡng (`firmware/src/gas_m
 ## Tài liệu
 - Kế hoạch: `task.md` · Tiến độ: `PROGRESS.md`
 - MQTT: `docs/architecture/mqtt.md` · Sơ đồ tuần tự: `docs/architecture/sequences.md`
-- Sơ đồ khối: `docs/architecture/system_block_diagram.drawio` · Kiến trúc + ERD (Mermaid): `docs/architecture/diagrams.md`
+- Sơ đồ (draw.io, 3 trang: sơ đồ khối · CSDL · luồng cảnh báo): `docs/architecture/system_block_diagram.drawio` ·
+  giải thích: `docs/architecture/diagrams.md`
 - Toàn dự án theo mô hình Input – Xử lý – Output: `docs/architecture/ipo.md` · Firmware: `firmware/README.md`
 - **Báo cáo**: `docs/report/bao_cao.md` / `bao_cao.docx` · **Slide**: `docs/report/VKU-SLIDE.pptx` ·
-  Kịch bản demo/video: `docs/report/kich_ban_demo.md`
+  Kịch bản demo: phụ lục B của báo cáo
 
-### Sinh lại hình và báo cáo Word
+### Sinh lại sơ đồ và báo cáo Word
+Mọi hình trong báo cáo là sơ đồ draw.io, ảnh PNG nằm cạnh file `.drawio`.
 ```bash
-python tools/make_report_figures.py --api http://localhost:8000 --minutes 4 --start <mốc UTC kịch bản>   # hình kết quả
-python tools/render_mermaid.py       # sơ đồ Mermaid → PNG (Edge/Chrome có sẵn, điều khiển bằng Python qua CDP)
-python tools/render_drawio.py docs/hardware/wiring.drawio   # sơ đồ đấu dây → PNG
+python tools/render_drawio.py docs/architecture/system_block_diagram.drawio   # → system_block_diagram-1/2/3.png
+python tools/render_drawio.py docs/hardware/wiring.drawio                     # → wiring-1/2.png
 pip install markdown && python tools/md_to_docx.py docs/report/bao_cao.md   # → .docx (cần MS Word)
 ```

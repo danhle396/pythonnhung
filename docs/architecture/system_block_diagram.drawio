@@ -1,49 +1,330 @@
-<mxfile host="Electron">
-  <diagram id="block" name="So do khoi he thong">
-    <mxGraphModel dx="1600" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="600" math="0" shadow="0" background="#ffffff">
-      <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-        <mxCell id="sens" value="&lt;b style=&quot;font-size:17px&quot;&gt;Cảm biến&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;DHT22 · nhiệt độ, độ ẩm&lt;br&gt;BMP280 · áp suất&lt;br&gt;BH1750 · ánh sáng&lt;br&gt;YL-83 · mưa&lt;br&gt;MQ-2 · gas, khói&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="20" y="40" width="220" height="260" as="geometry"/></mxCell>
-        <mxCell id="esp" value="&lt;b style=&quot;font-size:17px&quot;&gt;ESP32 · MicroPython&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Đọc 1 Hz, lọc median-5 + EWMA&lt;br&gt;Quy đổi ppm, điểm sương, mức mưa&lt;br&gt;10 feature, cửa sổ 10–60 s&lt;br&gt;Rule 4 cấp, hysteresis, debounce&lt;br&gt;Còi, LED, TFT dưới 1 s, chạy offline&lt;br&gt;Đệm offline flash, WDT, OTA&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="370" y="40" width="300" height="260" as="geometry"/></mxCell>
-        <mxCell id="brk" value="&lt;b style=&quot;font-size:17px&quot;&gt;Mosquitto broker&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Xác thực user / mật khẩu&lt;br&gt;ACL theo thiết bị&lt;br&gt;LWT online / offline&lt;br&gt;Retain status, config, forecast&lt;br&gt;vku/aiot/station01/…&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="820" y="40" width="230" height="260" as="geometry"/></mxCell>
-        <mxCell id="be" value="&lt;b style=&quot;font-size:17px&quot;&gt;Backend · FastAPI&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Ingest: validate, chống trùng&lt;br&gt;Alert: độ dốc ppm, nhắc tới khi ack&lt;br&gt;Forecast GBDT từ Open-Meteo, 10 phút&lt;br&gt;nhiệt độ, độ ẩm, mưa · 1/3/6 h&lt;br&gt;REST API, WebSocket, JWT&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1200" y="40" width="320" height="260" as="geometry"/></mxCell>
-        <mxCell id="dash" value="&lt;b style=&quot;font-size:15px&quot;&gt;Dashboard web&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Điện thoại hoặc laptop&lt;br&gt;Ack cảnh báo, cấu hình&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1650" y="40" width="230" height="120" as="geometry"/></mxCell>
-        <mxCell id="tele" value="&lt;b style=&quot;font-size:15px&quot;&gt;Telegram / Email&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Cảnh báo cấp 2–3&lt;br&gt;Bản tin dự báo 6 h sáng&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1650" y="180" width="230" height="120" as="geometry"/></mxCell>
-        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.3076923076923077;exitDx=0;exitDy=0;entryX=0;entryY=0.3076923076923077;entryDx=0;entryDy=0;" edge="1" parent="1" source="sens" target="esp"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l1a" value="&lt;b&gt;I²C · GPIO · ADC&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="240" y="74" width="130" height="40" as="geometry"/></mxCell>
-        <mxCell id="l1b" value="đọc 1 Hz" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="240" y="124" width="130" height="24" as="geometry"/></mxCell>
-        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.3076923076923077;exitDx=0;exitDy=0;entryX=0;entryY=0.3076923076923077;entryDx=0;entryDy=0;" edge="1" parent="1" source="esp" target="brk"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l2a" value="&lt;b&gt;MQTT / Wi-Fi&lt;/b&gt;&lt;br&gt;&lt;b&gt;QoS 1&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="670" y="74" width="150" height="40" as="geometry"/></mxCell>
-        <mxCell id="l2b" value="telemetry 10 s&lt;br&gt;alert · status · ack" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="670" y="124" width="150" height="40" as="geometry"/></mxCell>
-        <mxCell id="e2r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;dashed=1;dashPattern=6 4;exitX=0;exitY=0.8076923076923077;exitDx=0;exitDy=0;entryX=1;entryY=0.8076923076923077;entryDx=0;entryDy=0;" edge="1" parent="1" source="brk" target="esp"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l2c" value="cmd · config · forecast" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="670" y="220" width="150" height="26" as="geometry"/></mxCell>
-        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.3076923076923077;exitDx=0;exitDy=0;entryX=0;entryY=0.3076923076923077;entryDx=0;entryDy=0;" edge="1" parent="1" source="brk" target="be"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l3a" value="&lt;b&gt;MQTT 1883&lt;/b&gt;&lt;br&gt;&lt;b&gt;subscribe&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1050" y="74" width="150" height="40" as="geometry"/></mxCell>
-        <mxCell id="l3b" value="ghi lô vào DB&lt;br&gt;đẩy WebSocket" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1050" y="124" width="150" height="40" as="geometry"/></mxCell>
-        <mxCell id="e3r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;dashed=1;dashPattern=6 4;exitX=0;exitY=0.8076923076923077;exitDx=0;exitDy=0;entryX=1;entryY=0.8076923076923077;entryDx=0;entryDy=0;" edge="1" parent="1" source="be" target="brk"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l3c" value="lệnh · cấu hình · dự báo" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1050" y="220" width="150" height="26" as="geometry"/></mxCell>
-        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;startArrow=block;startFill=1;startSize=7;exitX=1;exitY=0.23076923076923078;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="be" target="dash"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l4" value="&lt;b&gt;REST · WS&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1520" y="70" width="130" height="26" as="geometry"/></mxCell>
-        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.7692307692307693;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="be" target="tele"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l5" value="&lt;b&gt;Bot API · SMTP&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1520" y="210" width="130" height="26" as="geometry"/></mxCell>
-        <mxCell id="buz" value="&lt;b style=&quot;font-size:15px&quot;&gt;Còi + LED&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Xanh / đỏ theo cấp&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="380" y="440" width="140" height="90" as="geometry"/></mxCell>
-        <mxCell id="tft" value="&lt;b style=&quot;font-size:15px&quot;&gt;TFT 1.8&quot; ST7735&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;SPI, 3 trang&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="540" y="440" width="160" height="90" as="geometry"/></mxCell>
-        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.26666666666666666;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="esp" target="buz"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.8333333333333334;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="esp" target="tft"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="l7" value="GPIO" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="455" y="340" width="80" height="22" as="geometry"/></mxCell>
-        <mxCell id="l8" value="SPI" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="625" y="340" width="60" height="22" as="geometry"/></mxCell>
-        <mxCell id="db" value="&lt;b style=&quot;font-size:15px&quot;&gt;TimescaleDB&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;telemetry · alerts · forecasts&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1155" y="440" width="180" height="90" as="geometry"/></mxCell>
-        <mxCell id="om" value="&lt;b style=&quot;font-size:15px&quot;&gt;Open-Meteo API&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Lịch sử 2021–2025 → huấn luyện&lt;br&gt;4 ngày gần nhất → đầu vào dự báo&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1347" y="440" width="216" height="90" as="geometry"/></mxCell>
-        <mxCell id="ml" value="&lt;b style=&quot;font-size:15px&quot;&gt;Huấn luyện offline · ml/&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Học trên Open-Meteo 2021–2025&lt;br&gt;scikit-learn · LightGBM · statsmodels&lt;br&gt;LightGBM (dự báo) · Random Forest (khí)&lt;/span&gt;" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1584" y="440" width="296" height="90" as="geometry"/></mxCell>
-        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;startArrow=block;startFill=1;startSize=7;exitX=0.140625;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="be" target="db"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.796875;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="om" target="be"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="om" target="ml"><mxGeometry relative="1" as="geometry"></mxGeometry></mxCell>
-        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.9375;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="ml" target="be"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1732" y="380"/><mxPoint x="1500" y="380"/></Array></mxGeometry></mxCell>
-        <mxCell id="l9" value="SQLAlchemy" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1252" y="340" width="100" height="22" as="geometry"/></mxCell>
-        <mxCell id="l10" value="4 ngày gần nhất" style="text;html=1;align=right;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1340" y="340" width="110" height="22" as="geometry"/></mxCell>
-        <mxCell id="l11" value="model registry" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="1560" y="356" width="160" height="22" as="geometry"/></mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
+<mxfile host="65bd71144e">
+    <diagram id="block" name="So do khoi he thong">
+        <mxGraphModel dx="1910" dy="1987" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="600" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="sens" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:17px&quot;&gt;Cảm biến&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;DHT22 · nhiệt độ, độ ẩm&lt;br&gt;BMP280 · áp suất&lt;br&gt;BH1750 · ánh sáng&lt;br&gt;YL-83 · mưa&lt;br&gt;MQ-2 · gas, khói&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="260" width="220" x="20" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="esp" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:17px&quot;&gt;ESP32 · MicroPython&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Đọc 1 Hz, lọc median-5 + EWMA&lt;br&gt;Quy đổi ppm, điểm sương, mức mưa&lt;br&gt;10 feature, cửa sổ 10–60 s&lt;br&gt;Rule 4 cấp, hysteresis, debounce&lt;br&gt;Còi, LED, TFT dưới 1 s, chạy offline&lt;br&gt;Đệm offline flash, WDT, OTA&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="260" width="300" x="370" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="brk" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:17px&quot;&gt;Mosquitto broker&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Xác thực user / mật khẩu&lt;br&gt;ACL theo thiết bị&lt;br&gt;LWT online / offline&lt;br&gt;Retain status, config, forecast&lt;br&gt;vku/aiot/station01/…&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="260" width="230" x="820" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="be" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:17px&quot;&gt;Backend · FastAPI&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:13px&quot;&gt;Ingest: validate, chống trùng&lt;br&gt;Alert: độ dốc ppm, nhắc tới khi ack&lt;br&gt;Forecast GBDT từ Open-Meteo, 10 phút&lt;br&gt;nhiệt độ, độ ẩm, mưa · 1/3/6 h&lt;br&gt;REST API, WebSocket, JWT&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="260" width="320" x="1200" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="dash" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Dashboard web&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Điện thoại hoặc laptop&lt;br&gt;Ack cảnh báo, cấu hình&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="120" width="230" x="1650" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="tele" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Telegram / Email&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Cảnh báo cấp 2–3&lt;br&gt;Bản tin dự báo 6 h sáng&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="120" width="230" x="1650" y="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" edge="1" parent="1" source="sens" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.3076923076923077;exitDx=0;exitDy=0;entryX=0;entryY=0.3076923076923077;entryDx=0;entryDy=0;" target="esp">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l1a" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" value="&lt;b&gt;I²C · GPIO · ADC&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="40" width="130" x="240" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="l1b" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="đọc 1 Hz" vertex="1">
+                    <mxGeometry height="24" width="130" x="240" y="124" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" edge="1" parent="1" source="esp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.3076923076923077;exitDx=0;exitDy=0;entryX=0;entryY=0.3076923076923077;entryDx=0;entryDy=0;" target="brk">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l2a" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" value="&lt;b&gt;MQTT / Wi-Fi&lt;/b&gt;&lt;br&gt;&lt;b&gt;QoS 1&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="40" width="150" x="670" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="l2b" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="telemetry 5 s&lt;br&gt;alert · status · ack" vertex="1">
+                    <mxGeometry height="40" width="150" x="670" y="124" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2r" edge="1" parent="1" source="brk" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;dashed=1;dashPattern=6 4;exitX=0;exitY=0.8076923076923077;exitDx=0;exitDy=0;entryX=1;entryY=0.8076923076923077;entryDx=0;entryDy=0;" target="esp">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l2c" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="cmd · config · forecast" vertex="1">
+                    <mxGeometry height="26" width="150" x="670" y="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" edge="1" parent="1" source="brk" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.3076923076923077;exitDx=0;exitDy=0;entryX=0;entryY=0.3076923076923077;entryDx=0;entryDy=0;" target="be">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l3a" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=14;fontStyle=0;fontFamily=Helvetica;" value="&lt;b&gt;MQTT 1883&lt;/b&gt;&lt;br&gt;&lt;b&gt;subscribe&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="40" width="150" x="1050" y="74" as="geometry"/>
+                </mxCell>
+                <mxCell id="l3b" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="ghi lô vào DB&lt;br&gt;đẩy WebSocket" vertex="1">
+                    <mxGeometry height="40" width="150" x="1050" y="124" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3r" edge="1" parent="1" source="be" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;dashed=1;dashPattern=6 4;exitX=0;exitY=0.8076923076923077;exitDx=0;exitDy=0;entryX=1;entryY=0.8076923076923077;entryDx=0;entryDy=0;" target="brk">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l3c" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="lệnh · cấu hình · dự báo" vertex="1">
+                    <mxGeometry height="26" width="150" x="1050" y="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="e4" edge="1" parent="1" source="be" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;startArrow=block;startFill=1;startSize=7;exitX=1;exitY=0.23076923076923078;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="dash">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l4" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontStyle=0;fontFamily=Helvetica;" value="&lt;b&gt;REST · WS&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="26" width="130" x="1520" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="e5" edge="1" parent="1" source="be" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.7692307692307693;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="tele">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l5" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=13;fontStyle=0;fontFamily=Helvetica;" value="&lt;b&gt;Bot API · SMTP&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="26" width="130" x="1520" y="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="buz" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Còi + LED&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Xanh / đỏ theo cấp&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="90" width="140" x="380" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="tft" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;TFT 1.8&quot; ST7735&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;SPI&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="90" width="160" x="540" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="e7" edge="1" parent="1" source="esp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.26666666666666666;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="buz">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e8" edge="1" parent="1" source="esp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.8333333333333334;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="tft">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="l7" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="GPIO" vertex="1">
+                    <mxGeometry height="22" width="80" x="455" y="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="l8" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="SPI" vertex="1">
+                    <mxGeometry height="22" width="60" x="625" y="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="db" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;TimescaleDB&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;telemetry · alerts · forecasts&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="90" width="180" x="1155" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="om" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Open-Meteo API&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Lịch sử 2021–2025 → huấn luyện&lt;br&gt;4 ngày gần nhất → đầu vào dự báo&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="90" width="216" x="1347" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="ml" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=1.5;verticalAlign=middle;fontFamily=Helvetica;" value="&lt;b style=&quot;font-size:15px&quot;&gt;Huấn luyện offline · ml/&lt;/b&gt;&lt;br&gt;&lt;div style=&quot;height:6px&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Học trên Open-Meteo 2021–2025&lt;br&gt;scikit-learn · LightGBM · statsmodels&lt;br&gt;LightGBM (dự báo) · Random Forest (khí)&lt;/span&gt;" vertex="1">
+                    <mxGeometry height="90" width="296" x="1584" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="e9" edge="1" parent="1" source="be" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;startArrow=block;startFill=1;startSize=7;exitX=0.140625;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="db">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e10" edge="1" parent="1" source="om" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.796875;entryY=1;entryDx=0;entryDy=0;" target="be">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e12" edge="1" parent="1" source="om" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="ml">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e11" edge="1" parent="1" source="ml" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;endArrow=block;endFill=1;endSize=7;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.9375;entryY=1;entryDx=0;entryDy=0;" target="be">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1732" y="380"/>
+                            <mxPoint x="1500" y="380"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="l9" parent="1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="SQLAlchemy" vertex="1">
+                    <mxGeometry height="22" width="100" x="1252" y="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="l10" parent="1" style="text;html=1;align=right;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="4 ngày gần nhất" vertex="1">
+                    <mxGeometry height="22" width="110" x="1340" y="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="l11" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=0;fontFamily=Helvetica;" value="model registry" vertex="1">
+                    <mxGeometry height="22" width="160" x="1560" y="356" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="erd" name="Luoc do CSDL">
+        <mxGraphModel dx="1355" dy="1409" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="680" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="telemetry" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Helvetica;" value="telemetry" vertex="1">
+                    <mxGeometry height="242" width="270" x="40" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="telemetry_c" parent="telemetry" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;device_id&lt;/b&gt; 🔑&lt;br&gt;&lt;b&gt;ts&lt;/b&gt; 🔑&lt;br&gt;&lt;b&gt;seq&lt;/b&gt; 🔑&lt;br&gt;temp_dht, hum&lt;br&gt;pressure, pressure_msl&lt;br&gt;lux&lt;br&gt;rain_raw, rain_level&lt;br&gt;gas_ppm, gas_rs_r0, gas_slope&lt;br&gt;edge_risk, edge_score&lt;br&gt;extra (JSON)" vertex="1">
+                    <mxGeometry height="210" width="270" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="devices" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Helvetica;" value="devices" vertex="1">
+                    <mxGeometry height="162" width="230" x="420" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="devices_c" parent="devices" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;name, location&lt;br&gt;lat, lon&lt;br&gt;fw, model_ver&lt;br&gt;last_seen&lt;br&gt;status, rssi" vertex="1">
+                    <mxGeometry height="130" width="230" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="alerts" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Helvetica;" value="alerts" vertex="1">
+                    <mxGeometry height="182" width="240" x="760" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="alerts_c" parent="alerts" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;device_id&lt;br&gt;ts, type, level&lt;br&gt;cause, score&lt;br&gt;source (edge / cloud)&lt;br&gt;ack_ts, notified_at&lt;br&gt;notify_count" vertex="1">
+                    <mxGeometry height="150" width="240" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="notif" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Helvetica;" value="notifications" vertex="1">
+                    <mxGeometry height="142" width="230" x="1110" y="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="notif_c" parent="notif" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;alert_id (FK)&lt;br&gt;channel&lt;br&gt;sent_at, ok&lt;br&gt;latency_ms" vertex="1">
+                    <mxGeometry height="110" width="230" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="fc" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Helvetica;" value="forecasts" vertex="1">
+                    <mxGeometry height="162" width="270" x="40" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="fc_c" parent="fc" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;device_id&lt;br&gt;issued_for, horizon&lt;br&gt;target&lt;br&gt;value, lower, upper&lt;br&gt;model_ver, source" vertex="1">
+                    <mxGeometry height="130" width="270" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Helvetica;" value="device_configs" vertex="1">
+                    <mxGeometry height="142" width="230" x="420" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg_c" parent="cfg" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;device_id&lt;br&gt;version&lt;br&gt;config (JSON)&lt;br&gt;acked, acked_at" vertex="1">
+                    <mxGeometry height="110" width="230" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="cmd" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Helvetica;" value="commands" vertex="1">
+                    <mxGeometry height="122" width="240" x="760" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="cmd_c" parent="cmd" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;device_id&lt;br&gt;cmd, payload&lt;br&gt;acked, acked_at" vertex="1">
+                    <mxGeometry height="90" width="240" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="gro" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Helvetica;" value="google_rain_obs" vertex="1">
+                    <mxGeometry height="122" width="230" x="1110" y="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="gro_c" parent="gro" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;valid_at&lt;br&gt;google_pct&lt;br&gt;features (JSON)" vertex="1">
+                    <mxGeometry height="90" width="230" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="reg" parent="1" style="swimlane;fontStyle=1;startSize=32;html=1;rounded=1;arcSize=4;fontSize=15;strokeWidth=1.5;collapsible=0;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Helvetica;" value="model_registry" vertex="1">
+                    <mxGeometry height="122" width="230" x="1110" y="470" as="geometry"/>
+                </mxCell>
+                <mxCell id="reg_c" parent="reg" style="text;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=4;fontSize=13;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;b&gt;id&lt;/b&gt; 🔑&lt;br&gt;name, model_ver&lt;br&gt;metric_name, metric_value&lt;br&gt;active" vertex="1">
+                    <mxGeometry height="90" width="230" y="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="r1" edge="1" parent="1" source="devices" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;startArrow=ERmandOne;endArrow=ERmany;startFill=0;endFill=0;startSize=10;endSize=10;" target="telemetry" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="r2" edge="1" parent="1" source="devices" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;startArrow=ERmandOne;endArrow=ERmany;startFill=0;endFill=0;startSize=10;endSize=10;" target="alerts" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="r3" edge="1" parent="1" source="alerts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;startArrow=ERmandOne;endArrow=ERmany;startFill=0;endFill=0;startSize=10;endSize=10;" target="notif" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="r4" edge="1" parent="1" source="devices" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;startArrow=ERmandOne;endArrow=ERmany;startFill=0;endFill=0;startSize=10;endSize=10;" target="cfg" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="r5" edge="1" parent="1" source="devices" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;startArrow=ERmandOne;endArrow=ERmany;startFill=0;endFill=0;startSize=10;endSize=10;exitX=0.25;exitY=1;entryX=0.5;entryY=0;" target="fc" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="r6" edge="1" parent="1" source="devices" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;startArrow=ERmandOne;endArrow=ERmany;startFill=0;endFill=0;startSize=10;endSize=10;exitX=0.75;exitY=1;entryX=0.5;entryY=0;" target="cmd" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lg" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#555555;fontFamily=Helvetica;" value="1 trạm có nhiều bản ghi: &lt;b&gt;|&lt;/b&gt;───&lt;b&gt;&amp;lt;&lt;/b&gt; · 🔑 = khoá chính · bảng xám không gắn với trạm" vertex="1">
+                    <mxGeometry height="24" width="700" x="40" y="640" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="alertflow" name="Luong canh bao khi">
+        <mxGraphModel dx="1520" dy="1582" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1520" pageHeight="780" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="Ls" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=46;fontStyle=1;fontSize=14;strokeWidth=1.5;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Helvetica;" value="Cảm biến MQ-2" vertex="1">
+                    <mxGeometry height="740" width="150" x="25" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="Le" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=46;fontStyle=1;fontSize=14;strokeWidth=1.5;fillColor=#fff2cc;strokeColor=#d6b656;fontFamily=Helvetica;" value="ESP32" vertex="1">
+                    <mxGeometry height="740" width="150" x="245" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="La" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=46;fontStyle=1;fontSize=14;strokeWidth=1.5;fillColor=#fff2cc;strokeColor=#d6b656;fontFamily=Helvetica;" value="Còi · LED · TFT" vertex="1">
+                    <mxGeometry height="740" width="150" x="465" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="Lb" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=46;fontStyle=1;fontSize=14;strokeWidth=1.5;fillColor=#ffe6cc;strokeColor=#d79b00;fontFamily=Helvetica;" value="Mosquitto" vertex="1">
+                    <mxGeometry height="740" width="150" x="685" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="Lk" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=46;fontStyle=1;fontSize=14;strokeWidth=1.5;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Helvetica;" value="Backend" vertex="1">
+                    <mxGeometry height="740" width="150" x="905" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="Lt" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=46;fontStyle=1;fontSize=14;strokeWidth=1.5;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Helvetica;" value="Telegram · Email" vertex="1">
+                    <mxGeometry height="740" width="150" x="1125" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="Lu" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=46;fontStyle=1;fontSize=14;strokeWidth=1.5;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Helvetica;" value="Người dùng" vertex="1">
+                    <mxGeometry height="740" width="150" x="1345" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="m1" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="1. đo 1 lần/giây">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="100" y="110" as="sourcePoint"/>
+                        <mxPoint x="320" y="110" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="n1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=12;align=left;spacingLeft=6;fontFamily=Helvetica;fillColor=#fff2cc;strokeColor=#d6b656;" value="2. lọc nhiễu → 10 feature →&lt;br&gt;luật 4 cấp, max(luật, mô hình)" vertex="1">
+                    <mxGeometry height="44" width="200" x="328" y="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="m3" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="3. đổi đèn/còi &lt; 1 s">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="320" y="200" as="sourcePoint"/>
+                        <mxPoint x="540" y="200" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m4" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="4. alert {level, cause, seq}">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="320" y="250" as="sourcePoint"/>
+                        <mxPoint x="760" y="250" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="n2" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=12;align=left;spacingLeft=6;fontFamily=Helvetica;fillColor=#ffffff;strokeColor=#999999;dashed=1;" value="Mất mạng: còi vẫn kêu, bản tin vào đệm flash, gửi bù khi có mạng" vertex="1">
+                    <mxGeometry height="30" width="380" x="328" y="266" as="geometry"/>
+                </mxCell>
+                <mxCell id="m5" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="5. alert">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="760" y="330" as="sourcePoint"/>
+                        <mxPoint x="980" y="330" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m6" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="6. cấp 2: Telegram&lt;br&gt;cấp 3: + Email">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-18" as="offset"/>
+                        <mxPoint x="980" y="390" as="sourcePoint"/>
+                        <mxPoint x="1200" y="390" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="n3" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=12;align=left;spacingLeft=6;fontFamily=Helvetica;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="7. mỗi 30 s: ppm tăng đều&lt;br&gt;trong 10 phút?" vertex="1">
+                    <mxGeometry height="44" width="180" x="988" y="410" as="geometry"/>
+                </mxCell>
+                <mxCell id="m8" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="8. có → cmd escalate">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="980" y="480" as="sourcePoint"/>
+                        <mxPoint x="760" y="480" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m9" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="9. escalate">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="760" y="520" as="sourcePoint"/>
+                        <mxPoint x="320" y="520" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m10" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="10. nâng cấp">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="320" y="560" as="sourcePoint"/>
+                        <mxPoint x="540" y="560" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m11" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="11. cấp 3 chưa ack:&lt;br&gt;nhắc lại mỗi 60 s">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-18" as="offset"/>
+                        <mxPoint x="980" y="630" as="sourcePoint"/>
+                        <mxPoint x="1200" y="630" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m12" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;" value="12. bấm ✅ Đã xử lý">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="1420" y="680" as="sourcePoint"/>
+                        <mxPoint x="1200" y="680" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m13" edge="1" parent="1" style="html=1;endArrow=block;endFill=1;endSize=7;strokeWidth=1.5;fontSize=12;labelBackgroundColor=none;fontFamily=Helvetica;dashed=1;" value="13. ack">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="1200" y="730" as="sourcePoint"/>
+                        <mxPoint x="980" y="730" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
 </mxfile>

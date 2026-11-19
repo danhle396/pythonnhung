@@ -16,7 +16,7 @@ if gas_model.N_FEATURES != N_FEATURES:
 
 
 class Mq2Params:
-    def __init__(self, rl_kohm=5.0, vc=5.0, divider=2.0 / 3.0, r0_kohm=10.0, curve_a=574.25, curve_b=-2.222):
+    def __init__(self, rl_kohm=5.0, vc=5.0, divider=1.0, r0_kohm=10.0, curve_a=574.25, curve_b=-2.222):
         self.rl_kohm, self.vc, self.divider, self.r0_kohm = rl_kohm, vc, divider, r0_kohm
         self.curve_a, self.curve_b = curve_a, curve_b
 

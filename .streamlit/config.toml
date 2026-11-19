@@ -1,0 +1,29 @@
+# Giao diện dashboard — cùng bảng màu với dashboard bản giữa kỳ (mid): nền xám nhạt, panel trắng, nhấn xanh dương.
+# Chạy `streamlit run dashboard/app.py` từ thư mục gốc repo để file này được nạp (Docker: WORKDIR /app).
+
+[server]
+runOnSave = false
+
+[client]
+toolbarMode = "minimal"
+
+[theme]
+font = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+baseRadius = "8px"
+showWidgetBorder = true
+
+[theme.light]
+base = "light"
+primaryColor = "#2563eb"
+backgroundColor = "#f4f6f9"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1c2430"
+borderColor = "#e3e7ee"
+
+[theme.dark]
+base = "dark"
+primaryColor = "#5b8def"
+backgroundColor = "#0f141b"
+secondaryBackgroundColor = "#171e27"
+textColor = "#e6ebf2"
+borderColor = "#263040"

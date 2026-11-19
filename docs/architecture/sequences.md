@@ -1,91 +1,50 @@
-# Sơ đồ tuần tự
+# Các luồng xử lý chính
 
-## Luồng cảnh báo khí/khói (edge quyết định, cloud xác nhận & leo thang)
+Ba tình huống quan trọng nhất, mỗi tình huống là một chuỗi bản tin giữa các thành phần:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant S as MQ-2 + cảm biến
-    participant E as ESP32 (MicroPython)
-    participant A as Còi/LED
-    participant B as Mosquitto
-    participant I as Backend ingest
-    participant AS as Alert service
-    participant T as Telegram/Email
-    participant U as Người dùng
+| Tình huống            | Bắt đầu khi                          | Kết thúc khi                      |
+| --------------------- | ------------------------------------ | --------------------------------- |
+| Cảnh báo khí/khói     | MQ-2 đo thấy khí tăng                | Người dùng bấm "Đã xử lý"         |
+| Dự báo thời tiết      | Cứ 10 phút một lần                   | Dự báo hiện trên dashboard và TFT |
+| Đổi cấu hình thiết bị | Người dùng sửa ngưỡng trên dashboard | Trạm xác nhận đã áp dụng          |
 
-    S->>E: mẫu 1 Hz (ADC, T, H, lux)
-    E->>E: median-5 + EWMA → feature cửa sổ 10–60 s
-    E->>E: rule (hysteresis, debounce) ∥ cây quyết định (gas_model.py)
-    E->>E: level = max(rule, model)
-    E->>A: đổi LED/còi (< 1 s, không cần mạng)
-    E->>B: alert {level, cause, seq}
-    alt mất mạng
-        E->>E: ghi đệm offline trên flash, gửi bù khi kết nối lại
-    end
-    B->>I: alert
-    I->>AS: on_edge_alert (lưu DB, chống trùng)
-    AS->>T: cấp 2: Telegram · cấp 3: Telegram + Email
-    loop mỗi 30 s
-        AS->>AS: ngữ cảnh 10 phút: độ dốc ppm
-        opt leo thang
-            AS->>B: cmd escalate {level}
-            B->>E: cmd
-            E->>A: nâng cấp hành động
-            AS->>T: thông báo leo thang
-        end
-    end
-    loop cấp 3 chưa ack, mỗi 60 s
-        AS->>T: [NHẮC LẠI]
-    end
-    U->>T: bấm "✅ Đã xử lý"
-    T->>AS: callback ack:<id>
-    AS->>AS: ack cảnh báo (và các cảnh báo trước đó cùng đợt)
-```
+## Luồng cảnh báo khí/khói
+
+Sơ đồ tuần tự: `system_block_diagram.drawio`, trang 3 (ảnh `system_block_diagram-3.png`).
+
+**Điểm cần nhớ**
+
+- **Trạm tự quyết định** (bước 1–3). Đèn và còi đổi trong dưới 1 s, không cần mạng.
+- **Mất mạng không mất cảnh báo.** Còi vẫn kêu; bản tin được ghi vào flash và gửi bù khi có mạng lại.
+- **Cloud gửi thông báo theo cấp** (bước 6): cấp 2 gửi Telegram; cấp 3 gửi Telegram và Email.
+- **Leo thang** (bước 7–10): cứ 30 s, cloud xem ppm trong 10 phút gần nhất. Nếu ppm tăng đều, cloud gửi lệnh
+  `escalate` để trạm nâng cấp.
+- **Nhắc lại** (bước 11–13): cảnh báo cấp 3 được gửi lại mỗi 60 s cho tới khi có người bấm "✅ Đã xử lý".
 
 ## Luồng dự báo thời tiết
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant E as ESP32
-    participant B as Mosquitto
-    participant I as Backend ingest
-    participant DB as PostgreSQL/Timescale
-    participant F as Forecast service
-    participant OM as Open-Meteo API
-    participant D as Dashboard
+1. Cứ 10 phút, forecast service lấy quan trắc Open-Meteo 4 ngày gần nhất và Open-Meteo Ensemble các giờ tới, cùng mức
+   mưa YL-83 mới nhất của trạm.
+2. GBDT (LightGBM) dự báo nhiệt độ, độ ẩm cho 1/3/6 giờ tới, kèm khoảng tin cậy 95 %.
+3. Xác suất mưa lấy từ ensemble, hiệu chỉnh theo số Google nhập tay. Trạm đang báo mưa thì cộng thêm điểm.
+   Không lấy được ensemble thì dùng GBDT.
+4. Kết quả lưu vào bảng `forecasts`, gửi `forecast` (retain) về màn TFT và đẩy WebSocket cho dashboard.
 
-    E->>B: telemetry (10 s)
-    B->>I: telemetry
-    I->>DB: ghi lô, chống trùng (device_id, ts, seq)
-    loop APScheduler mỗi 10 phút
-        F->>OM: quan trắc 4 ngày gần nhất tại toạ độ trạm
-        alt lấy được dữ liệu
-            F->>F: làm sạch → feature → GBDT (LightGBM)
-            F->>DB: forecasts (giá trị + khoảng tin cậy 95 %)
-            F->>B: forecast (retain) → màn TFT trang 3
-            F-->>D: WebSocket /ws/live
-        else không có mạng
-            F->>F: bỏ qua lượt này (không đoán từ số đo trạm)
-        end
-    end
-    D->>DB: GET /api/forecast/{id} (thực tế vs dự báo)
-```
+**Điểm cần nhớ**
+
+- **Dự báo không dùng số đo nhiệt độ/độ ẩm của trạm**, vì trạm đặt trong nhà nên số đo không đại diện cho thời tiết.
+- **Không có mạng:** bỏ qua lượt đó, không tự đoán.
 
 ## Luồng cấu hình thiết bị
 
-```mermaid
-sequenceDiagram
-    participant D as Dashboard
-    participant API as REST API (JWT)
-    participant B as Mosquitto
-    participant E as ESP32
-    D->>API: PUT /api/devices/{id}/config
-    API->>API: validate (th1 < th2 < th3), version += 1, lưu device_configs
-    API->>B: config (retain, QoS 1)
-    B->>E: config
-    E->>E: kiểm tra dải, áp dụng, lưu /config.json
-    E->>B: ack {ref: config, ok}
-    B->>API: ack → device_configs.acked = true
-```
+1. Dashboard gửi `PUT /api/devices/{id}/config`.
+2. API kiểm tra `th1 < th2 < th3`, tăng `version`, lưu vào `device_configs`.
+3. API gửi `config` (retain, QoS 1) qua Mosquitto xuống ESP32.
+4. ESP32 kiểm tra dải giá trị, áp dụng, lưu `/config.json`, rồi gửi `ack`.
+5. Backend nhận `ack` và đánh dấu `device_configs.acked = true`.
+
+**Điểm cần nhớ**
+
+- Mỗi lần sửa cấu hình tạo một **phiên bản mới**, nên luôn biết trạm đang chạy bản nào.
+- Bản tin `config` được giữ lại trên broker (retain). Trạm khởi động lại sẽ nhận ngay cấu hình mới nhất.
+- Cấu hình sai bị trạm từ chối bằng `ack` có `ok: false`.

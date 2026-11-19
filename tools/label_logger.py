@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-USAGE = """Ghi log nhãn cho thí nghiệm khí/khói (task.md 8.3).
+USAGE = """Ghi log nhãn cho thí nghiệm khí/khói (task.md §1.2, Nhóm B).
 
 Đặt thiết bị gửi telemetry 1 giây/lần (PUT /api/devices/station01/config {"telemetry_ms": 1000}), chạy:
     python tools/label_logger.py --device station01 --out ml/data/raw/gas_labeled.csv --session 1

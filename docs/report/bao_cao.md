@@ -38,7 +38,9 @@ LightGBM (Gradient Boosting — mô hình triển khai), scikit-learn (Ridge, Lo
 MicroPython cho ESP32; unit test so khớp suy luận của module này với scikit-learn: lệch lớp 0.
 
 Kết quả: trên tập kiểm tra năm 2025, GBDT (LightGBM) đạt MAE nhiệt độ 1 giờ **0,30 °C**, độ ẩm 1 giờ **1,87 %RH**, F1 dự
-báo mưa 3 giờ **0,833**, tốt hơn baseline persistence ở mọi cặp biến × tầm dự báo. Hệ thống chịu tải 50 thiết bị × 1 bản tin/giây
+báo mưa 3 giờ **0,833**, tốt hơn baseline persistence ở mọi cặp biến × tầm dự báo. Xác suất mưa hiển thị lấy từ
+dự báo tổ hợp (ensemble) miễn phí của Open-Meteo, hiệu chỉnh để bắt chước số Google tra tại VKU và theo cảm biến mưa
+của trạm, với mục tiêu lệch Google không quá **10 điểm %**. Hệ thống chịu tải 50 thiết bị × 1 bản tin/giây
 với **0 % mất gói**, độ trễ broker P95 ≈ 2–3,4 ms, 100 % bản ghi vào CSDL; toàn bộ backend dựng lại bằng một lệnh
 `docker compose up`.
 
@@ -82,7 +84,7 @@ thường chỉ có một ngưỡng cố định, dễ báo động giả và kh
 5. So sánh mô hình triển khai với các mô hình đối chứng trên cùng dữ liệu, dùng thư viện học máy chuẩn để bảo đảm
    tính đúng đắn của kết quả.
 
-**KPI đặt ra (task.md §1.2)** và kết quả đạt được tóm tắt ở Chương 6.
+**KPI đặt ra (task.md, mục Metrics Mục Tiêu)** và kết quả đạt được tóm tắt ở Chương 6.
 
 ### 1.3 Phạm vi
 
@@ -91,6 +93,11 @@ thường chỉ có một ngưỡng cố định, dễ báo động giả và kh
 - Trạm đặt ở mặt đất, chủ yếu thử trong nhà và chỉ đặt ngoài trời từng đợt ngắn (một đêm), nên **số đo của trạm không
   dùng làm đầu vào dự báo**. Mô hình GBDT (LightGBM) học trên chuỗi Open-Meteo 2021–2025 và dự báo từ quan trắc Open-Meteo
   4 ngày gần nhất tại toạ độ trạm; số đo của trạm dùng để đối chiếu dự báo với thực tế trong đêm đặt ngoài trời.
+- **Xác suất mưa** theo từng giờ +1/+3/+6 lấy từ Open-Meteo Ensemble [22] (miễn phí, không cần khoá API): tỉ lệ phương
+  án dự báo có mưa vượt ngưỡng θ mm. Mục tiêu sử dụng là **không lệch quá 10 điểm %** so với số Google tra trên Google
+  Search tại VKU. Google không cung cấp dữ liệu miễn phí, nên ngưỡng θ và trọng số từng mô hình được **học từ số Google
+  do người dùng nhập tay** trên dashboard; cộng thêm điều chỉnh khi tấm YL-83 của trạm đang báo mưa. Mô hình LightGBM mưa
+  chỉ dùng dự phòng (lý do: mục 5.1).
 
 ### 1.4 Đóng góp
 
@@ -292,14 +299,15 @@ Hệ thống được mô tả theo mô hình **Input – Xử lý – Output (I
 và người dùng; được xử lý ở hai tầng edge (ESP32) và cloud (Docker Compose) nối với nhau qua MQTT; kết quả trả ra
 tại chỗ (đèn, còi, màn hình) và từ xa (dashboard, thông báo, dữ liệu).
 
-![Sơ đồ hệ thống Input – Xử lý – Output](figures/diagrams/so_do_he_thong_input_xu_ly_output.png)
+![Sơ đồ khối hệ thống](../architecture/system_block_diagram-1.png)
 
-*Hình 3.1 — Sơ đồ hệ thống theo mô hình Input – Xử lý – Output (nguồn: `docs/architecture/diagrams.md`).*
+*Hình 3.1 — Sơ đồ khối hệ thống: cảm biến → ESP32 (edge) → MQTT → backend (cloud) → dashboard, Telegram/Email (`docs/architecture/system_block_diagram.drawio`, trang 1).*
 
 | Thành phần               | Nội dung                                                                                                                                                                 | Tần suất / đặc điểm               |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
 | **Input** — cảm biến     | DHT22 (nhiệt độ, độ ẩm), BMP280 (áp suất), BH1750 (lux), YL-83 (mưa AO/DO), MQ-2 (khí gas/khói, ADC)                                                                     | Đọc 1 Hz tại ESP32                |
 | **Input** — nguồn ngoài  | Open-Meteo: dữ liệu lịch sử 2021–2025 để huấn luyện; 4 ngày gần nhất làm đầu vào dự báo                                                                                  | Bias correction fit lại mỗi 6 giờ |
+| **Input** — nguồn ngoài  | Open-Meteo Ensemble (ECMWF 51 + GFS 31 + ICON 40 phương án): lượng mưa các giờ tới; số Google nhập tay để hiệu chỉnh                                                     | 10 phút/lần, miễn phí             |
 | **Input** — người dùng   | Lệnh (`mute`, `test_alarm`, `calibrate`, `reboot`), cấu hình ngưỡng, xác nhận (ack) cảnh báo                                                                             | Qua dashboard / Telegram          |
 | **Xử lý** — edge         | Lọc median-5 + EWMA, Rs/R0 → ppm, kiểm tra lỗi cảm biến; trích 10 feature; phân cấp khí/khói 0–3 (rule + hysteresis + debounce, `max(rule, model)`)                      | < 1 s, chạy cả khi mất mạng       |
 | **Xử lý** — truyền thông | MQTT (Mosquitto, auth + ACL, LWT, retain); `seq` + đệm offline trên flash để gửi bù                                                                                      | Telemetry 10 s (1 s khi cấp ≥ 1)  |
@@ -307,13 +315,7 @@ tại chỗ (đèn, còi, màn hình) và từ xa (dashboard, thông báo, dữ 
 | **Output** — tại trạm    | LED xanh/đỏ, còi; màn TFT 1.8" (số đo, cấp cảnh báo, dự báo nhận từ cloud)                                                                                               | Phản ứng < 1 s                    |
 | **Output** — từ xa       | Dashboard Streamlit, Grafana; Telegram/Email theo cấp; dữ liệu CSDL, xuất CSV, REST API                                                                                  | Thời gian thực qua WebSocket      |
 
-Hình 3.2 chi tiết hoá khối **Xử lý** thành kiến trúc AI lai edge–cloud.
-
-![Kiến trúc AI lai edge–cloud](figures/diagrams/kien_truc_tong_the_ai_lai_edge_cloud.png)
-
-*Hình 3.2 — Kiến trúc tổng thể (nguồn: `docs/architecture/diagrams.md`; bản draw.io: `docs/architecture/system_block_diagram.drawio`).*
-
-Phân công edge–cloud:
+Phân công edge–cloud (kiến trúc AI lai):
 
 | Tác vụ                                                            | Nơi chạy | Lý do                                         |
 | ----------------------------------------------------------------- | -------- | --------------------------------------------- |
@@ -335,27 +337,19 @@ cùng các vòng phản hồi (lệnh, cấu hình, bản tin dự báo trả v�
 | 2   | Truyền thông MQTT           | Bản tin từ trạm và từ backend                               | Xác thực + ACL, LWT, retain, QoS 0/1                                                      | Bản tin chuyển đến đúng bên nhận                           | Mosquitto (`broker/`)                  |
 | 3   | Thu nhận và lưu trữ         | telemetry, alert, status, ack                               | Validate, loại giá trị ngoài dải, chống trùng, ghi lô, gộp theo thời gian                 | Bảng CSDL, luồng WebSocket, sự kiện cho dịch vụ cảnh báo   | Backend (`backend/app/mqtt/ingest.py`) |
 | 4   | Cảnh báo cloud              | Alert edge, telemetry 10–60 phút, LWT, ack                  | Chính sách kênh theo cấp, cooldown, leo thang, phát hiện offline, nhắc lại                | Telegram/Email, lệnh `escalate`, bảng alerts/notifications | Backend (`alert_service.py`)           |
-| 5   | Dự báo cloud                | Open-Meteo 4 ngày gần nhất, mô hình GBDT                    | Làm sạch, 56 feature, GBDT, khoảng tin cậy                                                | Dự báo 1/3/6 h, bản tin TFT, tin 6 giờ sáng                | Backend (`forecast_service.py`)        |
+| 5   | Dự báo cloud                | Open-Meteo 4 ngày gần nhất, Open-Meteo Ensemble, mức mưa YL-83, mô hình GBDT | Làm sạch, 56 feature, GBDT, khoảng tin cậy; mưa = ensemble hiệu chỉnh theo Google + trạm | Dự báo 1/3/6 h, bản tin TFT, tin 6 giờ sáng                | Backend (`forecast_service.py`)        |
 | 6   | Dashboard và API            | Thao tác người dùng, dữ liệu CSDL                           | JWT, REST, WebSocket, cấu hình có phiên bản                                               | 6 trang Streamlit, Grafana, CSV, lệnh/cấu hình xuống trạm  | `backend/app/api/`, `dashboard/`       |
 | 7   | Huấn luyện offline          | Open-Meteo 2021–2025; dữ liệu MQ-2 gán nhãn; telemetry trạm | scikit-learn, LightGBM, statsmodels, PyTorch: feature, huấn luyện, chọn mô hình, đánh giá | File mô hình + registry, `gas_model.py`, bảng kết quả      | Laptop (`ml/`)                         |
 
 #### 3.2.1 Firmware ESP32 (edge)
 
-![IPO của firmware ESP32 (edge)](figures/diagrams/ipo_1_firmware_esp32_edge.png)
-
-*Hình 3.3 — Sơ đồ IPO của firmware ESP32 (edge) (nguồn: `docs/architecture/ipo.md`).*
-
 |            | Nội dung                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Input**  | DHT22 (nhiệt độ, độ ẩm, 2 s/lần); BMP280 (áp suất), BH1750 (lux) qua I²C; YL-83 (điện áp AO + DO, chỉ cấp nguồn khi đọc); MQ-2 (điện áp AO qua cầu phân áp 10k/20k); MQTT xuống: `cmd` (mute, test_alarm, calibrate, reboot, escalate, ota), `config` (ngưỡng, hysteresis, debounce, chu kỳ, chế độ rule/model/hybrid), `forecast`; `/config.json` trên flash (cấu hình, R0); NTP (giờ).                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Input**  | DHT22 (nhiệt độ, độ ẩm, 2 s/lần); BMP280 (áp suất), BH1750 (lux) qua I²C; YL-83 (điện áp AO + DO, chỉ cấp nguồn khi đọc); MQ-2 (điện áp AO nối thẳng GPIO32); MQTT xuống: `cmd` (mute, test_alarm, calibrate, reboot, escalate, ota), `config` (ngưỡng, hysteresis, debounce, chu kỳ, chế độ rule/model/hybrid), `forecast`; `/config.json` trên flash (cấu hình, R0); NTP (giờ).                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Xử lý**  | Luồng chính, đọc 1 Hz (`sensors.py`, `readings.py`): lọc median-5 + EWMA, Rs = RL·(Vc − Vout)/Vout, ppm = 574,25·(Rs/R0)^−2,222, điểm sương, chỉ số nhiệt, quy áp suất về mực biển, phân mức mưa (giữ mức cao nhất trong 3 lần đọc), phát hiện lỗi MQ-2 (kẹt, mất kết nối, bão hoà). Edge AI (`edge_ai.py`, `alert.py`): 10 feature (ppm, Rs/R0, độ dốc 10 s, độ lệch chuẩn 30 s, độ lệch so với nền, nhiệt độ, độ dốc nhiệt độ, độ ẩm, độ dốc độ ẩm, lux tương đối) → rule 4 cấp (300/1 000/2 000 ppm, độ dốc ≥ 15 ppm/s, nhiệt tăng ≥ 1 °C/phút) → `max(rule, model, cloud)`; mute 5 phút. Luồng mạng `_thread` (`net.py`, `mqtt.py` tự viết): kết nối lại, publish, đệm offline trên flash, gửi bù 20 bản ghi/lượt, ack, OTA. Watchdog `machine.WDT` 30 s chỉ được cho ăn khi luồng mạng còn sống. |
 | **Output** | Tại chỗ: LED xanh (cấp 0; nháy 1 Hz ở cấp 1), LED đỏ nháy + còi ngắt quãng (cấp 2), LED đỏ + còi liên tục (cấp 3); màn TFT 3 trang luân phiên 4 s (cấp ≥ 2 luôn hiện trang khí). Lên cloud: `telemetry`, `alert` (level, prev_level, cause, score), `status` (retain, LWT), `ack`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 #### 3.2.2 Thu nhận và lưu trữ
-
-![IPO của phân hệ thu nhận và lưu trữ](figures/diagrams/ipo_2_thu_nhan_va_luu_tru_ingest.png)
-
-*Hình 3.4 — Sơ đồ IPO của phân hệ thu nhận và lưu trữ (nguồn: `docs/architecture/ipo.md`).*
 
 |            | Nội dung                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -365,10 +359,6 @@ cùng các vòng phản hồi (lệnh, cấu hình, bản tin dự báo trả v�
 
 #### 3.2.3 Dịch vụ cảnh báo (cloud)
 
-![IPO của dịch vụ cảnh báo cloud](figures/diagrams/ipo_3_dich_vu_canh_bao_cloud.png)
-
-*Hình 3.5 — Sơ đồ IPO của dịch vụ cảnh báo cloud (nguồn: `docs/architecture/ipo.md`).*
-
 |            | Nội dung                                                                                                                                                                                                                                                                                                                                                                |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Input**  | Alert edge (cấp, cấp trước, nguyên nhân, điểm số); telemetry ppm trong cửa sổ 10–60 phút; LWT và thời điểm nhận bản tin cuối; ack từ API/dashboard hoặc nút inline Telegram.                                                                                                                                                                                            |
@@ -377,21 +367,13 @@ cùng các vòng phản hồi (lệnh, cấu hình, bản tin dự báo trả v�
 
 #### 3.2.4 Dịch vụ dự báo (cloud)
 
-![IPO của dịch vụ dự báo cloud](figures/diagrams/ipo_4_dich_vu_du_bao_cloud.png)
-
-*Hình 3.6 — Sơ đồ IPO của dịch vụ dự báo cloud (nguồn: `docs/architecture/ipo.md`).*
-
 |            | Nội dung                                                                                                                                                                                                                                                                         |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Input**  | Quan trắc Open-Meteo 4 ngày gần nhất (chỉ các giờ đã qua) tại toạ độ trạm; các mô hình GBDT đang hoạt động trong `ml/models/registry.json`. Số đo của trạm không dùng làm đầu vào.                                                                                               |
-| **Xử lý**  | APScheduler chạy 10 phút/lần: làm sạch chuỗi giờ; tạo 56 feature; GBDT dự báo thay đổi Δ của nhiệt độ/độ ẩm và xác suất mưa ở 1/3/6 giờ; khoảng tin cậy 95 % = ŷ ± 1,96·RMSE_test; độ ẩm kẹp trong [0, 100]. Không lấy được Open-Meteo → bỏ qua lượt đó, không phát bản tin mới. |
-| **Output** | Bảng `forecasts` (giá trị, cận dưới/trên, phiên bản mô hình, nguồn); bản tin `forecast` retain gửi về trạm, hiện trên trang "Du bao" của TFT; tin tóm tắt thời tiết lúc 6 giờ sáng; dữ liệu cho trang Dự báo của dashboard.                                                      |
+| **Input**  | Quan trắc Open-Meteo 4 ngày gần nhất (chỉ các giờ đã qua) tại toạ độ trạm; Open-Meteo Ensemble (ECMWF 51 + GFS 31 + ICON 40 phương án, miễn phí) cho các giờ tới; hiệu chỉnh mưa học từ số Google nhập tay (`ml/models/rain_calib.json`); mức mưa YL-83 mới nhất của trạm (≤ 15 phút); các mô hình GBDT đang hoạt động trong `ml/models/registry.json`. Nhiệt độ/độ ẩm của trạm không dùng làm đầu vào. |
+| **Xử lý**  | APScheduler chạy 10 phút/lần: làm sạch chuỗi giờ; tạo 56 feature; GBDT dự báo thay đổi Δ của nhiệt độ/độ ẩm ở 1/3/6 giờ; khoảng tin cậy 95 % = ŷ ± 1,96·RMSE_test; độ ẩm kẹp trong [0, 100]. Xác suất mưa từng giờ +1/+3/+6 = tỉ lệ phương án ensemble có mưa ≥ θ mm (θ và trọng số từng mô hình học từ số Google; mặc định gộp 3 mô hình, θ = 1 mm), qua ánh xạ đẳng biến nếu có, rồi cộng điều chỉnh trạm (YL-83 đang báo mưa: +10 / +5 / 0 điểm, tối đa 10). Không có ensemble → GBDT mưa (dự phòng). Không có cả Open-Meteo lẫn ensemble → bỏ qua lượt đó. |
+| **Output** | Bảng `forecasts` (giá trị, cận dưới/trên, phiên bản mô hình, nguồn; mưa lưu cả `rain_prob`, `rain_ens`, `rain_ml` để so sánh); bảng `google_rain_obs` (số Google nhập tay + đặc trưng ensemble); bản tin `forecast` retain gửi về trạm, hiện trên trang "Du bao" của TFT; tin tóm tắt thời tiết lúc 6 giờ sáng; dữ liệu cho trang Dự báo của dashboard. |
 
 #### 3.2.5 Dashboard và REST API
-
-![IPO của dashboard và REST API](figures/diagrams/ipo_5_dashboard_va_rest_api.png)
-
-*Hình 3.7 — Sơ đồ IPO của dashboard và REST API (nguồn: `docs/architecture/ipo.md`).*
 
 |            | Nội dung                                                                                                                                                                                                                                                                              |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -401,13 +383,9 @@ cùng các vòng phản hồi (lệnh, cấu hình, bản tin dự báo trả v�
 
 #### 3.2.6 Huấn luyện mô hình offline (thư viện chuẩn)
 
-![IPO của các pipeline huấn luyện offline](figures/diagrams/ipo_6_huan_luyen_mo_hinh_offline_thu_vie.png)
-
-*Hình 3.8 — Sơ đồ IPO của các pipeline huấn luyện offline (nguồn: `docs/architecture/ipo.md`).*
-
 | Pipeline                             | Input                                                                    | Xử lý                                                                                                                                                                                         | Output                                                                                                                                | Trạng thái                                |
 | ------------------------------------ | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Dự báo thời tiết (`train_forecast`)  | Open-Meteo theo giờ 2021–2025 tại 15,975°N 108,253°E (43 824 giờ)        | Làm sạch (z-score cuộn, nội suy ≤ 3 giờ); 56 feature không rò rỉ tương lai; target Δ = x(t+h) − x(t); chia theo thời gian; so sánh 6 mô hình hồi quy + 3 mô hình mưa; early stopping trên val | 9 mô hình GBDT (6 hồi quy + 3 mưa) + `registry.json`; `results_forecast.md`; hình. **MAE nhiệt độ 1 h = 0,30 °C, F1 mưa 3 h = 0,833** | Đã xong                                   |
+| Dự báo thời tiết (`train_forecast`)  | Open-Meteo theo giờ 2021–2025 tại 15,975°N 108,253°E (43 824 giờ)        | Làm sạch (z-score cuộn, nội suy ≤ 3 giờ); 56 feature không rò rỉ tương lai; target Δ = x(t+h) − x(t); chia theo thời gian; so sánh 6 mô hình hồi quy + 3 mô hình mưa; early stopping trên val | 9 mô hình GBDT (6 hồi quy + 3 mưa) + `registry.json`; `results_forecast.md`. **MAE nhiệt độ 1 h = 0,30 °C, F1 mưa 3 h = 0,833** | Đã xong                                   |
 | Cảnh báo khí edge (`train_gas_edge`) | CSV 1 Hz đo thật, nhãn 0–3 theo kịch bản (gas ở 50/20/5 cm, khói, nhiễu) | Cùng 10 feature với firmware (`gas_edge.py` ≡ `edge_ai.py`, có test); DT/RF có trọng số lớp; chia theo buổi; so khớp `gas_model.py` (float32) với scikit-learn                                | `firmware/src/gas_model.py`, `gas_edge.joblib`, `results_gas_edge.md`                                                                 | Chờ dữ liệu MQ-2 đo thật; edge chạy rule  |
 | Bất thường cloud (`train_anomaly`)   | Cần vài tuần telemetry trạm — **không có**                               | 8 feature cửa sổ 10 phút; Isolation Forest; z-score theo giờ; CUSUM trên R0 hằng ngày                                                                                                         | `gas_anomaly.joblib` cho alert service; đề xuất hiệu chuẩn lại MQ-2                                                                   | Không triển khai; backend bỏ qua bước này |
 
@@ -428,7 +406,7 @@ cùng các vòng phản hồi (lệnh, cấu hình, bản tin dự báo trả v�
 | BMP280, BH1750                    | SDA 21, SCL 22 (I²C)                                      | Địa chỉ 0x76, 0x23                                 |
 | DHT22                             | GPIO 4                                                    | Điện trở kéo lên 10 kΩ                             |
 | YL-83                             | AO 34, DO 35, nguồn 18                                    | Chỉ cấp nguồn khi đọc                              |
-| MQ-2                              | AO 32 (qua cầu phân áp 10k/20k), DO 33                    | 5 V → 3,33 V cho ADC                               |
+| MQ-2                              | AO 32 (nối thẳng), DO 33                                  | Không phân áp; ADC 11 dB đo tới ≈ 3,3 V            |
 | Còi active 2 chân                 | GPIO 25                                                   | Nối thẳng GPIO, không cần transistor               |
 | LED xanh / đỏ                     | GPIO 26 / 14                                              | Không có LED vàng: cấp 1 = LED xanh nhấp nháy 1 Hz |
 | Màn hình TFT 1.8" ST7735S 128×160 | CS 5, A0 16 (RX2), SDA 17 (TX2), SCK 19, RESET → EN (SPI) | Màn màu; VCC, LED nền → 3V3                        |
@@ -437,11 +415,11 @@ Nhóm không dùng LED vàng, transistor S8050 và module relay/quạt; firmware
 (`HAS_LED_YELLOW 0`, `HAS_RELAY 0`). Bật quạt hút tự động là hướng
 phát triển.
 
-![Sơ đồ đấu dây — cảm biến](figures/wiring-1.png)
+![Sơ đồ đấu dây — cảm biến](../hardware/wiring-1.png)
 
-![Sơ đồ đấu dây — cảnh báo và màn hình TFT](figures/wiring-2.png)
+![Sơ đồ đấu dây — cảnh báo và màn hình TFT](../hardware/wiring-2.png)
 
-*Hình 3.9 — Sơ đồ đấu dây: (a) cảm biến, (b) cảnh báo (còi, LED) và màn hình TFT 1.8" ST7735 (SPI) (`docs/hardware/wiring.drawio`, 2 trang, mở bằng draw.io; chấm tròn = nối, vòng cung = dây cắt qua không nối; bảng chi tiết ở `docs/hardware/README.md`).*
+*Hình 3.2 — Sơ đồ đấu dây: (a) cảm biến, (b) cảnh báo (còi, LED) và màn hình TFT 1.8" ST7735 (SPI) (`docs/hardware/wiring.drawio`, 2 trang, mở bằng draw.io; chấm tròn = nối, vòng cung = dây cắt qua không nối).*
 
 Nguồn: `firmware/src/config.py`. ⚙ *Ảnh lắp ráp thực tế: bổ sung sau khi lắp hộp.*
 
@@ -449,7 +427,7 @@ Nguồn: `firmware/src/config.py`. ⚙ *Ảnh lắp ráp thực tế: bổ sung 
 
 | Topic                     | Hướng            | QoS | Retain | Nội dung                                           |
 | ------------------------- | ---------------- | --- | ------ | -------------------------------------------------- |
-| `vku/aiot/{id}/telemetry` | thiết bị → cloud | 0   | không  | 10 s/lần (1 s khi cấp ≥ 1)                         |
+| `vku/aiot/{id}/telemetry` | thiết bị → cloud | 0   | không  | 5 s/lần (1 s khi cấp ≥ 1)                          |
 | `vku/aiot/{id}/alert`     | thiết bị → cloud | 0   | không  | Khi đổi cấp: level, prev_level, cause, score       |
 | `vku/aiot/{id}/status`    | thiết bị → cloud | 0   | có     | online/offline (LWT), RSSI, heap, uptime           |
 | `vku/aiot/{id}/cmd`       | cloud → thiết bị | 1   | không  | mute, test_alarm, calibrate, reboot, escalate, ota |
@@ -459,9 +437,9 @@ Nguồn: `firmware/src/config.py`. ⚙ *Ảnh lắp ráp thực tế: bổ sung 
 
 ### 3.5 Cơ sở dữ liệu
 
-![ERD](figures/diagrams/luoc_do_csdl_erd.png)
+![Lược đồ CSDL](../architecture/system_block_diagram-2.png)
 
-*Hình 3.10 — Lược đồ CSDL (`backend/app/db/models.py`).*
+*Hình 3.3 — Lược đồ CSDL (`backend/app/db/models.py`; `system_block_diagram.drawio`, trang 2).*
 
 - `telemetry` là **hypertable** TimescaleDB theo `ts`, khoá chính (device_id, ts, seq) đồng thời dùng chống trùng khi
   thiết bị gửi bù.
@@ -471,17 +449,14 @@ Nguồn: `firmware/src/config.py`. ⚙ *Ảnh lắp ráp thực tế: bổ sung 
 
 ### 3.6 Sơ đồ tuần tự
 
-![Luồng cảnh báo](figures/diagrams/luong_canh_bao_khi_khoi_edge_quyet_dinh.png)
+![Luồng cảnh báo khí](../architecture/system_block_diagram-3.png)
 
-*Hình 3.11 — Luồng cảnh báo: edge quyết định, cloud xác nhận và leo thang.*
+*Hình 3.4 — Luồng cảnh báo khí: edge quyết định, cloud xác nhận và leo thang (`system_block_diagram.drawio`, trang 3).*
 
-![Luồng dự báo](figures/diagrams/luong_du_bao_thoi_tiet.png)
+Hai luồng còn lại đơn giản hơn:
 
-*Hình 3.12 — Luồng dự báo thời tiết.*
-
-![Luồng cấu hình](figures/diagrams/luong_cau_hinh_thiet_bi.png)
-
-*Hình 3.13 — Luồng cấu hình thiết bị (có phiên bản và xác nhận).*
+- **Dự báo thời tiết:** 10 phút/lần, forecast service lấy quan trắc Open-Meteo 4 ngày gần nhất và Open-Meteo Ensemble → GBDT dự báo nhiệt độ, độ ẩm; xác suất mưa từ ensemble (hiệu chỉnh theo Google, cộng điểm khi YL-83 báo mưa) → lưu `forecasts`, gửi `forecast` (retain) về màn TFT, đẩy WebSocket cho dashboard. Không có mạng thì bỏ qua lượt đó.
+- **Cấu hình thiết bị:** dashboard `PUT /api/devices/{id}/config` → API kiểm tra `th1 < th2 < th3`, tăng `version`, lưu `device_configs` → gửi `config` (retain, QoS 1) → ESP32 kiểm tra dải, áp dụng, lưu `/config.json` → `ack` → backend đánh dấu `acked`.
 
 ### 3.7 Thiết kế cảnh báo đa cấp
 
@@ -541,7 +516,7 @@ Firmware gồm 20 module Python trong `firmware/src/` (bảng chi tiết ở `fi
 | `train_anomaly.py`                           | Isolation Forest (scikit-learn), z-score theo giờ, CUSUM (không triển khai)                    |
 | `serialize.py`, `tracking.py`                | Lưu mô hình bằng joblib + JSON đầu mục (phiên bản, hash dữ liệu, phiên bản thư viện); registry |
 
-**Kiểm thử — 21 test (`ml/tests/`)**: lưu/nạp mô hình giữ nguyên dự đoán; công thức dự báo Holt-Winters h bước trùng
+**Kiểm thử — 31 test (`ml/tests/`)**: lưu/nạp mô hình giữ nguyên dự đoán; công thức dự báo Holt-Winters h bước trùng
 `forecast()` của statsmodels; chọn ngưỡng F1; feature không rò rỉ tương lai; rule engine hysteresis/debounce; logic edge
 của firmware MicroPython cho cùng feature và cùng cấp với bản tham chiếu (`test_edge_parity.py`); module MicroPython
 xuất ra khớp scikit-learn.
@@ -568,20 +543,30 @@ chế độ `rule`. Khi thu được dữ liệu thí nghiệm có gán nhãn (`
 - **Alert service**: chính sách thông báo theo cấp, cooldown theo (thiết bị, cấp), nhắc lại cấp 3, leo thang
   (độ dốc ppm 10 phút), phát hiện offline (> 60 s hoặc LWT), ack qua API hoặc nút inline Telegram.
 - **Forecast service** (APScheduler 10 phút): lấy quan trắc Open-Meteo 4 ngày gần nhất tại toạ độ trạm → làm sạch →
-  feature → GBDT → khoảng tin cậy 95 % ŷ ± 1,96·RMSE_test. Không lấy được Open-Meteo thì bỏ qua lượt đó (không đoán từ
-  số đo trong nhà). Bản tin tóm tắt 6 giờ sáng.
+  feature → GBDT → khoảng tin cậy 95 % ŷ ± 1,96·RMSE_test cho nhiệt độ, độ ẩm. Xác suất mưa từng giờ +1/+3/+6 lấy từ
+  Open-Meteo Ensemble (`ml/src/rain_ensemble.py`): tỉ lệ phương án có mưa ≥ θ mm theo hiệu chỉnh hiện tại, cộng +10 / +5 /
+  0 điểm khi YL-83 của trạm đang báo mưa (số đo ≤ 15 phút); lưu kèm `rain_ens` và `rain_ml` (LightGBM) để so sánh. Không
+  có ensemble → dùng LightGBM mưa; không có cả hai nguồn thì bỏ qua lượt đó (không đoán từ số đo trong nhà).
+  Người dùng nhập số Google qua `POST /api/rain/google` (backend chụp đặc trưng ensemble của đúng các giờ đó ngay lúc
+  nhập, lưu bảng `google_rain_obs`); `POST /api/rain/calibrate` học lại hiệu chỉnh khi có ≥ 40 giờ. Bản tin tóm tắt 6 giờ sáng.
 - **REST API** (Swagger `/docs`, JWT): thiết bị, telemetry (raw/1m/10m/1h/1d), xuất CSV, cảnh báo + ack, dự báo,
   cấu hình (có phiên bản), lệnh, model registry.
-- Kiểm thử: **21 test** (`backend/tests/`), gồm integration test với Mosquitto thật (ingest, chống trùng khi gửi bù,
+- Kiểm thử: **24 test** (`backend/tests/`), gồm integration test với Mosquitto thật (ingest, chống trùng khi gửi bù,
   lệnh xuống thiết bị, LWT → offline).
 
 ### 4.5 Dashboard (`dashboard/app.py`)
 
-Streamlit 6 trang, tự đăng nhập JWT, có thể mở thẳng một trang bằng `?page=` (dùng cho link trong tin nhắn Telegram):
+Streamlit 6 trang, tự đăng nhập JWT, có thể mở thẳng một trang bằng `?page=` (dùng cho link trong tin nhắn Telegram).
+Giao diện cùng phong cách dashboard bản giữa kỳ: thanh trên cùng (tên trạm, trạng thái Online/Offline), thanh điều hướng
+dạng nút phân đoạn, thẻ số đo có viền màu theo đại lượng, panel bo góc, biểu đồ tô màu; tự đổi sáng/tối theo hệ điều hành
+(`.streamlit/config.toml`, `dashboard/theme.py` — chỉ CSS/HTML tĩnh, không JavaScript).
+
 
 - **Tổng quan:** cấp cảnh báo hiện tại, số đo, dự báo mới nhất, cảnh báo gần đây.
 - **Biểu đồ:** cửa sổ 1 giờ / 24 giờ / 7 ngày, tải CSV.
-- **Dự báo:** thực tế và dự báo kèm khoảng tin cậy 95 %, xác suất mưa.
+- **Dự báo:** thực tế và dự báo kèm khoảng tin cậy 95 %, xác suất mưa từng giờ (ghi rõ số ensemble và phần điều chỉnh
+  của trạm); khung "Xác suất mưa so với Google": nhập 5 ô Google theo giờ, bảng Google so với hệ thống, % số giờ lệch
+  ≤ 10 điểm, nút "Học lại hiệu chỉnh".
 - **Cảnh báo:** dòng thời gian, lọc theo cấp/nguồn, nút xác nhận.
 - **Thiết bị:** lệnh (thử còi, tắt còi, hiệu chuẩn R0, khởi động lại) và form cấu hình ngưỡng.
 - **Mô hình:** model registry đang hoạt động và các bảng kết quả.
@@ -623,10 +608,6 @@ scikit-learn; GBDT: LightGBM; GRU: PyTorch; độ đo: scikit-learn.
 | **GBDT**       | **0,299** | 0,538     | **0,688** | **1,870** | 3,242     | **3,954** |
 | GRU (PyTorch)  | 0,306     | **0,536** | 0,697     | 1,894     | **3,240** | 4,075     |
 
-![MAE](figures/forecast_mae_compare.png)
-
-*Hình 5.1 — MAE theo mô hình và tầm dự báo.*
-
 **Dự báo mưa — F1 / ROC-AUC / Brier** (ngưỡng chọn trên validation):
 
 | Mô hình     | Mưa 1h                    | Mưa 3h                    | Mưa 6h                    |
@@ -634,14 +615,6 @@ scikit-learn; GBDT: LightGBM; GRU: PyTorch; độ đo: scikit-learn.
 | Persistence | 0,826 / 0,865 / 0,124     | 0,783 / 0,813 / 0,178     | 0,723 / 0,766 / 0,254     |
 | Logistic    | 0,828 / 0,931 / 0,096     | 0,827 / 0,915 / 0,115     | 0,839 / 0,901 / 0,127     |
 | **GBDT**    | **0,830 / 0,939 / 0,092** | **0,833 / 0,926 / 0,107** | **0,851 / 0,913 / 0,118** |
-
-![Dự báo 3h](figures/forecast_3h_nov2025.png)
-
-*Hình 5.2 — Dự báo 3 giờ trong 14 ngày đầu tháng 11/2025 (mùa mưa, tập test).*
-
-![Importance](figures/importance_temp_1h.png)
-
-*Hình 5.3 — Gain importance (LightGBM) của GBDT nhiệt độ 1 giờ.*
 
 **Thảo luận.**
 - GBDT tốt nhất ở 4/6 cặp biến × tầm và cả 3 tầm dự báo mưa; ở tầm 3 giờ GRU nhỉnh hơn 0,002 (coi như ngang nhau).
@@ -658,6 +631,42 @@ scikit-learn; GBDT: LightGBM; GRU: PyTorch; độ đo: scikit-learn.
 - **Đối chiếu với trạm:** đầu vào dự báo là Open-Meteo, không phải số đo trạm (trạm chủ yếu đặt trong nhà). Trong đêm
   đặt trạm ngoài trời, trang Dự báo của dashboard ghép từng giờ dự báo với trung bình giờ đo tại trạm và tính MAE, độ
   lệch trung bình theo biến × tầm. ⚙ *Điền bảng kết quả sau đêm thử ngoài trời.*
+
+**Xác suất mưa: vì sao đổi cách tính.** Yêu cầu sử dụng là xác suất mưa không lệch quá 10 điểm % so với dự báo Google
+tra cùng giờ tại VKU. Phân tích cho thấy mô hình học từ chuỗi Open-Meteo không đạt yêu cầu này:
+
+- Open-Meteo là giá trị của mô hình lưới (ECMWF IFS, ô ≈ 9 km, tâm ô cách VKU ≈ 4 km), không phải số đo tại VKU. Mưa lớn
+  ở một góc ô bị rải thành mưa phùn khắp ô: nhãn "mưa ≥ 0,1 mm/h" có ở **35 %** số giờ và khoảng **80 %** số ngày
+  2021–2025 (ngưỡng 1 mm/h: 8 % số giờ).
+- Vì vậy GBDT mưa chủ yếu học "giờ trước có mưa thì giờ sau có mưa" (`is_rain`, `hours_since_rain` chiếm 52 % gain):
+  F1 tầm 1 giờ 0,830 so với persistence 0,826.
+- Đo ngày 19/11/2026 lúc 15:00: LightGBM báo 72 / 65 / 93 % cho +1/+3/+6 giờ, Open-Meteo 51 / 51 / 74 % (lệch 14–21
+  điểm). Với các giờ 17–21 h ngày 20/11, Open-Meteo báo 100 % trong khi Google báo 70 / 70 / 60 / 40 / 50 % (lệch
+  **30–60 điểm**).
+
+Google có bán dữ liệu (Weather API) nhưng cần bật thanh toán, nên đề tài dùng nguồn **miễn phí**: Open-Meteo Ensemble,
+gồm các phương án dự báo của ECMWF (51), GFS (31) và ICON (40). Xác suất mưa của một mô hình ở ngưỡng θ là tỉ lệ phương
+án có lượng mưa giờ đó ≥ θ. Đo thử trên 5 giờ trong ảnh Google nói trên:
+
+| Cách tính (miễn phí)                     | 17 h | 18 h | 19 h | 20 h | 21 h | Lệch TB so với Google |
+| ---------------------------------------- | ---- | ---- | ---- | ---- | ---- | --------------------- |
+| Google                                   | 70   | 70   | 60   | 40   | 50   | —                     |
+| Open-Meteo, ≥ 0,1 mm (cách cũ)           | 100  | 100  | 100  | 100  | 100  | 42                    |
+| Ensemble ICON, ≥ 0,5 mm                  | 52   | 50   | 48   | 60   | 57   | 15                    |
+| Gộp 3 mô hình, ≥ 1 mm (mặc định)         | 67   | 66   | 65   | 66   | 70   | 12                    |
+| Ensemble ECMWF, ≥ 2 mm                   | 65   | 65   | 65   | 59   | 59   | 9                     |
+
+Năm giờ của một ngày chưa đủ để chọn cấu hình, nên hệ thống **học cách bắt chước Google** từ số liệu người dùng tra trên
+Google Search và nhập tay (5 ô mỗi lần, 2–3 lần/ngày). Mỗi lần nhập, backend chụp lại đặc trưng ensemble của đúng các giờ
+đó (tỉ lệ phương án ≥ 0,1 / 0,25 / 0,5 / 1 / 2 / 3 mm của từng mô hình). Khi có ≥ 40 giờ, `fit_calibration`:
+(1) tìm kiếm lưới ngưỡng θ và trọng số {0; 0,5; 1} của từng mô hình, chọn cấu hình "đi cùng" Google nhất (MAE sau khi
+khớp tuyến tính); (2) thử thêm hồi quy đẳng biến (`IsotonicRegression`, scikit-learn) để ánh xạ thang xác suất, chỉ giữ
+nếu giảm MAE trên 30 % dữ liệu mới nhất (chia theo thời gian). Cuối cùng cộng điều chỉnh của trạm khi YL-83 đang báo mưa
+(+10 / +5 / 0 điểm ở +1/+3/+6 giờ, tối đa 10 điểm). LightGBM mưa vẫn chạy, lưu là `rain_ml` để so sánh và làm dự phòng.
+
+Cách này **không bảo đảm** mọi giờ lệch ≤ 10 điểm vì không có số Google tự động; dashboard đo và hiển thị trung thực
+% số giờ đạt. ⚙ *Điền bảng kết quả (số giờ đã nhập, lệch TB, % giờ lệch ≤ 10 trước và sau khi học) sau 1–2 tuần nhập
+số Google.*
 
 ### 5.2 Cảnh báo khí/khói tại edge
 
@@ -693,10 +702,6 @@ tạo tải — số liệu đo ở đây là độ trễ và tài nguyên thậ
 | 20 thiết bị, SQLite               | 560 / 560     | 0 %     | 0,6 / 2,0 / 3,1 ms     | 100 %    | 54,5 %         |
 | 50 thiết bị, SQLite               | 1 400 / 1 400 | 0 %     | 0,6 / 2,2 / 4,1 ms     | 100 %    | 61,4 %         |
 | 50 thiết bị, Docker + TimescaleDB | 1 505 / 1 505 | 0 %     | 1,7 / 3,4 / 4,4 ms     | 100 %    | 9,8 %          |
-
-![Load](figures/load_latency.png)
-
-*Hình 5.4 — Độ trễ broker khi tải.*
 
 Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương đương ~500 trạm. Với TimescaleDB, CPU backend trung bình chỉ
 ≈ 10 % một lõi, RAM các container: backend 133 MB, DB 97 MB, Mosquitto 18 MB.
@@ -738,8 +743,9 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 | ---------------------------------------------------------- | --------------------------------------------- | --------------------------------- |
 | Dự báo 1/3/6 giờ vượt persistence                          | GBDT tốt hơn ở 6/6 cặp hồi quy và 3/3 tầm mưa | ✔ Đạt                             |
 | MAE nhiệt độ 1 giờ, độ ẩm 1 giờ, F1 mưa 3 giờ              | 0,30 °C; 1,87 %RH; 0,833                      | ✔ Đạt                             |
+| Xác suất mưa lệch Google ≤ 10 điểm %                       | Ensemble miễn phí, 5 giờ đo thử lệch TB 12    | ⚙ Chờ số Google nhập tay          |
 | Cảnh báo 4 cấp tại edge, hysteresis/debounce, chạy offline | Có (rule), kiểm thử pytest                    | ✔ Đạt (⚙ xác nhận trên phần cứng) |
-| Toàn bộ mã nguồn bằng Python (firmware MicroPython)        | 0 dòng C/C++/JS; 83 test                      | ✔ Đạt                             |
+| Toàn bộ mã nguồn bằng Python (firmware MicroPython)        | 0 dòng C/C++/JS; 97 test                      | ✔ Đạt                             |
 | Bộ xuất mô hình sang MicroPython khớp scikit-learn         | Lệch 0 (unit test)                            | ✔ Đạt                             |
 | Mô hình ML cảnh báo khí, Recall cấp ≥ 2                    | Chưa có dữ liệu khí đo thật                   | ⚙ Chờ dữ liệu thật                |
 | Cloud xác nhận/leo thang, Telegram/Email, ack              | Có                                            | ✔ Đạt                             |
@@ -791,6 +797,7 @@ Một trạm thật gửi 0,1 bản tin/giây, nên 50 bản tin/giây tương �
 19. J. Dong. "A Comparative Study of Machine Learning Models for Hourly Forecasting of Air Temperature and Relative Humidity", *arXiv:2603.23282*, 2026 (preprint).
 20. H. Darmawan, M. Yuliana, M. Z. S. Hadi. "GRU and XGBoost Performance with Hyperparameter Tuning Using GridSearchCV and Bayesian Optimization on an IoT-Based Weather Prediction System", *International Journal on Advanced Science, Engineering and Information Technology* 13(3), pp. 851–862, 2023.
 21. M. Yu, F. Xu, W. Hu, J. Sun, G. Cervone. "Using Long Short-Term Memory (LSTM) and Internet of Things (IoT) for localized surface temperature forecasting in an urban environment", *arXiv:2102.02892*, 2021 (preprint).
+22. Open-Meteo. *Ensemble API* (ECMWF IFS 0,25° ENS, NCEP GEFS 0,25°, DWD ICON EPS), https://open-meteo.com/en/docs/ensemble-api.
 
 ---
 
@@ -802,10 +809,10 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r backend/requireme
 .venv/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu   # GRU đối chứng (tuỳ chọn)
 .venv/Scripts/python -m pip install -e ml
 # kiểm thử
-cd ml && ../.venv/Scripts/python -m pytest -q            # 21 test
-cd backend && ../.venv/Scripts/python -m pytest -q tests # 21 test
+cd ml && ../.venv/Scripts/python -m pytest -q            # 31 test
+cd backend && ../.venv/Scripts/python -m pytest -q tests # 24 test
 pytest -q firmware/tests                                 # 33 test (firmware MicroPython trên PC)
-pytest -q dashboard/tests                                # 8 test
+pytest -q dashboard/tests                                # 9 test
 # nạp firmware MicroPython lên ESP32 (xem firmware/README.md)
 python firmware/deploy.py --port COM3
 # huấn luyện lại
@@ -814,11 +821,36 @@ python -m aiot_ml.train_gas_edge --data data/raw/gas_labeled.csv   # khi có d�
 python -m aiot_ml.train_anomaly --data <telemetry.csv>             # không dùng (cần vài tuần telemetry)
 # toàn hệ thống (dữ liệu từ trạm ESP32 thật)
 docker compose up -d --build
-# hình, sơ đồ
-python tools/make_report_figures.py --api http://localhost:8000
-python tools/render_mermaid.py
+# sơ đồ draw.io → PNG (system_block_diagram-1/2/3.png, wiring-1/2.png)
+python tools/render_drawio.py docs/architecture/system_block_diagram.drawio
+python tools/render_drawio.py docs/hardware/wiring.drawio
 ```
 
 ## PHỤ LỤC B. Kịch bản demo
 
-Xem `docs/report/kich_ban_demo.md`.
+Demo chạy trên trạm thật (không có bộ giả lập); quay video dự phòng trước buổi bảo vệ.
+
+### Chuẩn bị (trước buổi demo 10 phút)
+
+```bash
+docker compose up -d --build                 # hoặc chạy backend + mosquitto local theo README
+# Telegram: điền TELEGRAM_TOKEN, TELEGRAM_CHAT_ID trong .env rồi `docker compose up -d backend`
+# mở sẵn 3 cửa sổ: dashboard http://localhost:8501 · Telegram trên điện thoại (chiếu màn hình) · terminal
+```
+- Trạm đã cấp nguồn ≥ 10 phút (MQ-2 cần làm nóng), màn TFT hiện "W M" (Wi-Fi + MQTT), dashboard Tổng quan cập nhật. Trang Dự báo
+  luôn có dữ liệu (đầu vào là Open-Meteo); bảng sai số so với trạm chỉ có ý nghĩa cho khoảng trạm đặt ngoài trời.
+- Kiểm tra an toàn: phòng thoáng, không có nguồn lửa khác; dùng bật lửa gas **không bật đá**, chỉ xả gas 1–2 giây
+  cách cảm biến ~5 cm; có người giám sát.
+
+### Kịch bản (video ~4 phút)
+
+| Thời gian | Hành động                                                                                                    | Lời thuyết minh gợi ý                                                                                                                         | Cần thấy                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 0:00–0:30 | Giới thiệu trạm (ảnh/hộp thật), sơ đồ kiến trúc                                                              | "Trạm ESP32 5 cảm biến, AI lai edge–cloud: edge quyết định cảnh báo, cloud dự báo và leo thang."                                              | Slide kiến trúc                                                                  |
+| 0:30–1:10 | Dashboard → **Tổng quan**, **Biểu đồ** 24 giờ                                                                | "Dữ liệu 5 giây/lần qua MQTT vào TimescaleDB."                                                                                                | Số đo thay đổi realtime                                                          |
+| 1:10–1:40 | **Dự báo**: đường thực tế vs dự báo + khoảng tin cậy, xác suất mưa                                           | "GBDT (LightGBM), MAE nhiệt độ 1 giờ 0,30 °C. Xác suất mưa từ ensemble miễn phí, học bắt chước Google từ số nhập tay, mục tiêu lệch ≤ 10 điểm."                                                                                               | Biểu đồ dự báo                                                                   |
+| 1:40–2:40 | Xả gas gần MQ-2                                                                                              | "Edge tăng cấp 1 → 2 → 3 trong vài giây, không chờ cloud."                                                                                    | LED xanh nháy → đỏ, còi; màn TFT chuyển trang khí/khói nền đỏ; dashboard đổi màu |
+| 2:40–3:10 | Telegram nhận tin cấp 2, cấp 3 (nhắc lại mỗi phút) → bấm **✅ Đã xử lý**                                     | "Cloud gửi thông báo theo cấp, nhắc lại tới khi có người xác nhận."                                                                           | Tin nhắn + nút ack; trang Cảnh báo hiện ✅                                       |
+| 3:10–3:40 | Rút Wi-Fi/tắt router rồi xả gas lần nữa                                                                      | "Mất mạng: còi vẫn kêu vì quyết định ở edge; dữ liệu vào đệm offline trên flash, gửi bù khi có mạng. Broker phát LWT, dashboard báo offline." | Còi vẫn kêu; dashboard Offline + cảnh báo `device_offline`                       |
+| 3:40–4:10 | Bật lại mạng → dữ liệu gửi bù xuất hiện liền mạch trên Biểu đồ; trang **Thiết bị**: đổi ngưỡng, thiết bị ack | "Cấu hình có phiên bản, thiết bị xác nhận."                                                                                                   | Biểu đồ không bị hở; config acked                                                |
+| 4:10–4:30 | Trang **Mô hình** + kết luận                                                                                 | "Mô hình từ thư viện chuẩn, 31 + 24 + 33 + 9 test, Docker một lệnh."                                                                          | Bảng registry                                                                    |

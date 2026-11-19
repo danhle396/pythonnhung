@@ -62,21 +62,22 @@ def test_page_renders_without_exception(page):
     at.query_params["page"] = page
     at.run()
     assert not at.exception, [e.value for e in at.exception]
-    assert at.sidebar.radio[0].value == ["Tổng quan", "Biểu đồ", "Dự báo", "Cảnh báo", "Thiết bị", "Mô hình"][PAGES.index(page)]
+    assert at.radio[0].value == ["Tổng quan", "Biểu đồ", "Dự báo", "Cảnh báo", "Thiết bị", "Mô hình"][PAGES.index(page)]
+    assert any("topbar" in h.proto.body for h in at.html), "thiếu thanh trên cùng"
 
 
 def test_overview_shows_sensor_status():
     at = st_testing.AppTest.from_file(APP, default_timeout=60)
     at.query_params["page"] = "overview"
     at.run()
-    assert any(s.value == "Tình trạng cảm biến" for s in at.subheader)
-    html = " ".join(m.value for m in at.markdown)
+    html = " ".join(h.proto.body for h in at.html)
+    assert "Tình trạng cảm biến" in html
     for s in FIX["/api/sensors/station01"]["sensors"]:
         assert s["name"] in html
     bad = [s for s in FIX["/api/sensors/station01"]["sensors"] if s["status"] == "error"]
     if bad:
-        assert any("Cảm biến đang lỗi" in e.value for e in at.error)
-        assert any(m.value == "⚠ Lỗi" for m in at.metric)
+        assert "Cảm biến đang lỗi" in html
+        assert "card alert" in html and "⚠ Lỗi" in html
 
 
 def test_ack_and_config_submit():
@@ -95,3 +96,32 @@ def test_ack_and_config_submit():
     at.button(key="FormSubmitter:cfg-💾 Gửi cấu hình xuống thiết bị").click().run()
     put = [j for m, u, j in SENT if m == "PUT"]
     assert put and put[0]["th1"] < put[0]["th2"] < put[0]["th3"]
+
+
+def test_forecast_page_rain_from_ensemble_and_google_entry(monkeypatch):
+    fc = json.loads(json.dumps(FIX["/api/forecast/station01"]))
+    for part in ("latest", "history"):
+        extra = []
+        for row in fc[part]:
+            if row["target"] == "rain_prob":
+                extra.append({**row, "target": "rain_ens", "value": max(0.0, row["value"] - 0.05)})
+                extra.append({**row, "target": "rain_ml", "value": min(1.0, row["value"] + 0.2)})
+        fc[part] += extra
+    monkeypatch.setitem(FIX, "/api/forecast/station01", fc)
+    monkeypatch.setitem(FIX, "/api/rain/google", {
+        "rows": [{"id": 1, "entered_at": "2026-11-19T09:00:00+00:00", "valid_at": "2026-11-20T10:00:00+00:00",
+                  "google_pct": 70.0, "pred_pct": 66.0, "default_pct": 66.0},
+                 {"id": 2, "entered_at": "2026-11-19T09:00:00+00:00", "valid_at": "2026-11-20T13:00:00+00:00",
+                  "google_pct": 40.0, "pred_pct": 66.0, "default_pct": 66.0}],
+        "metrics": {"n": 2, "MAE": 15.0, "within10": 0.5}, "min_fit_rows": 40,
+        "calibration": {"version": "ens-default", "threshold": 1.0, "weights": {"ecmwf": 1, "gfs": 1, "icon": 1},
+                        "n": 0, "metrics": None, "isotonic": False}})
+    at = st_testing.AppTest.from_file(APP, default_timeout=60)
+    at.query_params["page"] = "forecast"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    html = " ".join(h.proto.body for h in at.html)
+    assert "Mưa lúc +1 giờ" in html and "Ensemble " in html
+    assert "Xác suất mưa so với Google" in html and "2 giờ đã nhập" in html and "50 % số giờ lệch ≤ 10" in html
+    assert "17:00 20/11" in html and "❌" in html and "✅" in html
+    assert any("Học lại" in b.label and b.disabled for b in at.button), "chưa đủ 40 giờ thì không cho học lại"
