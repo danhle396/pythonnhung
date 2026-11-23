@@ -15,7 +15,7 @@
 > - Edge: rule 4 cấp ✅ | model khí ❌ (`gas_model.AVAILABLE = False`) | MQ-2 ✅ đo được | YL-83 ✅ ngưỡng tạm 2600/2000 mV
 > - ⚠️ Chưa có dữ liệu khí đo thật → edge chạy rule, bảng rule/model/hybrid còn trống; Isolation Forest/CUSUM đã cài nhưng không triển khai
 > - ⚠️ Firmware `TELEMETRY_PERIOD_MS = 5000` + ngưỡng YL-83 mới **chưa nạp** lên board; cấp nguồn USB làm board reset khi bật Wi-Fi
-> - Sơ đồ khối (drawio trang 1) khớp code: mưa = ensemble hiệu chỉnh theo Google + YL-83, trạm gửi QoS 0 + seq, RF khí chờ dữ liệu MQ-2 → đã thay ảnh ở slide 4 và báo cáo Hình 3.1
+> - Sơ đồ khối (drawio trang 1) khớp code: mưa = ensemble hiệu chỉnh theo Google + YL-83, trạm gửi QoS 0 + seq, ô ml ghi "LightGBM (dự báo) · RF khí" → đã thay ảnh ở slide 4 và báo cáo Hình 3.1
 > - **Bước tiếp theo NGAY:** `docker compose up -d --build backend dashboard` (~5 phút) → trang Dự báo nhập số Google 2–3 lần/ngày tới ≥ 40 giờ → bấm **Học lại hiệu chỉnh**
 
 **Cách cập nhật file này (sau MỖI lần thay đổi):** (1) sửa khối **TRẠNG THÁI** ở trên — ngày, số liệu, số test, cảnh báo, bước

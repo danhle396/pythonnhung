@@ -4,7 +4,7 @@
 > Phiên làm việc tiếp theo: đọc `task.md` (mục 0 — 3 nguyên tắc bắt buộc, trong đó **Nguyên tắc 3: luôn đồng bộ mọi thứ**)
 > → file này, rồi làm tiếp mục "CÒN LẠI" theo thứ tự. Cập nhật file này và `task.md` sau mỗi hạng mục hoàn thành.
 
-Cập nhật lần cuối: 2026-11-19 (đợt 14: sơ đồ khối khớp code, slide + báo cáo thay ảnh; 97 test pass)
+Cập nhật lần cuối: 2026-11-19 (đợt 15: gọn ô ml trên sơ đồ khối, thay ảnh slide 4 + báo cáo; 97 test pass)
 
 ## ĐÃ XONG (đã chạy và kiểm chứng)
 
@@ -277,6 +277,11 @@ Cập nhật lần cuối: 2026-11-19 (đợt 14: sơ đồ khối khớp code, 
       (Hình 3.1). `diagrams.md` mô tả trang 1 thêm phần mưa và QoS 0; `task.md` Metrics sửa "QoS 1" → "trạm QoS 0 + seq".
 - [x] `task.md` Nguyên tắc 3 thêm checklist **"ĐỒNG BỘ DỰ ÁN" = đồng bộ hết** (vẽ lại draw.io → PNG → slide → báo cáo → tài liệu
       → test) và dòng bảng "Ảnh sơ đồ PNG → slide trang 4–6". **97 test pass.**
+
+### Đợt 15 (2026-11-19) — gọn ô "Huấn luyện offline" trên sơ đồ khối
+- [x] Theo yêu cầu người dùng: bỏ chữ "(chờ dữ liệu MQ-2)" trong ô ml của `system_block_diagram.drawio` trang 1 (còn
+      "LightGBM (dự báo) · RF khí"); xuất lại `system_block_diagram-1.png`, thay ảnh slide 4, sinh lại `bao_cao.docx`.
+      Việc mô hình khí còn chờ dữ liệu MQ-2 vẫn ghi trong `diagrams.md`, `task.md` và báo cáo. **97 test pass.**
 
 ## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
 - [ ] **Nhập số Google** (trang Dự báo → "Xác suất mưa so với Google") ≥ 40 giờ rồi bấm "Học lại hiệu chỉnh"; ghi % số giờ
