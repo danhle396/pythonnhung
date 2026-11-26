@@ -4,7 +4,7 @@
 > Phiên làm việc tiếp theo: đọc `task.md` (mục 0 — 3 nguyên tắc bắt buộc, trong đó **Nguyên tắc 3: luôn đồng bộ mọi thứ**)
 > → file này, rồi làm tiếp mục "CÒN LẠI" theo thứ tự. Cập nhật file này và `task.md` sau mỗi hạng mục hoàn thành.
 
-Cập nhật lần cuối: 2026-11-19 (đợt 15: gọn ô ml trên sơ đồ khối, thay ảnh slide 4 + báo cáo; 97 test pass)
+Cập nhật lần cuối: 2026-11-19 (đợt 17: bỏ báo cáo bao_cao.md/.docx theo người dùng, gỡ mọi tham chiếu; 97 test pass)
 
 ## ĐÃ XONG (đã chạy và kiểm chứng)
 
@@ -283,23 +283,40 @@ Cập nhật lần cuối: 2026-11-19 (đợt 15: gọn ô ml trên sơ đồ kh
       "LightGBM (dự báo) · RF khí"); xuất lại `system_block_diagram-1.png`, thay ảnh slide 4, sinh lại `bao_cao.docx`.
       Việc mô hình khí còn chờ dữ liệu MQ-2 vẫn ghi trong `diagrams.md`, `task.md` và báo cáo. **97 test pass.**
 
+### Đợt 16 (2026-11-27) — slide 7–9 chụp bảng gốc từ bài báo
+- [x] Theo yêu cầu: thay bảng tự gõ ở trang 7–9 bằng ảnh chụp bảng gốc (render PDF 300 dpi, cắt sát bảng kèm tên bảng):
+      trang 7 Dong Table I + II; trang 8 Darmawan Table V + Fig. 7, Fig. 8 (bài này không có bảng RMSE hồi quy, số nằm trong
+      hình) + khung "RMSE trung bình" lấy từ nội dung bài (BMKG 1,2728 / 1,5517; IoT 2,28 / 2,23); trang 9 Ke Table 2 + 3,
+      Yu Table 2 + dòng kết quả chính (2,99 °C so với persistence 3,80 °C).
+- [x] Lưu bản mới (trang 1–6, 10 giữ nguyên); theo yêu cầu người dùng đã **xoá `VKU-SLIDE.pptx` cũ** và đổi tên bản mới
+      thành **`docs/report/VKU_SLIDE_Newbie.pptx`** (README, task.md đã sửa tên; các đợt cũ trong file này giữ tên cũ). Kiểm tra bằng
+      ảnh xuất từ PowerPoint. Không đổi code → không ảnh hưởng test.
+
+### Đợt 17 (2026-11-27) — bỏ báo cáo Word/Markdown
+- [x] Người dùng xoá `docs/report/bao_cao.md` và `bao_cao.docx` (gồm cả phụ lục B kịch bản demo). Gỡ mọi tham chiếu:
+      `task.md` (TRẠNG THÁI, checklist "ĐỒNG BỘ DỰ ÁN" còn 4 bước, bảng đồng bộ bỏ phần báo cáo + dòng "Báo cáo nguồn",
+      cây thư mục, §2.8, Timeline, Rủi ro, tài liệu tham khảo; các mục "ghi vào báo cáo §x" bỏ số mục), `README.md`,
+      `docs/architecture/diagrams.md`, mục CÒN LẠI ở file này (kết quả đo ghi vào `task.md`/slide, GVHD điền vào slide).
+- [x] `tools/md_to_docx.py` giữ lại nhưng bỏ đường dẫn mặc định tới `bao_cao.md` (giờ phải truyền file `.md`).
+      Các đợt cũ trong file này vẫn nhắc báo cáo vì là nhật ký lịch sử.
+
 ## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
 - [ ] **Nhập số Google** (trang Dự báo → "Xác suất mưa so với Google") ≥ 40 giờ rồi bấm "Học lại hiệu chỉnh"; ghi % số giờ
-      lệch ≤ 10 trước/sau khi học vào báo cáo §5.1.
+      lệch ≤ 10 trước/sau khi học vào `task.md` (Metrics) và slide.
 - [ ] **Nạp firmware** có `TELEMETRY_PERIOD_MS = 5000` (`python firmware/deploy.py --port COM3`; nếu lỗi truyền thì chép từng file
       bằng `mpremote fs cp`) — hoặc đặt `telemetry_ms = 5000` ở trang Thiết bị khi trạm online.
 - [ ] **Nguồn trạm**: board tự khởi động lại khi bật Wi-Fi (POWERON_RESET) khi cấp nguồn qua USB → dùng nguồn 5 V/2 A vào VIN.
 - [ ] Trạm mất kết nối MQTT (LWT) ≈ 15–20 s sau mỗi lần báo động cấp 3 (còi + đèn đỏ + đốt MQ-2) khi cấp nguồn USB → nguồn 5 V/2 A vào VIN.
-- [ ] YL-83: thử ướt nửa tấm / cả tấm để chốt ngưỡng mưa vừa/to (đang ước lượng 2600/2000 mV); ghi bảng hiệu chuẩn vào báo cáo §3.2.
-- [ ] Điền GVHD ở đầu `docs/report/bao_cao.md` (họ tên, MSSV đã điền) rồi chạy lại `python tools/md_to_docx.py docs/report/bao_cao.md`.
-- [ ] Quay video demo theo phụ lục B `docs/report/bao_cao.md` (cần trạm thật).
+- [ ] YL-83: thử ướt nửa tấm / cả tấm để chốt ngưỡng mưa vừa/to (đang ước lượng 2600/2000 mV); ghi bảng hiệu chuẩn vào `task.md` §2.2.1.
+- [ ] Điền GVHD vào trang bìa slide `docs/report/VKU_SLIDE_Newbie.pptx`.
+- [ ] Quay video demo theo các bước ở `task.md` §2.8 (cần trạm thật).
 - [ ] Thu dữ liệu khí thật → `python -m aiot_ml.train_gas_edge --data ...`;
-      cập nhật báo cáo 5.2, chạy lại `tools/make_report_figures.py`.
+      ghi bảng rule / model / hybrid vào `task.md` §1.8 và slide.
 - [ ] Chụp lại ảnh dashboard/Grafana khi trạm thật đã gửi dữ liệu (ảnh cũ chụp từ dữ liệu giả lập đã bị xoá).
 - [ ] **Nạp firmware MicroPython lên board thật** (`firmware/README.md`): nạp MicroPython ESP32_GENERIC bằng esptool →
       `python firmware/deploy.py --port COM3` → kiểm tra log `[SENS]`, màn TFT, telemetry vào DB (`credentials.py` đã chuyển
-      sẵn Wi-Fi/MQTT từ cấu hình cũ). Đo `firmware/bench_device.py` (µs/bước edge, RAM trống) để điền báo cáo 5.5.
-- [ ] Đo đạc phần cứng (⚙ trong báo cáo chương 5): độ trễ edge, end-to-end Telegram P50/P95, 72 h, mất Wi-Fi, báo động giả,
+      sẵn Wi-Fi/MQTT từ cấu hình cũ). Đo `firmware/bench_device.py` (µs/bước edge, RAM trống), ghi vào `task.md` §1.9.
+- [ ] Đo đạc phần cứng (⚙ trong `task.md` §2.6 và Metrics): độ trễ edge, end-to-end Telegram P50/P95, 72 h, mất Wi-Fi, báo động giả,
       công suất; chụp ảnh lắp ráp.
 
 ## VIỆC CẦN NGƯỜI LÀM (phần cứng — Claude không làm được)

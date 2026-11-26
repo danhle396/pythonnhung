@@ -69,4 +69,6 @@ def main(src: str):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "docs/report/bao_cao.md")
+    if len(sys.argv) < 2:
+        raise SystemExit("Cách dùng: python tools/md_to_docx.py <file.md>")
+    main(sys.argv[1])

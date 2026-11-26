@@ -9,13 +9,14 @@
 > **Tên tiếng Anh:** An AIoT Station for Environment Monitoring, Short-Term Weather Forecasts, and Early Warnings of Flammable Gas and Smoke by Danger Level, Using Edge–Cloud AI on ESP32 and MQTT.
 > **Sinh viên thực hiện:** Lê Thành Danh (23CE010), Nguyễn Bá Thiện (23CE076).
 
-> **TRẠNG THÁI (2026-11-19): Phase 1 (phần mềm + ML) ✅ | 1.7 Mưa miễn phí ⚠️ chờ số Google nhập tay | 2.2 Phần cứng ⚠️ trạm chạy thật trong nhà | 2.5–2.6 Đo đạc hiện trường ❌ Chưa bắt đầu**
+> **TRẠNG THÁI (2026-11-27): Phase 1 (phần mềm + ML) ✅ | 1.7 Mưa miễn phí ⚠️ chờ số Google nhập tay | 2.2 Phần cứng ⚠️ trạm chạy thật trong nhà | 2.5–2.6 Đo đạc hiện trường ❌ Chưa bắt đầu**
 > - Dự báo: MAE T 1h **0,299 °C** (target < 1,0) | MAE H 1h **1,870 %RH** (target < 5) | F1 mưa 3h **0,833** (target > 0,75) | Mưa lệch Google: chưa đo (target ≤ 10 điểm; 5 giờ đo thử lệch TB 12)
 > - Test: **97 pass** (ml 31 · backend 24 · firmware 33 · dashboard 9) | Docker: 4 container healthy (lần build gần nhất trước đợt 9) | Trạm thật: gửi dữ liệu vào DB từ 2026-11-12
 > - Edge: rule 4 cấp ✅ | model khí ❌ (`gas_model.AVAILABLE = False`) | MQ-2 ✅ đo được | YL-83 ✅ ngưỡng tạm 2600/2000 mV
 > - ⚠️ Chưa có dữ liệu khí đo thật → edge chạy rule, bảng rule/model/hybrid còn trống; Isolation Forest/CUSUM đã cài nhưng không triển khai
 > - ⚠️ Firmware `TELEMETRY_PERIOD_MS = 5000` + ngưỡng YL-83 mới **chưa nạp** lên board; cấp nguồn USB làm board reset khi bật Wi-Fi
-> - Sơ đồ khối (drawio trang 1) khớp code: mưa = ensemble hiệu chỉnh theo Google + YL-83, trạm gửi QoS 0 + seq, ô ml ghi "LightGBM (dự báo) · RF khí" → đã thay ảnh ở slide 4 và báo cáo Hình 3.1
+> - Sơ đồ khối (drawio trang 1) khớp code: mưa = ensemble hiệu chỉnh theo Google + YL-83, trạm gửi QoS 0 + seq, ô ml ghi "LightGBM (dự báo) · RF khí" → đã thay ảnh ở slide 4
+> - Tài liệu nộp: slide `VKU_SLIDE_Newbie.pptx` (trang 7–9 là ảnh chụp bảng gốc từ bài báo); báo cáo `bao_cao.md/.docx` **đã xoá** (người dùng, 2026-11-27)
 > - **Bước tiếp theo NGAY:** `docker compose up -d --build backend dashboard` (~5 phút) → trang Dự báo nhập số Google 2–3 lần/ngày tới ≥ 40 giờ → bấm **Học lại hiệu chỉnh**
 
 **Cách cập nhật file này (sau MỖI lần thay đổi):** (1) sửa khối **TRẠNG THÁI** ở trên — ngày, số liệu, số test, cảnh báo, bước
@@ -65,7 +66,7 @@ Open-Meteo Ensemble → tỉ lệ phương án ≥ θ mm → hiệu chỉnh theo
 > demo. Dữ liệu thời tiết lịch sử lấy từ Open-Meteo (số liệu tái phân tích thật). Mô hình ML khí và bộ phát hiện bất
 > thường chỉ huấn luyện khi có dữ liệu MQ-2/telemetry đo thật; trong lúc chờ, edge chạy luật ngưỡng (`gas_model.AVAILABLE = False`).
 
-> **NGUYÊN TẮC 3 — LUÔN ĐỒNG BỘ MỌI THỨ VỚI NHAU.** Code, tài liệu, sơ đồ, báo cáo, slide và kế hoạch phải luôn nói
+> **NGUYÊN TẮC 3 — LUÔN ĐỒNG BỘ MỌI THỨ VỚI NHAU.** Code, tài liệu, sơ đồ, slide và kế hoạch phải luôn nói
 > cùng một điều. **Mỗi thay đổi code phải cập nhật luôn mọi chỗ liên quan trong cùng một lần sửa**, không để "sửa sau".
 > Trước khi coi một việc là xong, rà theo bảng dưới và chạy lại toàn bộ test.
 >
@@ -74,26 +75,24 @@ Open-Meteo Ensemble → tỉ lệ phương án ≥ θ mm → hiệu chỉnh theo
 > 1. **Sơ đồ draw.io:** so từng ô/mũi tên của `system_block_diagram.drawio` (trang 1 sơ đồ khối, 2 CSDL, 3 luồng cảnh báo)
 >    và `wiring.drawio` với code hiện tại; chỗ nào thay đổi thì **vẽ lại** — sửa trực tiếp ô trong file (người dùng có chỉnh
 >    tay, không sinh lại cả trang) → xuất PNG `tools/render_drawio.py` → mở ảnh kiểm tra chữ không tràn ô.
-> 2. **Slide `VKU-SLIDE.pptx`:** thay ảnh (trang 4 = `system_block_diagram-1.png`, trang 5–6 = `wiring-1/2.png`) và sửa chữ
+> 2. **Slide `VKU_SLIDE_Newbie.pptx`:** thay ảnh (trang 4 = `system_block_diagram-1.png`, trang 5–6 = `wiring-1/2.png`) và sửa chữ
 >    trên slide cho khớp; kiểm tra ảnh trong slide trùng với PNG mới nhất.
-> 3. **Báo cáo:** sửa `bao_cao.md` (chữ + chú thích hình) → sinh lại `bao_cao.docx`.
-> 4. **Tài liệu:** `README.md`, `docs/architecture/*.md`, `firmware/README.md`, `task.md` (TRẠNG THÁI + mục liên quan),
+> 3. **Tài liệu:** `README.md`, `docs/architecture/*.md`, `firmware/README.md`, `task.md` (TRẠNG THÁI + mục liên quan),
 >    `PROGRESS.md` (đợt mới).
-> 5. `grep` tham chiếu cũ, chạy đủ 4 bộ test, số test ghi giống nhau ở mọi nơi.
+> 4. `grep` tham chiếu cũ, chạy đủ 4 bộ test, số test ghi giống nhau ở mọi nơi.
 >
 > | Khi thay đổi…                                   | Phải cập nhật đồng bộ                                                                                                                                                                                         |
 > | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 > | Bất kỳ code nào                                 | `task.md` (**khối TRẠNG THÁI**, đánh dấu `[x]`, sửa mô tả cho khớp code), `PROGRESS.md` (nhật ký + mục CÒN LẠI), `README.md`                                                                                  |
-> | Chân GPIO, linh kiện (`firmware/src/config.py`) | `task.md` §2.2.1, `docs/hardware/gen_wiring_drawio.py` → `wiring.drawio` → `wiring-*.png` (`tools/render_drawio.py`), `firmware/README.md` (checklist cấp điện), báo cáo §3.3, slide                           |
+> | Chân GPIO, linh kiện (`firmware/src/config.py`) | `task.md` §2.2.1, `docs/hardware/gen_wiring_drawio.py` → `wiring.drawio` → `wiring-*.png` (`tools/render_drawio.py`), `firmware/README.md` (checklist cấp điện), slide                                         |
 > | Topic / payload MQTT                            | firmware (`station.py`, `payloads.py`, `net.py`), `broker/mosquitto/acl`, `backend/app/mqtt/ingest.py` + `schemas/payloads.py`, `docs/architecture/mqtt.md`, `task.md` §2.2.5, `sequences.md`                 |
-> | Bảng / cột CSDL (`backend/app/db/models.py`)    | migration Alembic mới trong `backend/app/db/migrations/versions/`, ERD: trang 2 của `system_block_diagram.drawio` (xuất lại PNG) + bảng trong `diagrams.md`, `task.md` §2.2.6, báo cáo chương 3                                                              |
-> | API REST/WS (`backend/app/api/`)                | `dashboard/app.py` + `dashboard/tests/` (fixture), `task.md` §2.2.6, `README.md`, báo cáo chương 4                                                                                                            |
-> | Target / feature / model ML                     | `ml/configs/*.json`, `ml/src/features.py`, `ml/models/registry.json`, `docs/report/results_*.md`, forecast service, dashboard, `task.md` §1.3–1.7, báo cáo chương 5, slide |
-> | Kiến trúc / luồng xử lý                         | `docs/architecture/system_block_diagram.drawio`, `ipo.md`, `diagrams.md`, `sequences.md`, xuất PNG `tools/render_drawio.py` → `system_block_diagram-N.png`, `task.md` Pipeline + §2.1, báo cáo chương 3, **slide 4** (thay ảnh + chữ)                                   |
-> | Ảnh sơ đồ PNG bất kỳ                            | slide `VKU-SLIDE.pptx` (trang 4: sơ đồ khối; trang 5–6: đấu dây) phải dùng đúng ảnh mới; sinh lại `bao_cao.docx`                                                                                              |
-> | Số lượng test                                   | `README.md` (mục Kiểm thử), `PROGRESS.md`, `docs/report/bao_cao.md` (chương 4, 6, phụ lục B), `task.md` TRẠNG THÁI + §2.3                                                                                     |
-> | KPI / số liệu kết quả                           | `task.md` TRẠNG THÁI + Metrics Mục Tiêu, `README.md`, báo cáo chương 5–6, slide                                                                                                                               |
-> | Báo cáo nguồn                                   | sinh lại `bao_cao.docx` (`tools/md_to_docx.py`, cần MS Word)                                                                                                                                                 |
+> | Bảng / cột CSDL (`backend/app/db/models.py`)    | migration Alembic mới trong `backend/app/db/migrations/versions/`, ERD: trang 2 của `system_block_diagram.drawio` (xuất lại PNG) + bảng trong `diagrams.md`, `task.md` §2.2.6                                                              |
+> | API REST/WS (`backend/app/api/`)                | `dashboard/app.py` + `dashboard/tests/` (fixture), `task.md` §2.2.6, `README.md`                                                                                                            |
+> | Target / feature / model ML                     | `ml/configs/*.json`, `ml/src/features.py`, `ml/models/registry.json`, `docs/report/results_*.md`, forecast service, dashboard, `task.md` §1.3–1.7, slide |
+> | Kiến trúc / luồng xử lý                         | `docs/architecture/system_block_diagram.drawio`, `ipo.md`, `diagrams.md`, `sequences.md`, xuất PNG `tools/render_drawio.py` → `system_block_diagram-N.png`, `task.md` Pipeline + §2.1, **slide 4** (thay ảnh + chữ)                                   |
+> | Ảnh sơ đồ PNG bất kỳ                            | slide `VKU_SLIDE_Newbie.pptx` (trang 4: sơ đồ khối; trang 5–6: đấu dây) phải dùng đúng ảnh mới                                                                                              |
+> | Số lượng test                                   | `README.md` (mục Kiểm thử), `PROGRESS.md`, `task.md` TRẠNG THÁI + §2.3                                                                                     |
+> | KPI / số liệu kết quả                           | `task.md` TRẠNG THÁI + Metrics Mục Tiêu, `README.md`, slide                                                                                                                               |
 > | Xoá / đổi tên tính năng, file, module           | `grep` toàn repo tìm tham chiếu cũ (code, test, tài liệu, sơ đồ, slide) và xoá hết; bảng CSDL bị bỏ phải có migration `drop`                                                                                 |
 >
 > Lệnh kiểm tra trước khi kết thúc (Windows: đặt `PYTHONUTF8=1`):
@@ -287,8 +286,8 @@ python -m aiot_ml.train_forecast    # ghi registry + experiments.csv, chỉ thă
 - ~~Hình biểu đồ kết quả (matplotlib)~~ — bỏ 2026-11-19: báo cáo chỉ dùng bảng số liệu; hình chỉ còn sơ đồ draw.io
 - [x] Log thí nghiệm `ml/experiments/experiments.csv` (tham số, metric, thời gian, `seed`) ✅
 - [x] Bảng sai số dự báo so với số đo trạm (MAE, lệch TB theo biến × tầm) trên dashboard trang Dự báo ✅ — [ ] ⚙ chạy đêm ngoài trời (2.5)
-- [ ] ⚙ Bảng metric cảnh báo rule / model / hybrid — chờ dữ liệu khí thật → báo cáo §5.2
-- [ ] ⚙ Bảng xác suất mưa so với Google (số giờ, lệch TB, % giờ lệch ≤ 10 trước/sau khi học) — chờ ≥ 40 giờ số Google → báo cáo §5.1
+- [ ] ⚙ Bảng metric cảnh báo rule / model / hybrid — chờ dữ liệu khí thật → báo cáo
+- [ ] ⚙ Bảng xác suất mưa so với Google (số giờ, lệch TB, % giờ lệch ≤ 10 trước/sau khi học) — chờ ≥ 40 giờ số Google → báo cáo
 
 ---
 
@@ -314,7 +313,7 @@ python -m aiot_ml.train_forecast    # ghi registry + experiments.csv, chỉ thă
   MET Norway và các mô hình JMA/KMA/CMA không có xác suất mưa ở VKU. Chạy thật: lấy được 51 + 31 + 40 phương án; mặc định 65/64/63/65/70 %.
 - [x] Backend: bảng `google_rain_obs`, `POST/GET /api/rain/google`, `POST /api/rain/calibrate`; forecast lưu `rain_prob` (hiển thị), `rain_ens`, `rain_ml`; MQTT `forecast` có `rain_source` (`ensemble`/`lightgbm`); không có ensemble → LightGBM; không có cả hai → bỏ lượt
 - [x] Cấu hình: `USE_RAIN_ENSEMBLE` (mặc định bật), `RAIN_CALIB_PATH` (Docker: volume `backend-data` → `/app/data/rain_calib.json`, không mất khi build lại), `RAIN_MAX_DEV_PCT = 10`, `STATION_FRESH_MIN = 15`
-- [ ] ⚙ Nhập số Google ≥ 40 giờ (2–3 lần/ngày × 5 ô) → bấm **Học lại hiệu chỉnh** → ghi kết quả vào báo cáo §5.1
+- [ ] ⚙ Nhập số Google ≥ 40 giờ (2–3 lần/ngày × 5 ô) → bấm **Học lại hiệu chỉnh** → ghi kết quả vào báo cáo
   - **Pass criterion:** % số giờ lệch ≤ 10 điểm trên số Google đã nhập (đo trung thực, **không bảo đảm 100 %**); học lại khi chuyển mùa
 
 ---
@@ -346,7 +345,7 @@ python -m aiot_ml.train_forecast    # ghi registry + experiments.csv, chỉ thă
 - [x] Model edge float32, mảng node đóng gói `bytes`, `predict_proba()` duyệt cây thuần Python ✅
   - Giới hạn: Decision Tree `max_depth ≤ 6` hoặc RF ≤ 10 cây → vừa RAM ESP32
 - [x] Firmware biên dịch `.mpy` (mpy-cross) để giảm RAM/thời gian nạp ✅
-- [ ] ⚙ Đo kích thước model (kB), RAM và µs suy luận trên ESP32: `python -m mpremote connect COM3 run firmware/bench_device.py` (khi đã có model) → báo cáo §5.5
+- [ ] ⚙ Đo kích thước model (kB), RAM và µs suy luận trên ESP32: `python -m mpremote connect COM3 run firmware/bench_device.py` (khi đã có model) → báo cáo
 
 ---
 
@@ -440,7 +439,7 @@ final/
 ├── docs/
 │   ├── hardware/               # gen_wiring_drawio.py → wiring.drawio, wiring-1/2.png
 │   ├── architecture/           # mqtt.md, ipo.md, diagrams.md, sequences.md; system_block_diagram.drawio (3 trang) → -1/2/3.png
-│   └── report/                 # bao_cao.md/.docx (phụ lục B = kịch bản demo), results_*.md, VKU-SLIDE.pptx
+│   └── report/                 # results_*.md, VKU_SLIDE_Newbie.pptx
 ├── firmware/                   # MicroPython cho ESP32 (chỉ Python)
 │   ├── README.md               # nạp MicroPython, credentials.py, deploy, checklist trước khi cấp điện
 │   ├── deploy.py               # biên dịch .mpy (mpy-cross) + chép lên board bằng mpremote; tạo gói OTA
@@ -492,7 +491,7 @@ final/
     ├── label_logger.py         # ghi dữ liệu khí đo thật có nhãn
     ├── load_test.py            # kiểm thử tải N thiết bị (tự xoá thiết bị tạm)
     ├── render_drawio.py, browser_cdp.py   # draw.io → PNG (Edge/Chrome headless)
-    └── md_to_docx.py           # bao_cao.md → .docx (MS Word)
+    └── md_to_docx.py           # Markdown → .docx (MS Word); không còn dùng cho báo cáo
 ```
 (Không có `ml/notebooks/`, `ml/src/export_edge_model.py`, `evaluate.py` như kế hoạch ban đầu: xuất model nằm trong `train_gas_edge.py`, đánh giá nằm trong các script `train_*.py`.)
 
@@ -538,7 +537,7 @@ final/
 - [x] MQ-2 AO **nối thẳng GPIO32**, bỏ cầu phân áp 10 kΩ/20 kΩ (2026-11-16, `MQ2_DIVIDER = 1.0`). ADC 11 dB bão hoà ≈ 3,3 V; AO > 3,3 V khi nồng độ rất cao → `FAULT_SATURATED`. Đã đo (sau khi sửa dây AO → GPIO32): sạch ≈ 360–440 mV, gas bật lửa 2868 mV (≈ 5170 ppm) → cấp 3.
 - [x] Quét I2C tự động lúc khởi động (log `[SENS] I2C [...] BMP280:1 BH1750:1`). [ ] ⚙ Chụp ảnh màn TFT hiển thị đúng màu/hướng.
 - [x] Hiệu chuẩn MQ-2 có sẵn trong firmware: lệnh `calibrate` đo `R0` trong không khí sạch (`Rs/R0 ≈ 9.83`), `ppm = 574.25 · (Rs/R0)^−2.222`. [ ] ⚙ Chạy sau burn-in, đo lại `MQ2_RL_KOHM` trên module.
-- [x] Hiệu chuẩn YL-83 theo số đo thật (2026-11-16, sau khi sửa dây module LM393 — trước đó cắm sai → AO kẹt ≈ 1,2 V cả khô lẫn ướt): tấm khô 3134 mV (trần ADC), vài giọt nước 2761–2964 mV → khô ≥ 3130, mưa phùn 2600–3129, mưa vừa 2000–2599, mưa to < 2000 mV; giữ mức mưa 3 lần đọc. [ ] ⚙ Thử ướt nửa tấm / cả tấm để chốt mưa vừa/to, ghi bảng hiệu chuẩn vào báo cáo §3.3.
+- [x] Hiệu chuẩn YL-83 theo số đo thật (2026-11-16, sau khi sửa dây module LM393 — trước đó cắm sai → AO kẹt ≈ 1,2 V cả khô lẫn ướt): tấm khô 3134 mV (trần ADC), vài giọt nước 2761–2964 mV → khô ≥ 3130, mưa phùn 2600–3129, mưa vừa 2000–2599, mưa to < 2000 mV; giữ mức mưa 3 lần đọc. [ ] ⚙ Thử ướt nửa tấm / cả tấm để chốt mưa vừa/to, ghi bảng hiệu chuẩn vào báo cáo.
 - [ ] ⚙ Test riêng từng cảm biến và ghi kết quả vào báo cáo.
 - [ ] ⚙ **Burn-in MQ-2 24–48 giờ** trước khi hiệu chuẩn.
 - [ ] ⚙ So sánh nhiệt độ DHT22 và BMP280 (dashboard có cả hai trường), đối chiếu nhiệt kế tham chiếu nếu có.
@@ -730,7 +729,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 
 - [x] Trạm thật chạy trong nhà, gửi dữ liệu vào DB (Wi-Fi = Mobile Hotspot laptop, MQTT `192.168.137.1:11883`).
 - [ ] ⚙ Vị trí đặt: nơi thoáng, không bị mái che chắn mưa, tránh phản xạ nhiệt từ tường bê tông và máy lạnh. Tấm YL-83 nghiêng 30–45°.
-- [ ] ⚙ Sau khi làm hộp bảo vệ mạch, đặt ngoài trời **một đêm** → ghi bảng sai số dự báo so với số đo (trang Dự báo) vào báo cáo §5.1. Không thu dữ liệu ngoài trời dài ngày.
+- [ ] ⚙ Sau khi làm hộp bảo vệ mạch, đặt ngoài trời **một đêm** → ghi bảng sai số dự báo so với số đo (trang Dự báo) vào báo cáo. Không thu dữ liệu ngoài trời dài ngày.
 - [ ] ⚙ Burn-in MQ-2 24–48 h → lệnh `calibrate` (đo R0).
 - [ ] ⚙ Kiểm tra kết quả:
   - [ ] Chạy liên tục ≥ 72 giờ: heap, số lần reconnect, watchdog reset
@@ -779,11 +778,11 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 
 ### 2.8 Báo cáo, Slide & Bảo vệ (`docs/report/`)
 
-- [x] `bao_cao.md` → `bao_cao.docx` đủ 6 chương (`tools/md_to_docx.py`):
-  - **Ch.1** Giới thiệu · **Ch.2** Cơ sở lý thuyết (IoT/AIoT, MQTT, edge/cloud, cảm biến MOS, CART, RF, GBDT/LightGBM, Logistic, Holt-Winters, Isolation Forest, CUSUM, GRU — kèm thư viện cài đặt) · **Ch.3** Thiết kế (kiến trúc, sơ đồ khối, IPO, phần cứng + sơ đồ đấu dây, MQTT, ERD, sơ đồ tuần tự) · **Ch.4** Hiện thực (firmware MicroPython, backend, pipeline ML, xuất model sang MicroPython, dashboard) · **Ch.5** Thực nghiệm (dự báo, tải MQTT; [ ] ⚙ khí, độ trễ, 72 h, tài nguyên edge, mưa so với Google) · **Ch.6** Kết luận và hướng phát triển · Tài liệu tham khảo · Phụ lục A (chạy lại kết quả), B (kịch bản demo)
-- [x] Họ tên, MSSV hai thành viên ở đầu `bao_cao.md`, README, slide. [ ] ⚙ Điền GVHD vào `bao_cao.md` rồi sinh lại `.docx`.
-- [x] Slide bảo vệ `docs/report/VKU-SLIDE.pptx` (template VKU, 10 trang: bìa, giới thiệu, thành viên, sơ đồ hệ thống, 2 trang sơ đồ chân, 3 trang so sánh mô hình theo số liệu **bài báo đã công bố**, tài liệu tham khảo); số liệu trang 7–9 trích nguyên văn từ Dong 2026, Darmawan 2023, Ke 2017 (LightGBM), Yu 2021 — cũng ở báo cáo §2.5 (Bảng 2.1–2.4).
-- [x] Kịch bản demo: phụ lục B `docs/report/bao_cao.md`.
+- ~~`bao_cao.md` → `bao_cao.docx` (6 chương, phụ lục A chạy lại kết quả, phụ lục B kịch bản demo)~~ — **người dùng đã xoá
+  2026-11-27**; còn lại slide + tài liệu trong `docs/`. Kết quả đo/thực nghiệm ghi vào `docs/report/results_*.md` và `task.md`.
+- [x] Họ tên, MSSV hai thành viên ở README, slide. [ ] ⚙ Điền GVHD vào slide (trang bìa).
+- [x] Slide bảo vệ `docs/report/VKU_SLIDE_Newbie.pptx` (template VKU, 10 trang: bìa, giới thiệu, thành viên, sơ đồ hệ thống, 2 trang sơ đồ chân, 3 trang so sánh mô hình theo số liệu **bài báo đã công bố**, tài liệu tham khảo); số liệu trang 7–9 trích nguyên văn từ Dong 2026, Darmawan 2023, Ke 2017 (LightGBM), Yu 2021.
+  - [x] 2026-11-27: trang 7–9 dùng **ảnh chụp bảng gốc** từ PDF bài báo (300 dpi): Dong Table I–II; Darmawan Table V + Fig. 7–8 (bảng RMSE theo ngày) + dòng RMSE trung bình nêu trong bài; Ke Table 2–3; Yu Table 2. PDF gốc ở `docs/*.pdf`. Bản cũ `VKU-SLIDE.pptx` đã xoá theo yêu cầu người dùng; slide hiện tại là `VKU_SLIDE_Newbie.pptx`.
 - [ ] ⚙ Chụp lại ảnh 6 trang dashboard + Grafana từ dữ liệu trạm thật cho báo cáo.
 - [ ] ⚙ Quay video demo trên trạm thật: dashboard đang chạy → đưa bật lửa gas lại gần → LED/còi đổi cấp → Telegram nhận tin → bấm ack → rút Wi-Fi để chứng minh edge vẫn cảnh báo.
 - [ ] **Bảo vệ đồ án!** 🎯
@@ -803,7 +802,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | 7 | 1.4, 2.2.6 | Isolation Forest + CUSUM. GRU (PyTorch) đối chứng. Forecast service + publish `forecast` | ✅ (IF/CUSUM không triển khai) | Thấp |
 | 8 | 2.2.7 | Dashboard + Telegram + alert service (leo thang, ack). Màn TFT | ✅; ⚙ bot Telegram thật | Thấp |
 | 9 | 1.7, 2.3, 2.6 | Kiểm thử (unit, integration, load, 72 h, mất mạng, báo động giả). Xác suất mưa theo Google | ✅ Unit/integration/load; ⚠️ mưa chờ số Google; ⚙ phần cứng | Cao (phụ thuộc trạm thật) |
-| 10 | 2.8 | Báo cáo, slide, video demo, đóng hộp hoàn thiện | ⚠️ Báo cáo + slide xong; ⚙ video, đóng hộp, GVHD | Trung bình |
+| 10 | 2.8 | Báo cáo, slide, video demo, đóng hộp hoàn thiện | ⚠️ Slide xong (báo cáo đã xoá); ⚙ video, đóng hộp, GVHD | Trung bình |
 | **Buffer** | — | Dự phòng sửa phần cứng (nguồn, dây), thu dữ liệu khí | — | Bắt buộc |
 
 > ⚠️ Phần mềm vượt tiến độ; phần còn lại phụ thuộc phần cứng và người làm (dữ liệu khí, nguồn 5 V/2 A, đêm ngoài trời, số Google, video).
@@ -863,7 +862,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | Báo động giả gây phiền                          | Hysteresis, debounce, model hybrid, cooldown thông báo                                                                         |
 | Sai số do cài đặt mô hình                       | Dùng thư viện chuẩn (scikit-learn, LightGBM, statsmodels, PyTorch); so khớp `gas_model.py` (MicroPython) ↔ scikit-learn        |
 | Phiên bản thư viện lệch khi nạp model           | Ghim scikit-learn/LightGBM trong `ml/pyproject.toml`; file JSON đầu mục ghi phiên bản thư viện lúc huấn luyện                  |
-| Tài liệu lệch với code                          | Nguyên tắc 3: sửa code là sửa luôn tài liệu/sơ đồ/báo cáo/slide và khối TRẠNG THÁI, grep tham chiếu cũ, chạy lại toàn bộ test |
+| Tài liệu lệch với code                          | Nguyên tắc 3: sửa code là sửa luôn tài liệu/sơ đồ/slide và khối TRẠNG THÁI, grep tham chiếu cũ, chạy lại toàn bộ test |
 | An toàn khi thí nghiệm gas                      | Lượng nhỏ, nơi thoáng, không có nguồn lửa, có người giám sát                                                                   |
 
 ---
@@ -882,7 +881,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | Pedregosa et al. 2011 | scikit-learn | JMLR 12 |
 | Seabold, Perktold 2010 | statsmodels | SciPy 2010 |
 | Paszke et al. 2019 | PyTorch | NeurIPS 2019 |
-| Dong 2026 | So sánh mô hình ML dự báo nhiệt độ/độ ẩm theo giờ (slide 7–9, báo cáo Bảng 2.1–2.4) | arXiv:2603.23282 |
+| Dong 2026 | So sánh mô hình ML dự báo nhiệt độ/độ ẩm theo giờ (slide 7–9) | arXiv:2603.23282 |
 | Darmawan et al. 2023 | GRU và XGBoost cho hệ thống dự báo thời tiết IoT | IJASEIT 13(3), pp. 851–862 |
 | Yu et al. 2021 | LSTM + IoT dự báo nhiệt độ bề mặt đô thị | arXiv:2102.02892 |
 | Open-Meteo | Historical Weather API (ERA5 / ECMWF IFS) — dữ liệu huấn luyện | https://open-meteo.com |

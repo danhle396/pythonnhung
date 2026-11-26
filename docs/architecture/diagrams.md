@@ -2,19 +2,18 @@
 
 Mọi sơ đồ của dự án đều là file **draw.io**. Mở bằng [diagrams.net](https://app.diagrams.net) (File → Open) để xem và sửa.
 
-| File                                               | Trang | Nội dung                                          | Ảnh xuất (dùng trong báo cáo)  |
+| File                                               | Trang | Nội dung                                          | Ảnh xuất (dùng trong slide)    |
 | -------------------------------------------------- | ----- | ------------------------------------------------- | ------------------------------ |
 | `docs/architecture/system_block_diagram.drawio`    | 1     | Sơ đồ khối hệ thống                               | `system_block_diagram-1.png`   |
 |                                                    | 2     | Lược đồ CSDL                                      | `system_block_diagram-2.png`   |
 |                                                    | 3     | Luồng cảnh báo khí (sơ đồ tuần tự)                | `system_block_diagram-3.png`   |
 | `docs/hardware/wiring.drawio`                      | 1–2   | Đấu dây: cảm biến; còi, LED, màn TFT              | `wiring-1.png`, `wiring-2.png` |
 
-Sửa xong thì xuất lại ảnh (ảnh nằm cạnh file `.drawio`), rồi sinh lại báo cáo Word:
+Sửa xong thì xuất lại ảnh (ảnh nằm cạnh file `.drawio`), rồi thay ảnh trong slide `docs/report/VKU_SLIDE_Newbie.pptx`:
 
 ```bash
 python tools/render_drawio.py docs/architecture/system_block_diagram.drawio
 python tools/render_drawio.py docs/hardware/wiring.drawio
-python tools/md_to_docx.py docs/report/bao_cao.md
 ```
 
 ## Sơ đồ khối hệ thống (trang 1)

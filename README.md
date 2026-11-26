@@ -21,7 +21,7 @@ backend/    FastAPI + SQLAlchemy + MQTT ingest + alert/forecast service + Telegr
 dashboard/  Streamlit (6 trang, giao diện `theme.py` + `.streamlit/config.toml`) + smoke test · grafana/  dashboard Grafana provision sẵn (tuỳ chọn)
 broker/     cấu hình Mosquitto (auth + ACL theo thiết bị, TLS tuỳ chọn)
 tools/      label_logger.py (thu dữ liệu khí có nhãn), load_test.py, render_drawio.py (draw.io → PNG), md_to_docx.py
-docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, báo cáo + slide (docs/report/)
+docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, slide + kết quả thực nghiệm (docs/report/)
 ```
 
 ## Cài đặt từ đầu (≤ 10 bước)
@@ -92,13 +92,11 @@ hình ML cảnh báo khí: firmware chạy luật ngưỡng (`firmware/src/gas_m
 - Sơ đồ (draw.io, 3 trang: sơ đồ khối · CSDL · luồng cảnh báo): `docs/architecture/system_block_diagram.drawio` ·
   giải thích: `docs/architecture/diagrams.md`
 - Toàn dự án theo mô hình Input – Xử lý – Output: `docs/architecture/ipo.md` · Firmware: `firmware/README.md`
-- **Báo cáo**: `docs/report/bao_cao.md` / `bao_cao.docx` · **Slide**: `docs/report/VKU-SLIDE.pptx` ·
-  Kịch bản demo: phụ lục B của báo cáo
+- **Slide**: `docs/report/VKU_SLIDE_Newbie.pptx`
 
-### Sinh lại sơ đồ và báo cáo Word
-Mọi hình trong báo cáo là sơ đồ draw.io, ảnh PNG nằm cạnh file `.drawio`.
+### Sinh lại sơ đồ
+Mọi sơ đồ là file draw.io, ảnh PNG nằm cạnh file `.drawio` (slide 4–6 dùng các ảnh này).
 ```bash
 python tools/render_drawio.py docs/architecture/system_block_diagram.drawio   # → system_block_diagram-1/2/3.png
 python tools/render_drawio.py docs/hardware/wiring.drawio                     # → wiring-1/2.png
-pip install markdown && python tools/md_to_docx.py docs/report/bao_cao.md   # → .docx (cần MS Word)
 ```
