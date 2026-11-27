@@ -34,9 +34,6 @@ class AlertService:
         self.last_notify: dict[tuple, float] = {}
         self.edge_level: dict[str, int] = {}
         self.cloud_level: dict[str, int] = {}
-        self.anomaly_hits: dict[str, int] = {}
-        self._anom = None
-        self._anom_loaded = False
 
     def on_edge_alert(self, a, recv_t: float | None = None):
         with self.lock, session_scope() as s:
@@ -46,7 +43,7 @@ class AlertService:
                 if dup:
                     return dup
             row = Alert(device_id=a.device_id, ts=a.ts, seq=a.seq, type=a.type, level=a.level,
-                        prev_level=a.prev_level, cause=a.cause, gas_ppm=a.gas_ppm, score=a.score, source="edge",
+                        prev_level=a.prev_level, cause=a.cause, gas_ppm=a.gas_ppm, source="edge",
                         message=", ".join(a.action) if a.action else None)
             s.add(row)
             s.flush()
@@ -56,7 +53,7 @@ class AlertService:
                     self.cloud_level[a.device_id] = 0
                     for o in s.scalars(select(Alert).where(Alert.device_id == a.device_id,
                                                            Alert.resolved_at.is_(None), Alert.level > 0,
-                                                           Alert.type.in_(["gas", "anomaly", "test"]))):
+                                                           Alert.type.in_(["gas", "test"]))):
                         o.resolved_at = dt.datetime.now(dt.timezone.utc)
             s.expunge(row)
         self.hub.publish_threadsafe("alert", self.to_dict(row))
@@ -69,8 +66,6 @@ class AlertService:
             return []
         if a.type in ("device_offline", "sensor_fault"):
             channels = ["telegram"]
-        elif a.type == "anomaly":
-            channels = ["telegram"] if a.level >= 1 else []
         elif a.level >= 3:
             channels = ["telegram", "email"]
         elif a.level == 2:
@@ -135,17 +130,6 @@ class AlertService:
             self.dispatch(r, reminder=True)
         return len(due)
 
-    def _anomaly_model(self):
-        if not self._anom_loaded:
-            self._anom_loaded = True
-            try:
-                from aiot_ml.serialize import load_model
-                self._anom, _ = load_model(self.s.anomaly_model)
-                log.info("Đã nạp model bất thường %s", self.s.anomaly_model)
-            except Exception as e:
-                log.warning("Không nạp được model bất thường: %s", e)
-        return self._anom
-
     def evaluate(self, device_id: str, now: dt.datetime | None = None) -> int:
         now = now or dt.datetime.now(dt.timezone.utc)
         since = now - dt.timedelta(minutes=max(self.s.escalation_window_min, 60))
@@ -160,7 +144,7 @@ class AlertService:
         ppm = np.array([r.gas_ppm for r in rows], dtype=float)
         edge = int(rows[-1].edge_risk or 0)
         win = ts >= (now.timestamp() - self.s.escalation_window_min * 60)
-        cause, level, typ = [], 0, "gas"
+        cause, level = [], 0
         if win.sum() >= 20:
             tw, pw = ts[win], ppm[win]
             half = len(tw) // 2
@@ -173,58 +157,23 @@ class AlertService:
                 elif pw[-1] >= 150:
                     level = 1
                 cause.append(f"ppm_rising_{s_all:.0f}ppm/min_{self.s.escalation_window_min}min")
-        m = self._anomaly_model()
-        if m is not None and len(rows) >= 30:
-            try:
-                score = self._anomaly_score(m, rows)
-                if score is not None and score < 0:
-                    self.anomaly_hits[device_id] = self.anomaly_hits.get(device_id, 0) + 1
-                else:
-                    self.anomaly_hits[device_id] = 0
-                if self.anomaly_hits.get(device_id, 0) >= 2 and level < 1:
-                    level, typ = 1, "anomaly"
-                    cause.append(f"iforest_score_{score:.2f}")
-            except Exception as e:
-                log.debug("anomaly lỗi: %s", e)
         prev_cloud = self.cloud_level.get(device_id, 0)
         if level > edge and level > prev_cloud:
             self.cloud_level[device_id] = level
-            self._raise_cloud(device_id, level, edge, cause, float(ppm[-1]), typ, now)
+            self._raise_cloud(device_id, level, edge, cause, float(ppm[-1]), now)
             return level
         if edge == 0 and level == 0:
             self.cloud_level[device_id] = 0
         return 0
 
-    def _anomaly_score(self, m, rows):
-        import pandas as pd
-        from aiot_ml import prep as pp
-        df = pd.DataFrame({"ts": [as_utc(r.ts) for r in rows], "gas_ppm": [r.gas_ppm for r in rows],
-                           "temp": [r.temp_dht for r in rows], "hum": [r.hum for r in rows]}).set_index("ts")
-        df.index = df.index.tz_convert(self.s.station_tz)
-        df = df.ffill().dropna()
-        if len(df) < 10:
-            return None
-        last = df[df.index >= df.index[-1] - pd.Timedelta(minutes=10)]
-        prev = df[(df.index < last.index[0]) & (df.index >= last.index[0] - pd.Timedelta(minutes=60))]
-        hour = last.index[-1].hour + last.index[-1].minute / 60
-        hs, hc = pp.cyclic_encode([hour], 24)
-        dur = (last.index[-1] - last.index[0]).total_seconds() / 60 or 1
-        f = {"ppm_mean": last.gas_ppm.mean(), "ppm_std": last.gas_ppm.std(ddof=1) if len(last) > 1 else 0.0,
-             "ppm_slope": pp.linear_slope(last.gas_ppm.to_numpy()) * len(last) * 10 / dur,
-             "ppm_d60": last.gas_ppm.mean() - (prev.gas_ppm.mean() if len(prev) else last.gas_ppm.mean()),
-             "temp": last.temp.mean(), "hum": last.hum.mean(), "hour_sin": hs[0], "hour_cos": hc[0]}
-        X = np.array([[f[c] for c in m["features"]]])
-        return float(m["iforest"].decision_function(m["scaler"].transform(X))[0])  # < 0: bất thường
-
-    def _raise_cloud(self, device_id, level, edge, cause, ppm, typ, now):
+    def _raise_cloud(self, device_id, level, edge, cause, ppm, now):
         with session_scope() as s:
-            row = Alert(device_id=device_id, ts=now, type=typ, level=level, prev_level=edge, cause=cause,
+            row = Alert(device_id=device_id, ts=now, type="gas", level=level, prev_level=edge, cause=cause,
                         gas_ppm=ppm, source="cloud", message="Cloud xác nhận/leo thang theo ngữ cảnh dài hạn")
             s.add(row)
             s.flush()
             s.expunge(row)
-        if typ == "gas":
-            self.publisher.cmd(device_id, "escalate", level=level)
+        self.publisher.cmd(device_id, "escalate", level=level)
         log.warning("Cloud leo thang %s: cấp %d -> %d (%s)", device_id, edge, level, cause)
         self.hub.publish_threadsafe("alert", self.to_dict(row))
         self.dispatch(row, force=True)

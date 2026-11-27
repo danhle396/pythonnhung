@@ -8,7 +8,6 @@
    "lon": 108.253,
    "altitude": 8.0,
    "fw": "1.0.0",
-   "model_ver": "none",
    "last_seen": "2026-11-12T11:24:27.066298+00:00",
    "status": "online",
    "rssi": -37,
@@ -19,14 +18,11 @@
     "uptime_s": 420,
     "free_heap": 206796,
     "fw": "1.0.0",
-    "model_ver": "none",
     "ts": 1794482623,
     "min_free_heap": 200868,
     "reconnects": 1,
     "offline_pending": 0,
-    "edge_mode": 2,
     "config_ver": 0,
-    "inference_us": 0,
     "reset_reason": 1
    }
   }
@@ -39,7 +35,6 @@
   "lon": 108.253,
   "altitude": 8.0,
   "fw": "1.0.0",
-  "model_ver": "none",
   "last_seen": "2026-11-12T11:24:27.066298+00:00",
   "status": "online",
   "rssi": -37,
@@ -50,14 +45,11 @@
    "uptime_s": 420,
    "free_heap": 206796,
    "fw": "1.0.0",
-   "model_ver": "none",
    "ts": 1794482623,
    "min_free_heap": 200868,
    "reconnects": 1,
    "offline_pending": 0,
-   "edge_mode": 2,
    "config_ver": 0,
-   "inference_us": 0,
    "reset_reason": 1
   },
   "config": null
@@ -81,9 +73,7 @@
   "gas_ppm": 2.7,
   "gas_slope": 0.0,
   "edge_risk": 0,
-  "edge_score": 0.0,
   "fw": "1.0.0",
-  "model_ver": "none",
   "received_at": "2026-11-12T11:24:36.429604+00:00",
   "extra": {
    "warming_up": true,
@@ -1709,8 +1699,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:03:00+00:00",
@@ -1728,8 +1717,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:04:00+00:00",
@@ -1747,8 +1735,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:05:00+00:00",
@@ -1766,8 +1753,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:06:00+00:00",
@@ -1785,8 +1771,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:07:00+00:00",
@@ -1804,8 +1789,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:08:00+00:00",
@@ -1823,8 +1807,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:09:00+00:00",
@@ -1842,8 +1825,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:10:00+00:00",
@@ -1861,8 +1843,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:11:00+00:00",
@@ -1880,8 +1861,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:12:00+00:00",
@@ -1899,8 +1879,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:13:00+00:00",
@@ -1918,8 +1897,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:14:00+00:00",
@@ -1937,8 +1915,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:15:00+00:00",
@@ -1956,8 +1933,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:16:00+00:00",
@@ -1975,8 +1951,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:17:00+00:00",
@@ -1994,8 +1969,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:18:00+00:00",
@@ -2013,8 +1987,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:19:00+00:00",
@@ -2032,8 +2005,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:20:00+00:00",
@@ -2051,8 +2023,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:21:00+00:00",
@@ -2070,8 +2041,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:22:00+00:00",
@@ -2089,8 +2059,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:23:00+00:00",
@@ -2108,8 +2077,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:24:00+00:00",
@@ -2127,8 +2095,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:25:00+00:00",
@@ -2146,8 +2113,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:26:00+00:00",
@@ -2165,8 +2131,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:27:00+00:00",
@@ -2184,8 +2149,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:28:00+00:00",
@@ -2203,8 +2167,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:29:00+00:00",
@@ -2222,8 +2185,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:30:00+00:00",
@@ -2241,8 +2203,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:31:00+00:00",
@@ -2260,8 +2221,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:32:00+00:00",
@@ -2279,8 +2239,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:33:00+00:00",
@@ -2298,8 +2257,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:34:00+00:00",
@@ -2317,8 +2275,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:35:00+00:00",
@@ -2336,8 +2293,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:36:00+00:00",
@@ -2355,8 +2311,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:37:00+00:00",
@@ -2374,8 +2329,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:38:00+00:00",
@@ -2393,8 +2347,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:39:00+00:00",
@@ -2412,8 +2365,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:40:00+00:00",
@@ -2431,8 +2383,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:41:00+00:00",
@@ -2450,8 +2401,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:42:00+00:00",
@@ -2469,8 +2419,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:43:00+00:00",
@@ -2488,8 +2437,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:44:00+00:00",
@@ -2507,8 +2455,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:45:00+00:00",
@@ -2526,8 +2473,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:46:00+00:00",
@@ -2545,8 +2491,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:47:00+00:00",
@@ -2564,8 +2509,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:48:00+00:00",
@@ -2583,8 +2527,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:49:00+00:00",
@@ -2602,8 +2545,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:50:00+00:00",
@@ -2621,8 +2563,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:51:00+00:00",
@@ -2640,8 +2581,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:52:00+00:00",
@@ -2659,8 +2599,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:55:00+00:00",
@@ -2678,8 +2617,7 @@
    "gas_rs_r0": 8.5415,
    "gas_ppm": 6.0,
    "gas_slope": 0.325,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:57:00+00:00",
@@ -2697,8 +2635,7 @@
    "gas_rs_r0": 7.90325,
    "gas_ppm": 6.55,
    "gas_slope": 0.055,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:58:00+00:00",
@@ -2716,8 +2653,7 @@
    "gas_rs_r0": 10.3241666667,
    "gas_ppm": 3.2666666667,
    "gas_slope": -0.03,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T10:59:00+00:00",
@@ -2735,8 +2671,7 @@
    "gas_rs_r0": 11.2238333333,
    "gas_ppm": 2.7,
    "gas_slope": -0.0016666667,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:00:00+00:00",
@@ -2754,8 +2689,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:01:00+00:00",
@@ -2773,8 +2707,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:02:00+00:00",
@@ -2792,8 +2725,7 @@
    "gas_rs_r0": 8.761,
    "gas_ppm": 4.9666666667,
    "gas_slope": 0.05,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:03:00+00:00",
@@ -2811,8 +2743,7 @@
    "gas_rs_r0": 10.853,
    "gas_ppm": 2.9166666667,
    "gas_slope": -0.0266666667,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:04:00+00:00",
@@ -2830,8 +2761,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:05:00+00:00",
@@ -2849,8 +2779,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:06:00+00:00",
@@ -2868,8 +2797,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:07:00+00:00",
@@ -2887,8 +2815,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:08:00+00:00",
@@ -2906,8 +2833,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:09:00+00:00",
@@ -2925,8 +2851,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:10:00+00:00",
@@ -2944,8 +2869,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:11:00+00:00",
@@ -2963,8 +2887,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:12:00+00:00",
@@ -2982,8 +2905,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:13:00+00:00",
@@ -3001,8 +2923,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:14:00+00:00",
@@ -3020,8 +2941,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:15:00+00:00",
@@ -3039,8 +2959,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:16:00+00:00",
@@ -3058,8 +2977,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:17:00+00:00",
@@ -3077,8 +2995,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:18:00+00:00",
@@ -3096,8 +3013,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:19:00+00:00",
@@ -3115,8 +3031,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:20:00+00:00",
@@ -3134,8 +3049,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:21:00+00:00",
@@ -3153,8 +3067,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:22:00+00:00",
@@ -3172,8 +3085,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:23:00+00:00",
@@ -3191,8 +3103,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   },
   {
    "ts": "2026-11-12T11:24:00+00:00",
@@ -3210,8 +3121,7 @@
    "gas_rs_r0": 11.237,
    "gas_ppm": 2.7,
    "gas_slope": 0.0,
-   "edge_risk": 0.0,
-   "edge_score": 0.0
+   "edge_risk": 0.0
   }
  ],
  "/api/devices/station01/configs": [],

@@ -6,12 +6,11 @@ import machine
 from machine import Pin
 
 import config
-import gas_model
 from compat import has_time, local_tm, sleep_ms, ticks_diff, ticks_ms
 from station import Station
 from storage import Storage
 
-print("\n[BOOT] VKU AIoT Station fw", config.FW_VERSION, "model", gas_model.VERSION, "-", sys.implementation.name)
+print("\n[BOOT] VKU AIoT Station fw", config.FW_VERSION, "-", sys.implementation.name)
 
 
 class Hardware:

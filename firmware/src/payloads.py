@@ -1,7 +1,6 @@
 import json
 
 import config
-import gas_model
 from alert import BUZZER_CONTINUOUS, BUZZER_INTERMITTENT, LED_RED_BLINK, LED_RED_SOLID, LED_YELLOW
 from compat import isnan
 
@@ -26,10 +25,10 @@ def telemetry(d, act, o, seq):
         "dew_point": num(d.dew), "heat_index": num(d.heat_index),
         "rain_raw": d.rain_mv, "rain_level": d.rain_level,
         "gas_raw": num(d.gas_mv, 0), "gas_rs_r0": num(d.mq2.ratio, 3), "gas_ppm": num(d.mq2.ppm, 1),
-        "gas_slope": num(o.f[2] if o.f else 0.0, 2),
-        "edge_risk": act.level, "edge_score": num(o.score, 3), "warming_up": o.warming_up,
+        "gas_slope": num(o.slope, 2),
+        "edge_risk": act.level, "warming_up": o.warming_up,
         "sensor_ok": {"dht": d.dht_ok, "bmp": d.bmp_ok, "bh": d.bh_ok, "rain": d.rain_ok, "gas": d.gas_ok},
-        "fw": config.FW_VERSION, "model_ver": gas_model.VERSION,
+        "fw": config.FW_VERSION,
     })
 
 
@@ -57,8 +56,7 @@ def alert_gas(d, act, o, seq, is_test, causes, latency_ms):
         "device_id": config.DEVICE_ID, "ts": d.ts, "seq": seq,
         "type": "test" if is_test else "gas",
         "level": act.level, "prev_level": act.prev_level, "level_name": LEVEL_NAME[act.level & 3],
-        "cause": causes, "gas_ppm": num(d.mq2.ppm, 0), "score": num(o.score, 3),
-        "rule_level": o.rule_level, "model_level": o.model_level,
+        "cause": causes, "gas_ppm": num(d.mq2.ppm, 0), "edge_level": o.level,
         "action": action_list(act), "edge_latency_ms": latency_ms,
     })
 
@@ -77,6 +75,6 @@ def ack(ref, cmd_id, ok, msg, ts):
 
 
 def status(info):
-    d = {"state": "online", "device_id": config.DEVICE_ID, "fw": config.FW_VERSION, "model_ver": gas_model.VERSION}
+    d = {"state": "online", "device_id": config.DEVICE_ID, "fw": config.FW_VERSION}
     d.update(info)
     return dumps(d)

@@ -5,7 +5,6 @@ CAUSE_SLOPE = 1 << 1
 CAUSE_PPM_TH2 = 1 << 2
 CAUSE_PPM_TH3 = 1 << 3
 CAUSE_TEMP_RISING = 1 << 4
-CAUSE_MODEL = 1 << 5
 CAUSE_SENSOR_FAULT = 1 << 6
 CAUSE_CLOUD = 1 << 7
 CAUSE_TEST = 1 << 8
@@ -41,8 +40,6 @@ def cause_list(c, cfg):
         out.append("gas_ppm>%.0f" % cfg.th3)
     if c & CAUSE_TEMP_RISING:
         out.append("temp_rising")
-    if c & CAUSE_MODEL:
-        out.append("model")
     if c & CAUSE_CLOUD:
         out.append("cloud_escalation")
     if c & CAUSE_TEST:

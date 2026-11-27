@@ -102,7 +102,7 @@ def test_warmup_then_gas_alert_and_telemetry(station):
 
 def test_config_and_commands(station):
     link = FakeLink()
-    station.on_message("config", b'{"th1": 250, "th2": 900, "th3": 1800, "version": 7, "mode": "rule"}')
+    station.on_message("config", b'{"th1": 250, "th2": 900, "th3": 1800, "version": 7}')
     station.on_message("config", b'{"th1": 5000}')
     station.on_message("cmd", b'{"cmd": "mute", "id": "c1"}')
     station.on_message("cmd", b'{"cmd": "fly", "id": "c2"}')
@@ -117,7 +117,7 @@ def test_config_and_commands(station):
     assert acks[3]["ok"] is False and acks[3]["msg"] == "unknown cmd"
     assert acks[4]["msg"] == "bad json"
     assert any(a["ref"] == "calibrate" and "R0=10.00" in a["msg"] for a in acks)
-    assert station.edge.rules.cfg.th1 == 250 and station.edge.mode == 0
+    assert station.edge.rules.cfg.th1 == 250
     assert station.dstate.cloud_forecast.startswith("3h:")
     assert Storage(station.storage.base).load_config().version == 7
 
@@ -155,6 +155,7 @@ def test_payloads_match_backend_schema(station):
     for t in link.of("telemetry"):
         m = TelemetryIn.model_validate(t)
         assert not m.rejected, m.rejected
+        assert not {"edge_score", "model_ver"} & set(t)
     for a in link.of("alert"):
         AlertIn.model_validate(a)
     for s in link.of("status"):

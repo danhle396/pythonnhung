@@ -129,15 +129,3 @@ def test_no_c_sources_left():
     bad = [p for p in FW.rglob("*") if p.suffix in (".c", ".cpp", ".h", ".ino", ".ini") and "build" not in p.parts]
     assert not bad, bad
 
-
-def test_gas_model_placeholder_or_real():
-    import gas_model
-    assert gas_model.N_FEATURES == 10 and len(gas_model.CLASS_LABEL) == gas_model.N_CLASSES
-    k, p = gas_model.predict_proba([0.0] * 10)
-    assert 0 <= k < gas_model.N_CLASSES and abs(sum(p) - 1.0) < 1e-5
-    vec = FW / "tests" / "gas_model_testvec.json"
-    if gas_model.AVAILABLE and vec.exists():
-        import json
-        tv = json.loads(vec.read_text())
-        bad = sum(gas_model.predict_proba(x)[0] != c for x, c in zip(tv["x"], tv["class_idx"]))
-        assert bad == 0

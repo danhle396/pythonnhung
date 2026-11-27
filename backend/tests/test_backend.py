@@ -16,7 +16,7 @@ def tel(seq, ts=None, **kw):
     d = {"device_id": "station01", "ts": ts or now_ts(), "seq": seq, "temp_dht": 28.5, "hum": 80.0,
          "temp_bmp": 29.0, "pressure": 1009.0, "pressure_msl": 1010.0, "lux": 1200.0, "rain_raw": 3000,
          "rain_level": 0, "gas_raw": 300, "gas_rs_r0": 9.1, "gas_ppm": 5.0, "gas_slope": 0.0, "edge_risk": 0,
-         "edge_score": 0.01, "fw": "1.0.0", "model_ver": "gas-v1"}
+         "fw": "2.1.0"}
     d.update(kw)
     return json.dumps(d).encode()
 
@@ -123,7 +123,7 @@ def test_empty_payload_is_retained_clear_not_status(app_client):
 
 def alert_payload(level, prev, seq, ppm=1200.0):
     return json.dumps({"device_id": "station01", "ts": now_ts(), "seq": seq, "type": "gas", "level": level,
-                       "prev_level": prev, "cause": ["gas_ppm>1000"], "gas_ppm": ppm, "score": 0.9,
+                       "prev_level": prev, "cause": ["gas_ppm>1000"], "gas_ppm": ppm,
                        "action": ["buzzer_intermittent"]}).encode()
 
 
@@ -232,12 +232,12 @@ def test_config_and_cmd_require_auth_and_publish(app_client, token):
     assert app_client.put("/api/devices/station01/config", json={"th1": 250}).status_code == 401
     bad = app_client.put("/api/devices/station01/config", json={"th1": 900, "th2": 800, "th3": 2000}, headers=token)
     assert bad.status_code == 422
-    ok = app_client.put("/api/devices/station01/config", json={"th1": 250, "mode": "hybrid"}, headers=token).json()
+    ok = app_client.put("/api/devices/station01/config", json={"th1": 250}, headers=token).json()
     assert ok["version"] == 1 and ok["config"]["th1"] == 250
     t, p, retain = r.publisher.published[-1]
     assert t == "vku/aiot/station01/config" and retain and p["version"] == 1
     ok2 = app_client.put("/api/devices/station01/config", json={"telemetry_ms": 5000}, headers=token).json()
-    assert ok2["config"] == {"th1": 250, "mode": "hybrid", "telemetry_ms": 5000, "version": 2}
+    assert ok2["config"] == {"th1": 250, "telemetry_ms": 5000, "version": 2}
     r.mqtt.handle("vku/aiot/station01/ack", json.dumps({"ref": "config", "ok": True, "msg": "v2"}).encode())
     assert app_client.get("/api/devices/station01").json()["config"]["acked"] is True
     c = app_client.post("/api/devices/station01/cmd", json={"cmd": "test_alarm"}, headers=token).json()

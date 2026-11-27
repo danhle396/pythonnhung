@@ -1,4 +1,4 @@
-FW_VERSION = "2.0.0"
+FW_VERSION = "2.1.0"
 DEVICE_ID = "station01"
 TOPIC_PREFIX = "vku/aiot/"
 

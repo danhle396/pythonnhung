@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-USAGE = """Ghi log nhãn cho thí nghiệm khí/khói (task.md §1.2, Nhóm B).
+USAGE = """Ghi log nhãn cho thí nghiệm khí/khói để đánh giá luật cảnh báo 4 cấp (task.md §1.8).
 
 Đặt thiết bị gửi telemetry 1 giây/lần (PUT /api/devices/station01/config {"telemetry_ms": 1000}), chạy:
     python tools/label_logger.py --device station01 --out ml/data/raw/gas_labeled.csv --session 1
@@ -13,7 +13,7 @@ Rồi gõ lệnh + Enter trong lúc thí nghiệm:
     0             kết thúc sự kiện, về không khí sạch
     q             thoát
 ⚠ An toàn: lượng nhỏ, nơi thoáng, không có nguồn lửa khi xả gas, luôn có người giám sát.
-CSV đầu ra dùng trực tiếp cho: python -m aiot_ml.train_gas_edge --data <csv>
+CSV đầu ra dùng để đối chiếu cấp cảnh báo của luật (edge_risk) với nhãn: tỉ lệ báo đúng / báo động giả, độ trễ.
 """
 
 import argparse

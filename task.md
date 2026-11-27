@@ -11,11 +11,11 @@
 
 > **TRẠNG THÁI (2026-11-27): Phase 1 (phần mềm + ML) ✅ | 1.7 Mưa miễn phí ⚠️ chờ số Google nhập tay | 2.2 Phần cứng ⚠️ trạm chạy thật trong nhà | 2.5–2.6 Đo đạc hiện trường ❌ Chưa bắt đầu**
 > - Dự báo: MAE T 1h **0,299 °C** (target < 1,0) | MAE H 1h **1,870 %RH** (target < 5) | F1 mưa 3h **0,833** (target > 0,75) | Mưa lệch Google: chưa đo (target ≤ 10 điểm; 5 giờ đo thử lệch TB 12)
-> - Test: **97 pass** (ml 31 · backend 24 · firmware 33 · dashboard 9) | Docker: 4 container healthy (lần build gần nhất trước đợt 9) | Trạm thật: gửi dữ liệu vào DB từ 2026-11-12
-> - Edge: rule 4 cấp ✅ | model khí ❌ (`gas_model.AVAILABLE = False`) | MQ-2 ✅ đo được | YL-83 ✅ ngưỡng tạm 2600/2000 mV
-> - ⚠️ Chưa có dữ liệu khí đo thật → edge chạy rule, bảng rule/model/hybrid còn trống; Isolation Forest/CUSUM đã cài nhưng không triển khai
+> - Test: **94 pass** (ml 29 · backend 24 · firmware 32 · dashboard 9) | Docker: 4 container healthy (lần build gần nhất trước đợt 9) | Trạm thật: gửi dữ liệu vào DB từ 2026-11-12
+> - Edge: **luật 4 cấp** ✅ (không dùng mô hình AI cho khí — bỏ 2026-11-27) | MQ-2 ✅ đo được | YL-83 ✅ ngưỡng tạm 2600/2000 mV
+> - ⚠️ Chưa có thí nghiệm khí có nhãn → chưa có bảng Recall / báo động giả của luật; firmware 2.1.0 (bỏ mô hình khí) **chưa nạp** lên board
 > - ⚠️ Firmware `TELEMETRY_PERIOD_MS = 5000` + ngưỡng YL-83 mới **chưa nạp** lên board; cấp nguồn USB làm board reset khi bật Wi-Fi
-> - Sơ đồ khối (drawio trang 1) khớp code: mưa = ensemble hiệu chỉnh theo Google + YL-83, trạm gửi QoS 0 + seq, ô ml ghi "LightGBM (dự báo) · RF khí" → đã thay ảnh ở slide 4
+> - Sơ đồ khối (drawio trang 1) khớp code: mưa = ensemble hiệu chỉnh theo Google + YL-83, trạm gửi QoS 0 + seq, ESP32 chỉ chạy luật, ô ml chỉ còn mô hình dự báo → đã thay ảnh ở slide 4 (`VKU_SLIDE_Newbie.pptx`)
 > - Tài liệu nộp: slide `VKU_SLIDE_Newbie.pptx` (trang 7–9 là ảnh chụp bảng gốc từ bài báo); báo cáo `bao_cao.md/.docx` **đã xoá** (người dùng, 2026-11-27)
 > - **Bước tiếp theo NGAY:** `docker compose up -d --build backend dashboard` (~5 phút) → trang Dự báo nhập số Google 2–3 lần/ngày tới ≥ 40 giờ → bấm **Học lại hiệu chỉnh**
 
@@ -30,7 +30,7 @@ cứng/người làm · ~~gạch ngang~~ đã bỏ khỏi đề tài (có lý do
 2. Truyền dữ liệu thời gian thực qua **MQTT** lên server.
 3. **Dự báo thời tiết ngắn hạn** (1h / 3h / 6h): nhiệt độ, độ ẩm, xác suất mưa. Áp suất chỉ là feature đầu vào, **không dự báo** (đã bỏ target `pres` và nowcast Zambretti ngày 2026-11-13). Xác suất mưa: xem 1.7.
 4. **Cảnh báo sớm đa cấp** khí dễ cháy/khói: 4 cấp (Bình thường → Chú ý → Cảnh báo → Nguy hiểm).
-5. **AI lai Edge–Cloud:** Edge (ESP32) cảnh báo khí ngay tại chỗ (rule engine + cây quyết định khi có model), phát hiện lỗi cảm biến, vẫn hoạt động khi mất mạng. Cloud (Python) dự báo thời tiết, xác nhận/leo thang cảnh báo (xu hướng ppm 10 phút), huấn luyện lại và đẩy cấu hình/ngưỡng xuống thiết bị.
+5. **AI lai Edge–Cloud:** Edge (ESP32) cảnh báo khí ngay tại chỗ **bằng luật 4 cấp** (không dùng mô hình AI), phát hiện lỗi cảm biến, vẫn hoạt động khi mất mạng. Cloud (Python) dự báo thời tiết bằng học máy, xác nhận/leo thang cảnh báo (xu hướng ppm 10 phút), đẩy cấu hình/ngưỡng xuống thiết bị.
 6. Dashboard web (Streamlit) theo dõi realtime, lịch sử, dự báo và cảnh báo; thông báo qua Telegram/Email.
 
 **Đối tượng xử lý:**
@@ -39,8 +39,8 @@ cứng/người làm · ~~gạch ngang~~ đã bỏ khỏi đề tài (có lý do
 
 **Pipeline:**
 ```
-Cảm biến → Lọc median/EWMA → Feature 10 chiều → Rule engine ──┐
-                                              → Cây quyết định ┘→ Fusion max(rule, model) → Còi/LED/TFT + MQTT alert
+Cảm biến → Lọc median/EWMA → ppm, độ dốc ppm, nhiệt tăng → Luật 4 cấp (hysteresis, debounce)
+                                → max(luật, lệnh escalate từ cloud) → Còi/LED/TFT + MQTT alert
 MQTT telemetry → Ingest (Pydantic) → TimescaleDB → API/WS → Dashboard, Telegram/Email
 Open-Meteo 4 ngày → 56 feature → LightGBM (T, H 1/3/6 h) ─────────────────┐
 Open-Meteo Ensemble → tỉ lệ phương án ≥ θ mm → hiệu chỉnh theo Google ─┐  │→ forecasts + MQTT forecast → TFT/dashboard
@@ -57,14 +57,13 @@ Open-Meteo Ensemble → tỉ lệ phương án ≥ θ mm → hiệu chỉnh theo
 >   C/C++, Arduino, PlatformIO, ESP-IDF.
 > - Backend, ML, dashboard, công cụ (vẽ sơ đồ, tạo mật khẩu/chứng chỉ broker, kiểm thử tải) đều là Python.
 >   **Không** viết script JavaScript/Node.js, shell, PowerShell trong repo.
-> - Mô hình edge xuất sang **module Python** (`firmware/src/gas_model.py`), không sinh header C.
 > - Kiểm thử firmware bằng **pytest** trên PC (logic thuần Python chạy được cả CPython lẫn MicroPython).
 > - Ngoại lệ duy nhất là file cấu hình không phải mã chương trình: `docker-compose.yml`, `Dockerfile`, `mosquitto.conf`,
 >   `acl`, `.env`, JSON/YAML provisioning của Grafana.
 
 > **NGUYÊN TẮC 2 — CHỈ DÙNG SỐ LIỆU ĐO THẬT.** Không dùng dữ liệu mô phỏng/giả lập cho huấn luyện, kết quả, hình,
-> demo. Dữ liệu thời tiết lịch sử lấy từ Open-Meteo (số liệu tái phân tích thật). Mô hình ML khí và bộ phát hiện bất
-> thường chỉ huấn luyện khi có dữ liệu MQ-2/telemetry đo thật; trong lúc chờ, edge chạy luật ngưỡng (`gas_model.AVAILABLE = False`).
+> demo. Dữ liệu thời tiết lịch sử lấy từ Open-Meteo (số liệu tái phân tích thật). Cảnh báo khí dùng luật 4 cấp
+> (không có mô hình AI); thí nghiệm khí chỉ dùng số đo MQ-2 thật để đánh giá luật.
 
 > **NGUYÊN TẮC 3 — LUÔN ĐỒNG BỘ MỌI THỨ VỚI NHAU.** Code, tài liệu, sơ đồ, slide và kế hoạch phải luôn nói
 > cùng một điều. **Mỗi thay đổi code phải cập nhật luôn mọi chỗ liên quan trong cùng một lần sửa**, không để "sửa sau".
@@ -138,7 +137,7 @@ docker compose up -d --build
 > - ✅ Open-Meteo quan trắc 4 ngày gần nhất + Ensemble: lấy tự động mỗi 10 phút
 > - ✅ Telemetry trạm thật: vào DB từ 2026-11-12 (trong nhà, chỉ để đối chiếu)
 > - ⚠️ Số Google nhập tay: 0 / 40 giờ
-> - ❌ Dữ liệu khí/khói có gán nhãn: chưa thu
+> - ❌ Thí nghiệm khí/khói có gán nhãn (để đánh giá luật): chưa thu
 
 ---
 
@@ -160,7 +159,7 @@ docker compose up -d --build
   ~~Thu liên tục ≥ 3–4 tuần~~ — bỏ (trạm ở mặt đất, chủ yếu trong nhà).
 - [ ] ⚙ **Số Google nhập tay** — dashboard trang Dự báo → "Xác suất mưa so với Google" (5 ô/lần, 2–3 lần/ngày) → bảng `google_rain_obs`
   - **Pass criterion:** ≥ 40 giờ để học hiệu chỉnh (`MIN_FIT_ROWS`)
-- [ ] ⚙ **Dữ liệu khí/khói đo thật có gán nhãn** — `tools/label_logger.py --session N` (bấm phím đánh dấu sự kiện) → `ml/data/raw/gas_labeled.csv`
+- [ ] ⚙ **Thí nghiệm khí/khói đo thật có gán nhãn** (đánh giá luật: Recall cấp ≥ 2, báo động giả, độ trễ — **không** huấn luyện mô hình) — `tools/label_logger.py --session N` (bấm phím đánh dấu sự kiện) → `ml/data/raw/gas_labeled.csv`
   - Kịch bản: không khí sạch (0), bật lửa gas xả không đốt ở 50/20/5 cm (1/2/3), khói nhang/giấy trong hộp kín, nhiễu (hơi nước, cồn, nước hoa)
   - **Thí nghiệm nơi thoáng, lượng nhỏ, có người giám sát, xa nguồn lửa.**
 
@@ -173,7 +172,7 @@ docker compose up -d --build
 | **Dữ liệu mô phỏng** (`gas_sim.py`, `gas_simulated.csv`, `tools/simulator.py`, 496 bản ghi `fw=sim-1.0.0`, 50 thiết bị `loadtest*`) | ✅ REMOVED (2026-11-11/12) | Nguyên tắc 2 |
 | **Nhãn mưa Open-Meteo ≥ 0,1 mm/h** | ⚠️ Lệch thực tế | Có ở 35 % số giờ, ~80 % số ngày (mưa phùn rải khắp ô lưới) → không dùng làm xác suất mưa hiển thị (1.7) |
 | **Bias correction trạm → Open-Meteo** | ✅ REMOVED (2026-11-13) | Cần ≥ 2 tuần đo ngoài trời, không có |
-| **Dữ liệu khí** | ❌ Chưa có | Edge chạy rule; pipeline ML sẵn sàng, chỉ cần `--data` |
+| **Dữ liệu khí** | ❌ Chưa có | Chỉ để đánh giá luật 4 cấp; ~~mô hình ML khí~~ — bỏ 2026-11-27 |
 
 **Nguồn đang THỰC SỰ được sử dụng:**
 ```
@@ -194,12 +193,12 @@ Telemetry trạm — chủ yếu trong nhà, không đại diện thời tiết 
 > **Quan trọng:** feature **không rò rỉ tương lai** (có test); chia dữ liệu **theo thời gian**, không xáo trộn.
 
 - [x] **Xử lý chuỗi** ✅ → `ml/src/prep.py`
-  - Resample về 1 giờ, nội suy khoảng trống ngắn, lọc ngoại lai median/MAD, trễ, cửa sổ trượt, sin/cos; z-score theo giờ, CUSUM
+  - Resample về 1 giờ, nội suy khoảng trống ngắn, lọc ngoại lai median/MAD, trễ, cửa sổ trượt, sin/cos
 - [x] **Feature dự báo** ✅ → `ml/src/features.py`
   - Thời gian (giờ, ngày trong năm, sin/cos), lag t−1..t−6, rolling mean/std (1h/3h/6h), xu hướng áp suất 3h, điểm sương, chênh T − Td — **56 feature**, target Δ, seasonal naive
   - Chia: train 2021-01-02 → 2023-12-31, val 2024, test 2025
   - StandardScaler (scikit-learn) chỉ `fit` trên train, lưu cùng model (Ridge/Logistic)
-- [x] **Feature edge (khí)** ✅ → `firmware/src/edge_ai.py` ≡ `ml/src/gas_edge.EDGE_FEATURES` (10): `gas_ppm`, `rs_r0`, `slope10` (d(ppm)/dt 10 s), `std30`, `dev_base` (lệch baseline động), `temp`, `dtemp_min`, `hum`, `dhum_min`, `lux_rel`
+- [x] **Đầu vào luật khí (edge)** ✅ → `firmware/src/edge_gas.GasTrend` ≡ `ml/src/gas_edge.GasTrend`: `slope10` (độ dốc ppm 10 mẫu), `dtemp_min` (nhiệt tăng °C/phút, 60 mẫu). ~~10 feature cho mô hình khí~~ — bỏ 2026-11-27
 - [x] Cố định `seed` (42) cho mọi thành phần ngẫu nhiên (`random_state`, `torch.manual_seed`).
 
 > **Trạng thái 1.3 (2026-11-19):** xong, có test không rò rỉ tương lai.
@@ -209,7 +208,7 @@ Telemetry trạm — chủ yếu trong nhà, không đại diện thời tiết 
 ### 1.4 Thiết kế Mô hình
 
 > **Quyết định (2026-11-14):** dùng thư viện học máy chuẩn để bảo đảm tính đúng đắn của dự báo và để số liệu so sánh mô
-> hình đáng tin: **scikit-learn** 1.9.1 (Ridge, Logistic, Decision Tree, Random Forest, Isolation Forest, StandardScaler,
+> hình đáng tin: **scikit-learn** 1.9.1 (Ridge, Logistic, IsotonicRegression, StandardScaler,
 > độ đo, permutation importance), **LightGBM** 4.7.0 (GBDT — mô hình triển khai), **statsmodels** 0.15.0 (Holt-Winters),
 > **PyTorch** 2.15 CPU (GRU, chỉ để so sánh). ~~Thư viện `ml/mlcore` tự viết~~ — đã xoá.
 
@@ -218,8 +217,7 @@ Telemetry trạm — chủ yếu trong nhà, không đại diện thời tiết 
 | `train_forecast.py`                          | So sánh Persistence, Seasonal naive, Holt-Winters, Ridge, GBDT, GRU (+ Logistic/GBDT cho mưa)                            |
 | `forecast_infer.py`                          | Nạp model active trong registry cho forecast service                                                                     |
 | `rain_ensemble.py`                           | Xác suất mưa từ Open-Meteo Ensemble; học θ + trọng số mô hình + IsotonicRegression bắt chước số Google; điều chỉnh YL-83 |
-| `train_gas_edge.py`, `export_micropython.py` | Decision Tree / Random Forest (scikit-learn) → `firmware/src/gas_model.py` (bytes + `predict_proba()`)                   |
-| `train_anomaly.py`                           | Isolation Forest (scikit-learn), z-score theo giờ, CUSUM                                                                 |
+| `gas_edge.py`                                | Bản Python tham chiếu của luật khí trên firmware (kiểm tra tương đương)                                                  |
 | `serialize.py`, `tracking.py`, `mdtable.py`  | joblib + JSON đầu mục (`model_ver`, hash dữ liệu, phiên bản thư viện); registry, log thí nghiệm; bảng Markdown           |
 
 - [x] **Dự báo thời tiết (cloud)** — cấu hình `ml/configs/forecast.json`
@@ -238,15 +236,10 @@ Telemetry trạm — chủ yếu trong nhà, không đại diện thời tiết 
   - Targets: `temp`, `hum` 1/3/6 h + mưa 1/3/6 h. ~~`pres_1/3/6h`~~ — bỏ (2026-11-13): trạm mặt đất không dự báo được trường khí áp
   - Re-train: `python -m aiot_ml.train_forecast` (`--force-promote` khi đổi định dạng)
 
-- [x] **Cảnh báo khí (edge)** — ⚠️ pipeline xong, chưa có model
-  - Decision Tree (Gini, `max_depth ≤ 6`) hoặc RF nhỏ (≤ 10 cây) trên 10 feature, **trọng số lớp** ưu tiên Recall cấp 2–3
-  - Output = 4 cấp: 0 Normal, 1 Advisory, 2 Warning, 3 Danger
-  - Metric Precision/Recall/F1 theo cấp, ma trận nhầm lẫn; so sánh rule / model / hybrid
-  - Re-train: `python -m aiot_ml.train_gas_edge --data ml/data/raw/gas_labeled.csv` (`--data` bắt buộc)
-
-- [x] **Phát hiện bất thường (cloud)** — đã cài, **không triển khai**
-  - Isolation Forest (gas ppm + T/H) phát hiện rò rỉ chậm; z-score theo giờ để so sánh; CUSUM trên baseline `R0` phát hiện drift MQ-2 → đề xuất hiệu chuẩn lại
-  - ~~Huấn luyện trên ≥ 3 tuần telemetry trạm~~ — bỏ: không có dữ liệu dài ngày. Alert service chỉ dùng Isolation Forest nếu có `gas_anomaly.json/.joblib` (không có) → leo thang chỉ theo xu hướng ppm
+- ~~**Mô hình cảnh báo khí (edge)** — Decision Tree / Random Forest trên 10 feature, xuất sang MicroPython~~ — **bỏ 2026-11-27**
+  (người dùng: không cần thiết, luật 4 cấp là đủ). Đã xoá `train_gas_edge.py`, `export_micropython.py`, `firmware/src/gas_model.py`.
+- ~~**Phát hiện bất thường (cloud)** — Isolation Forest, z-score theo giờ, CUSUM~~ — **bỏ 2026-11-27**; đã xoá `train_anomaly.py`,
+  loại cảnh báo `anomaly`. Cloud chỉ leo thang theo xu hướng ppm (luật).
 
 ---
 
@@ -286,7 +279,7 @@ python -m aiot_ml.train_forecast    # ghi registry + experiments.csv, chỉ thă
 - ~~Hình biểu đồ kết quả (matplotlib)~~ — bỏ 2026-11-19: báo cáo chỉ dùng bảng số liệu; hình chỉ còn sơ đồ draw.io
 - [x] Log thí nghiệm `ml/experiments/experiments.csv` (tham số, metric, thời gian, `seed`) ✅
 - [x] Bảng sai số dự báo so với số đo trạm (MAE, lệch TB theo biến × tầm) trên dashboard trang Dự báo ✅ — [ ] ⚙ chạy đêm ngoài trời (2.5)
-- [ ] ⚙ Bảng metric cảnh báo rule / model / hybrid — chờ dữ liệu khí thật → báo cáo
+- [ ] ⚙ Bảng metric luật cảnh báo (Recall cấp ≥ 2, tỉ lệ báo động giả, độ trễ) — chờ thí nghiệm khí có nhãn → báo cáo
 - [ ] ⚙ Bảng xác suất mưa so với Google (số giờ, lệch TB, % giờ lệch ≤ 10 trước/sau khi học) — chờ ≥ 40 giờ số Google → báo cáo
 
 ---
@@ -318,34 +311,34 @@ python -m aiot_ml.train_forecast    # ghi registry + experiments.csv, chỉ thă
 
 ---
 
-### 1.8 Fusion — Edge AI Cảnh báo Khí/Khói
+### 1.8 Luật Cảnh báo Khí/Khói tại Edge (không dùng mô hình AI)
 
 - [x] **Rule engine** `firmware/src/alert.py` ✅ — 4 cấp (ngưỡng mặc định trong `config.py`, chỉnh qua topic `config`):
 
   | Cấp | Tên                | Điều kiện (LPG, ppm)                                                                 | Hành động tại edge                                       |
   | --- | ------------------ | ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
   | 0   | Normal             | ppm < 300 và slope thấp                                                              | LED xanh sáng                                            |
-  | 1   | Advisory (Chú ý)   | 300–1000 ppm **hoặc** slope ≥ `slope1` (15) **hoặc** model score > 0.5               | LED xanh nhấp nháy (không có LED vàng), gửi alert        |
-  | 2   | Warning (Cảnh báo) | 1000–2000 ppm **hoặc** score > 0.75 kéo dài                                          | LED đỏ nhấp nháy, còi ngắt quãng (relay/quạt: không lắp) |
+  | 1   | Advisory (Chú ý)   | 300–1000 ppm **hoặc** slope ≥ `slope1` (15 ppm/s)                                     | LED xanh nhấp nháy (không có LED vàng), gửi alert        |
+  | 2   | Warning (Cảnh báo) | 1000–2000 ppm                                                                        | LED đỏ nhấp nháy, còi ngắt quãng (relay/quạt: không lắp) |
   | 3   | Danger (Nguy hiểm) | > 2000 ppm (≈ 10 % LEL của LPG) **hoặc** cấp 2 kèm nhiệt độ tăng nhanh (> 1 °C/phút) | LED đỏ sáng liên tục, còi liên tục                       |
 
   - **Hysteresis** 15 %, **debounce** lên 3 / xuống 5 mẫu (cấp 3 lên ngay)
-  - **Fusion:** `level = max(rule_level, model_level)`; model không được hạ cấp do rule đưa ra. Chế độ `rule`/`model`/`hybrid` chọn qua `config`
+  - **Cấp cuối** = `max(luật, lệnh escalate từ cloud)`. ~~Fusion `max(rule, model)`, chế độ `rule`/`model`/`hybrid`~~ — bỏ 2026-11-27 cùng mô hình khí
   - **Priority (fixed): Danger > Warning > Advisory > Normal**; cấp ≥ 2 luôn chiếm màn TFT
 - [x] Phát hiện **lỗi cảm biến** MQ-2: đứng yên (stuck), mất kết nối, ADC bão hoà → alert `sensor_fault` ✅
 - [x] Tắt còi 5 phút bằng lệnh `mute` (không có nút vật lý), vẫn giữ cấp và LED; cấp tăng thêm thì còi kêu lại ✅
-- [x] Publish `alert` mỗi khi đổi cấp, kèm `cause`, `rule_level`, `model_level`, `edge_latency_ms`; `test_alarm` gửi `type: test` (không Telegram/Email); `escalate` từ cloud nâng cấp ✅
+- [x] Publish `alert` mỗi khi đổi cấp, kèm `cause`, `edge_level`, `edge_latency_ms`; `test_alarm` gửi `type: test` (không Telegram/Email); `escalate` từ cloud nâng cấp ✅
 - [x] Kiểm chứng trên trạm thật (2026-11-16): xịt gas bật lửa 2868 mV (Rs/R0 0,37 ≈ 5170 ppm) → cấp 3 (đèn đỏ + còi), hạ dần về 0 khi gas tan ✅
-- [ ] ⚙ Model cây: chưa có (`AVAILABLE = False`) → edge tự chạy rule
+- ~~Model cây (`gas_model.py`)~~ — bỏ 2026-11-27: không cần thiết, luật 4 cấp là đủ
 
 ---
 
-### 1.9 Tối ưu Model Edge
+### 1.9 Tối ưu Edge
 
-- [x] Model edge float32, mảng node đóng gói `bytes`, `predict_proba()` duyệt cây thuần Python ✅
-  - Giới hạn: Decision Tree `max_depth ≤ 6` hoặc RF ≤ 10 cây → vừa RAM ESP32
+- [x] Luật chạy trên vòng đệm 10/60 mẫu, không cấp phát mới mỗi bước ✅
 - [x] Firmware biên dịch `.mpy` (mpy-cross) để giảm RAM/thời gian nạp ✅
-- [ ] ⚙ Đo kích thước model (kB), RAM và µs suy luận trên ESP32: `python -m mpremote connect COM3 run firmware/bench_device.py` (khi đã có model) → báo cáo
+- [ ] ⚙ Đo RAM và µs một bước luật trên ESP32: `python -m mpremote connect COM3 run firmware/bench_device.py` → báo cáo
+- ~~Model edge float32, `predict_proba()` duyệt cây thuần Python~~ — bỏ 2026-11-27 cùng mô hình khí
 
 ---
 
@@ -354,20 +347,18 @@ python -m aiot_ml.train_forecast    # ghi registry + experiments.csv, chỉ thă
 - [x] Script `train_*.py` chạy bằng CLI (`python -m aiot_ml.train_forecast`…), cấu hình JSON ✅
 - [x] Model cloud: `ml/models/forecast/*.joblib` + `*.json` (model card), `ml/models/registry.json` (đường dẫn POSIX để backend Linux nạp được) ✅
 - [x] Chỉ thăng cấp model mới khi tốt hơn trên tập test (`tracking.py`). ~~Lịch huấn luyện lại hằng tuần~~ — bỏ (không thu dữ liệu dài ngày) ✅
-- [x] Model edge: `ml/src/export_micropython.py` → `firmware/src/gas_model.py` (bytes + `predict_proba()`) ✅
-- [x] Đẩy ngưỡng qua MQTT `config`, model edge qua OTA, ghi `model_ver` ✅
+- ~~Model edge: `export_micropython.py` → `firmware/src/gas_model.py`~~ — bỏ 2026-11-27
+- [x] Đẩy ngưỡng luật qua MQTT `config`, firmware qua OTA ✅
 - [x] Hiệu chỉnh mưa: `rain_calib.json` (`version` = `ens-YYYYmmddHHMM`, θ, trọng số, isotonic, metrics) ✅
 
 ---
 
 ### 1.11 Golden Reference / Kiểm chứng tương đương
 
-- [x] `gas_model.py` sinh ra (mô phỏng float32) khớp `predict_proba()` của scikit-learn **100 %** và biên dịch được bằng mpy-cross (`ml/tests/test_export_micropython.py`) ✅
-- [x] Logic edge firmware ≡ `ml/src/gas_edge.py` (`ml/tests/test_edge_parity.py`) ✅
+- [x] Luật khí firmware (`edge_gas.py`, `alert.py`) ≡ `ml/src/gas_edge.py`: cùng độ dốc, cùng cấp trên 3 chuỗi ppm (`ml/tests/test_edge_parity.py`) ✅
 - [x] Công thức Holt-Winters h bước trùng `forecast()` của statsmodels; tốt hơn persistence trên chuỗi mùa ✅
 - [x] Lưu/nạp joblib giữ nguyên dự đoán (LightGBM, Ridge) ✅
 - [x] Ensemble mưa: học hiệu chỉnh tìm lại đúng nguồn + ngưỡng của bài toán có đáp án (`ml/tests/test_rain_ensemble.py`) ✅
-- [ ] ⚙ Sau khi có dữ liệu khí: chạy lại `train_gas_edge` → kiểm tra khớp → nạp `gas_model.py` lên board
 
 ---
 
@@ -380,14 +371,13 @@ các trang 2–3 của sơ đồ khối là ERD và luồng cảnh báo (giải 
 
 ```
 ┌──────────────────── EDGE (ESP32, MicroPython) ───────────────┐
-│ Sensors → Sampling → Filter (median/EWMA) → Feature extract  │
+│ Sensors → Sampling → Filter (median/EWMA) → ppm, độ dốc      │
 │     │                                         │              │
 │     │                     ┌───────────────────┴───────────┐  │
-│     │                     │ Edge AI (edge_ai.py)           │  │
-│     │                     │ • Rule engine (ngưỡng + slope, │  │
-│     │                     │   hysteresis, debounce)        │  │
-│     │                     │ • Cây quyết định gas_model.py  │  │
-│     │                     │   (khi có dữ liệu thật)        │  │
+│     │                     │ Luật khí 4 cấp (edge_gas.py)   │  │
+│     │                     │ • Ngưỡng ppm + độ dốc + nhiệt  │  │
+│     │                     │   tăng, hysteresis, debounce   │  │
+│     │                     │ • Không dùng mô hình AI        │  │
 │     │                     │ • Phát hiện lỗi cảm biến       │  │
 │     │                     └───────────────┬───────────────┘  │
 │     │           Local actuators ◄─────────┤ (buzzer/LED/TFT) │
@@ -407,13 +397,13 @@ các trang 2–3 của sơ đồ khối là ERD và luồng cảnh báo (giải 
 
 | Chức năng                  | Edge (ESP32)          | Cloud (Python)                 |
 | -------------------------- | --------------------- | ------------------------------ |
-| Lọc nhiễu, tính feature    | ✅                    | —                              |
+| Lọc nhiễu, tính độ dốc     | ✅                    | —                              |
 | Cảnh báo khí/khói tức thì  | ✅ (quyết định chính) | Xác nhận, leo thang, thông báo |
 | Hoạt động khi mất mạng     | ✅ (đệm offline)      | —                              |
 | Dự báo 1h/3h/6h            | —                     | ✅ (ML + ensemble)             |
-| Huấn luyện mô hình         | —                     | ✅                             |
+| Huấn luyện mô hình dự báo  | —                     | ✅                             |
 | Lưu trữ dài hạn, dashboard | —                     | ✅                             |
-| Cập nhật ngưỡng / model    | Nhận                  | Gửi (MQTT `config`, OTA)       |
+| Cập nhật ngưỡng / firmware | Nhận                  | Gửi (MQTT `config`, OTA)       |
 
 **Địa điểm triển khai:**
 
@@ -448,15 +438,14 @@ final/
 │   ├── requirements.txt        # esptool, mpremote, mpy-cross, pytest
 │   ├── src/                    # các file được chép vào thư mục gốc của ESP32
 │   │   ├── boot.py, main.py    # khởi động: dựng phần cứng, luồng mạng + vòng lặp chính
-│   │   ├── config.py           # pin, chu kỳ, ngưỡng mặc định, FW_VERSION = "2.0.0"
+│   │   ├── config.py           # pin, chu kỳ, ngưỡng mặc định, FW_VERSION = "2.1.0"
 │   │   ├── credentials.py      # Wi-Fi/MQTT, tự tạo trên máy (gitignore)
 │   │   ├── compat.py           # ticks/thời gian/khoá chạy được cả MicroPython lẫn CPython (test)
-│   │   ├── filters.py, edge_ai.py, alert.py               # lọc, feature, rule engine, fusion, lỗi cảm biến
-│   │   ├── gas_model.py        # model edge sinh từ ml/src/export_micropython.py (hiện AVAILABLE = False)
+│   │   ├── filters.py, edge_gas.py, alert.py              # lọc, độ dốc ppm, luật 4 cấp, lỗi cảm biến
 │   │   ├── station.py, readings.py, payloads.py, storage.py  # điều phối, đại lượng dẫn xuất, JSON, đệm offline + cấu hình
 │   │   ├── sensors.py, drivers.py, st7735.py, display.py  # driver cảm biến (BMP280/BH1750 tự viết), màn TFT
 │   │   └── mqtt.py, net.py, ota.py                        # MQTT client tự viết, Wi-Fi/NTP, OTA qua HTTP
-│   └── tests/                  # pytest (33 test)
+│   └── tests/                  # pytest (32 test)
 ├── broker/mosquitto/
 │   ├── mosquitto.conf, acl
 │   ├── make_passwd.py          # sinh passwd (Docker tự sinh từ env)
@@ -467,7 +456,7 @@ final/
 │   │   ├── main.py             # FastAPI + APScheduler (forecast, escalation, offline, reminders, tin 6h sáng)
 │   │   ├── runtime.py          # dựng các service dùng chung
 │   │   ├── core/ (config.py, security.py)     # Settings (env), JWT
-│   │   ├── db/ (models.py, session.py, migrations/versions/0001_initial.py, 0002_drop_nowcasts.py, 0003_google_rain_obs.py)
+│   │   ├── db/ (models.py, session.py, migrations/versions/0001_initial.py, 0002_drop_nowcasts.py, 0003_google_rain_obs.py, 0004_drop_gas_model_cols.py)
 │   │   ├── mqtt/ (ingest.py, publisher.py)
 │   │   ├── services/ (alert_service.py, forecast_service.py, notifier.py, hub.py)  # hub = WebSocket broadcast
 │   │   ├── api/ (routes.py, ws.py)
@@ -479,21 +468,21 @@ final/
 │   ├── data/ (external/vku_hourly_2021_2025.csv, raw/, processed/)   # raw/processed gitignore
 │   ├── src/ (= aiot_ml)
 │   │   ├── config.py, fetch_open_meteo.py, prep.py, features.py, forecast_infer.py
-│   │   ├── train_forecast.py, train_gas_edge.py, train_anomaly.py, gas_edge.py, export_micropython.py
+│   │   ├── train_forecast.py, gas_edge.py (bản tham chiếu luật khí)
 │   │   ├── rain_ensemble.py    # xác suất mưa từ Open-Meteo Ensemble (miễn phí) + hiệu chỉnh theo số Google + trạm
 │   │   └── serialize.py (joblib + JSON), tracking.py (registry + log thí nghiệm), mdtable.py (bảng Markdown)
 │   ├── models/ (forecast/*.joblib + *.json, registry.json)
 │   ├── experiments/ (experiments.csv, forecast_results.json, train_forecast.log)
-│   └── tests/                  # 31 test (lưu/nạp, Holt-Winters ≡ statsmodels, khớp MicroPython ↔ scikit-learn, ensemble mưa)
+│   └── tests/                  # 29 test (lưu/nạp, Holt-Winters ≡ statsmodels, luật edge ≡ firmware, ensemble mưa)
 ├── dashboard/                  # Streamlit: app.py (6 trang), theme.py (CSS/HTML), Dockerfile, tests/ (9 test, fixture từ trạm thật)
 ├── grafana/                    # datasource + dashboard provision sẵn (vku_aiot.json)
 └── tools/
-    ├── label_logger.py         # ghi dữ liệu khí đo thật có nhãn
+    ├── label_logger.py         # ghi nhãn thí nghiệm khí để đánh giá luật
     ├── load_test.py            # kiểm thử tải N thiết bị (tự xoá thiết bị tạm)
     ├── render_drawio.py, browser_cdp.py   # draw.io → PNG (Edge/Chrome headless)
     └── md_to_docx.py           # Markdown → .docx (MS Word); không còn dùng cho báo cáo
 ```
-(Không có `ml/notebooks/`, `ml/src/export_edge_model.py`, `evaluate.py` như kế hoạch ban đầu: xuất model nằm trong `train_gas_edge.py`, đánh giá nằm trong các script `train_*.py`.)
+(Không có `ml/notebooks/`, `evaluate.py` như kế hoạch ban đầu: đánh giá nằm trong `train_forecast.py`. Mô hình khí và phát hiện bất thường đã bỏ 2026-11-27.)
 
 ---
 
@@ -554,12 +543,12 @@ Python**. Nạp code bằng `python firmware/deploy.py --port COM3` (mpremote) h
 - [x] Wi-Fi tự kết nối lại; MQTT keep-alive 15 s, backoff 2 → 30 s. ~~WiFiManager/captive portal~~ không làm (tuỳ chọn).
 - [x] NTP (`pool.ntp.org`, `time.google.com`, `vn.pool.ntp.org`, GMT+7), khởi động lại SNTP khi Wi-Fi vừa lên (có giờ sau ≈ 20 s).
 - [x] Watchdog `machine.WDT` 30 s; luồng mạng không báo nhịp > 60 s (`NET_STALL_MS`) thì ngừng feed WDT → board tự reset.
-- [x] Hai luồng: **luồng chính** đọc cảm biến 1 s (DHT22 2 s, YL-83 10 s), feature, rule + model, còi/LED, màn hình — không phụ thuộc mạng; **luồng mạng** (`_thread`, `net.py`): Wi-Fi, NTP, MQTT, đệm offline, OTA. Giao tiếp qua hàng đợi có khoá (`_thread.allocate_lock`, `OUTBOX_MAX = 20`).
+- [x] Hai luồng: **luồng chính** đọc cảm biến 1 s (DHT22 2 s, YL-83 10 s), độ dốc ppm, luật 4 cấp, còi/LED, màn hình — không phụ thuộc mạng; **luồng mạng** (`_thread`, `net.py`): Wi-Fi, NTP, MQTT, đệm offline, OTA. Giao tiếp qua hàng đợi có khoá (`_thread.allocate_lock`, `OUTBOX_MAX = 20`).
   - ⚠️ **Rủi ro heap IDF:** heap GC lớn làm Wi-Fi thiếu bộ nhớ → giữ `GC_THRESHOLD` / stack luồng 8 KB, theo dõi `idf_free_heap`
 - [x] Telemetry 5 s (`TELEMETRY_PERIOD_MS = 5000`, cấu hình được qua `telemetry_ms`), 1 s khi đang có cảnh báo.
 - [x] Đệm offline: file trên flash (LittleFS), vòng đệm 2000 bản ghi, gửi bù khi kết nối lại (tối đa 200 bản/lượt); `seq` lưu `/seq.txt` để chống trùng.
 - [x] Subscribe `cmd`, `config`, `forecast`; kiểm tra hợp lệ (th1 < th2 < th3, dải giá trị), lưu `/config.json`, gửi `ack` (`ok:false` khi từ chối).
-- [x] `status` mỗi 60 s: RSSI, uptime, free heap, số lần reconnect, bản ghi chờ gửi, fw, model_ver, `inference_us`.
+- [x] `status` mỗi 60 s: RSSI, uptime, free heap, số lần reconnect, bản ghi chờ gửi, fw, `config_ver`.
 - [x] OTA qua HTTP: `cmd: ota` + `url` manifest (`ota.py`, gói tạo bằng `deploy.py`); API `POST /api/devices/{id}/cmd {"cmd":"ota","url":...}`. [ ] ⚙ Thử OTA trên board.
 
 #### 2.2.3 Firmware — Đọc & Tiền xử lý Cảm biến
@@ -586,7 +575,7 @@ Tiền tố: `vku/aiot/{device_id}/...` (`device_id = station01`). Broker trên 
 | `.../status`    | Edge → Cloud | 1 (LWT) | ✅     | `online` + RSSI, uptime, heap; LWT `{"state":"offline"}`       |
 | `.../forecast`  | Cloud → Edge | 1       | ✅     | Dự báo 1h/3h/6h + `summary` cho màn TFT + `rain_source`        |
 | `.../cmd`       | Cloud → Edge | 1       | ❌     | `mute`, `test_alarm`, `calibrate`, `reboot`, `escalate`, `ota` |
-| `.../config`    | Cloud → Edge | 1       | ✅     | Ngưỡng, chu kỳ gửi, chế độ edge, R0, `version`                 |
+| `.../config`    | Cloud → Edge | 1       | ✅     | Ngưỡng luật, chu kỳ gửi, R0, `version`                         |
 | `.../ack`       | Edge → Cloud | 0*      | ❌     | Xác nhận đã nhận/áp dụng cmd/config                            |
 
 \* MQTT client tự viết trên ESP32 chỉ publish QoS 0; "ít nhất một lần" bảo đảm ở tầng ứng dụng bằng `seq` + đệm offline +
@@ -599,15 +588,15 @@ gửi bù, backend chống trùng theo `(device_id, ts, seq)`. Backend và `tool
  "temp_dht":29.4,"hum":78.2,"temp_bmp":29.9,"pressure":1008.6,"pressure_msl":1009.5,
  "lux":15230,"dew_point":25.1,"heat_index":34.2,"rain_raw":3810,"rain_level":0,
  "gas_raw":812,"gas_rs_r0":7.9,"gas_ppm":210,"gas_slope":0.4,
- "edge_risk":0,"edge_score":0.03,"warming_up":false,
+ "edge_risk":0,"warming_up":false,
  "sensor_ok":{"dht":true,"bmp":true,"bh":true,"rain":true,"gas":true},
- "fw":"2.0.0","model_ver":"gas-v1"}
+ "fw":"2.1.0"}
 ```
 ```json
 // alert
 {"device_id":"station01","ts":1762671620,"seq":10240,"type":"gas",
- "level":2,"prev_level":1,"level_name":"warning","cause":["gas_ppm>1000","model"],
- "gas_ppm":1350,"score":0.87,"rule_level":2,"model_level":2,
+ "level":2,"prev_level":1,"level_name":"warning","cause":["gas_ppm>300","slope_high","gas_ppm>1000"],
+ "gas_ppm":1350,"edge_level":2,
  "action":["led_red_blink","buzzer_intermittent","fan_on"],"edge_latency_ms":3}
 ```
 Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay bằng giờ nhận nếu `ts` < 2020).
@@ -627,7 +616,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 - [x] `forecasts` (device_id, created_at, horizon, target, value, lower, upper, model_ver, source); target mưa: `rain_prob` (hiển thị), `rain_ens`, `rain_ml` (so sánh).
 - [x] `google_rain_obs` (entered_at, valid_at, google_pct, features, entered_by): số Google nhập tay + đặc trưng ensemble chụp lúc nhập.
 - [x] `device_configs`, `commands`, `model_registry`, `notifications`.
-- [x] Alembic: `0001_initial` (bảng + hypertable + continuous aggregate 1 phút / 10 phút / 1 giờ + retention dữ liệu thô 90 ngày trên TimescaleDB), `0002_drop_nowcasts` (bỏ bảng `nowcasts`), `0003_google_rain_obs`.
+- [x] Alembic: `0001_initial` (bảng + hypertable + continuous aggregate 1 phút / 10 phút / 1 giờ + retention dữ liệu thô 90 ngày trên TimescaleDB), `0002_drop_nowcasts` (bỏ bảng `nowcasts`), `0003_google_rain_obs`, `0004_drop_gas_model_cols` (bỏ `telemetry.edge_score/model_ver`, `alerts.score`, `devices.model_ver` của mô hình khí đã bỏ; chạy lại được, không lỗi khi cột đã không có).
 
 **Ingestion** (`app/mqtt/ingest.py`):
 - [x] Subscribe `vku/aiot/+/telemetry|alert|status|ack`.
@@ -685,11 +674,11 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 
 ---
 
-### 2.3 Kiểm thử Chức năng — tổng **97 test pass** (2026-11-19)
+### 2.3 Kiểm thử Chức năng — tổng **94 test pass** (2026-11-27)
 
 #### Unit Tests (pytest)
-- [x] `ml/tests/` — **31 test**: lưu/nạp joblib, Holt-Winters ≡ statsmodels, khớp MicroPython ↔ scikit-learn, feature không rò rỉ, hysteresis/debounce, edge ≡ firmware, chọn ngưỡng F1, bảng Markdown, ensemble mưa (tách mô hình, tỉ lệ phương án bỏ thành viên thiếu số liệu, cấu hình mặc định, điều chỉnh trạm ≤ 10, học hiệu chỉnh theo Google, ánh xạ đẳng biến khi phi tuyến, cần ≥ 40 giờ).
-- [x] `firmware/tests/` — **33 test**: filter, rule engine, alert manager, driver BMP280, đệm offline, toàn luồng trạm với schema backend, MQTT client với broker tối giản + Mosquitto thật, mpy-cross biên dịch mọi module, không còn file C/C++.
+- [x] `ml/tests/` — **29 test**: lưu/nạp joblib, Holt-Winters ≡ statsmodels, feature không rò rỉ, hysteresis/debounce, luật edge ≡ firmware, chọn ngưỡng F1, bảng Markdown, ensemble mưa (tách mô hình, tỉ lệ phương án bỏ thành viên thiếu số liệu, cấu hình mặc định, điều chỉnh trạm ≤ 10, học hiệu chỉnh theo Google, ánh xạ đẳng biến khi phi tuyến, cần ≥ 40 giờ).
+- [x] `firmware/tests/` — **32 test**: filter, luật 4 cấp (không mô hình), alert manager, driver BMP280, đệm offline, toàn luồng trạm với schema backend, MQTT client với broker tối giản + Mosquitto thật, mpy-cross biên dịch mọi module, không còn file C/C++.
 - [x] `dashboard/tests/` — **9 test**: 6 trang + ack + gửi config + khung mưa so với Google trên API giả (`streamlit.testing.AppTest`, fixture chụp từ trạm thật bằng `capture_fixture.py`).
 
 #### Integration Tests
@@ -699,7 +688,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 
 #### Coverage Targets
 - [x] Mọi thay đổi code chạy lại đủ 4 bộ test (lệnh ở Nguyên tắc 3) — 0 fail.
-- [x] Corner cases: mất ensemble/Open-Meteo, YL-83 ướt, giá trị ngoài dải, bản tin trùng/rỗng, `ts = 0`, cấu hình không hợp lệ, không có model edge.
+- [x] Corner cases: mất ensemble/Open-Meteo, YL-83 ướt, giá trị ngoài dải, bản tin trùng/rỗng, `ts = 0`, cấu hình không hợp lệ, bản tin firmware cũ còn `edge_score`/`model_ver` (bỏ qua).
 
 ---
 
@@ -747,9 +736,9 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 - [ ] **Báo động giả**: hơi nước, cồn (MQ-2 nhạy chéo), nước hoa → tỉ lệ false positive.
 - [ ] Bảng kết quả trong báo cáo:
   - [x] Bảng metric dự báo (các mô hình × các horizon)
-  - [ ] Bảng metric cảnh báo (rule / model / hybrid) — chờ dữ liệu khí thật
+  - [ ] Bảng metric luật cảnh báo (Recall, báo động giả) — chờ thí nghiệm khí có nhãn
   - [ ] Bảng độ trễ (edge, end-to-end, P50/P95) — có sẵn độ trễ broker từ load test
-  - [ ] Tài nguyên edge: flash, RAM, thời gian suy luận, công suất
+  - [ ] Tài nguyên edge: flash, RAM, thời gian một bước luật, công suất
   - [ ] Xác suất mưa so với Google (1.7)
 
 **Definition of Done:**
@@ -758,7 +747,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 - [x] Cloud lưu dữ liệu, xác nhận/leo thang cảnh báo, gửi Telegram/Email.
 - [x] Dự báo 1h/3h/6h chạy tự động, có bảng so sánh, vượt baseline persistence.
 - [x] Dashboard hiển thị realtime, lịch sử, dự báo, cảnh báo, chỉnh cấu hình thiết bị.
-- [ ] ⚙ Số liệu chứng minh lợi ích hybrid edge–cloud (độ trễ, chạy offline, độ chính xác rule/model/hybrid).
+- [ ] ⚙ Số liệu chứng minh lợi ích hybrid edge–cloud (độ trễ, chạy offline, độ chính xác luật cảnh báo).
 - [x] Mô hình dùng thư viện chuẩn (scikit-learn, LightGBM, statsmodels, PyTorch), phiên bản ghim; số liệu so sánh chạy lại được bằng `python -m aiot_ml.train_forecast`.
 - [x] Toàn bộ mã nguồn bằng Python (firmware MicroPython), 0 file C/C++/JS/shell (có test kiểm tra).
 - [x] `docker compose up` dựng lại toàn bộ backend; README đầy đủ.
@@ -796,16 +785,16 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | 1 | 1.1, 2.2.1 | Mua MQ-2 và linh kiện phụ, test từng cảm biến, I2C scan, dựng repo, Docker Mosquitto | ✅ Repo + broker; ⚙ test cảm biến | Thấp |
 | 2 | 2.2.2–2.2.5 | Firmware: đọc + lọc + MQTT telemetry + NTP + LWT. Burn-in MQ-2 | ✅ Trạm gửi dữ liệu thật; ⚙ burn-in | Trung bình (heap IDF) |
 | 3 | 1.2, 2.2.6 | Backend: ingest + DB + API. Open-Meteo. Pipeline ML nền tảng + unit test | ✅ | Thấp |
-| 4 | 1.8, 2.2.1 | Hiệu chuẩn MQ-2 và YL-83. Rule engine đa cấp + còi/LED. Đệm offline. CART/RF, `export_micropython.py` | ✅ Phần mềm + dây đã sửa | Cao (cắm sai dây — đã gặp) |
-| 5 | 1.4, 1.10–1.11 | Thu dữ liệu khí có gán nhãn. Huấn luyện model edge, xuất MicroPython, nạp ESP32, kiểm tra khớp | ⚠️ Pipeline xong; ⚙ dữ liệu khí thật | Cao (thí nghiệm gas cần an toàn) |
+| 4 | 1.8, 2.2.1 | Hiệu chuẩn MQ-2 và YL-83. Luật đa cấp + còi/LED. Đệm offline. ~~CART/RF~~ (bỏ) | ✅ Phần mềm + dây đã sửa | Cao (cắm sai dây — đã gặp) |
+| 5 | 1.8, 1.11 | Thí nghiệm khí có gán nhãn để đánh giá luật; luật firmware ≡ bản Python tham chiếu. ~~Mô hình khí edge~~ (bỏ 2026-11-27) | ✅ Kiểm tra tương đương; ⚙ thí nghiệm khí | Cao (thí nghiệm gas cần an toàn) |
 | 6 | 1.3–1.5 | EDA và feature. Holt-Winters, GBDT (MSE, log-loss). Baseline + GBDT trên Open-Meteo | ✅ | Thấp |
-| 7 | 1.4, 2.2.6 | Isolation Forest + CUSUM. GRU (PyTorch) đối chứng. Forecast service + publish `forecast` | ✅ (IF/CUSUM không triển khai) | Thấp |
+| 7 | 1.4, 2.2.6 | ~~Isolation Forest + CUSUM~~ (bỏ). GRU (PyTorch) đối chứng. Forecast service + publish `forecast` | ✅ | Thấp |
 | 8 | 2.2.7 | Dashboard + Telegram + alert service (leo thang, ack). Màn TFT | ✅; ⚙ bot Telegram thật | Thấp |
 | 9 | 1.7, 2.3, 2.6 | Kiểm thử (unit, integration, load, 72 h, mất mạng, báo động giả). Xác suất mưa theo Google | ✅ Unit/integration/load; ⚠️ mưa chờ số Google; ⚙ phần cứng | Cao (phụ thuộc trạm thật) |
 | 10 | 2.8 | Báo cáo, slide, video demo, đóng hộp hoàn thiện | ⚠️ Slide xong (báo cáo đã xoá); ⚙ video, đóng hộp, GVHD | Trung bình |
 | **Buffer** | — | Dự phòng sửa phần cứng (nguồn, dây), thu dữ liệu khí | — | Bắt buộc |
 
-> ⚠️ Phần mềm vượt tiến độ; phần còn lại phụ thuộc phần cứng và người làm (dữ liệu khí, nguồn 5 V/2 A, đêm ngoài trời, số Google, video).
+> ⚠️ Phần mềm vượt tiến độ; phần còn lại phụ thuộc phần cứng và người làm (thí nghiệm khí, nguồn 5 V/2 A, đêm ngoài trời, số Google, video).
 
 ---
 
@@ -824,7 +813,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | **MAE độ ẩm 1h** | GBDT, test 2025 | **1,870 %RH** | < 5 %RH | — |
 | **F1 mưa / không mưa 3h** | GBDT, test 2025 | **0,833** | > 0,75 | — |
 | **Xác suất mưa lệch Google** (cùng giờ) | Ensemble ≥ 1 mm + hiệu chỉnh | ⚙ chờ số Google (5 giờ đo thử: lệch TB 12) | ≤ 10 điểm % | ≥ 40 giờ nhập → % giờ đạt trước/sau khi học |
-| **Recall cảnh báo khí cấp ≥ 2** | hybrid | ⚙ chờ dữ liệu khí thật | ≥ 0,95 (ưu tiên không bỏ sót) | — |
+| **Recall cảnh báo khí cấp ≥ 2** | luật 4 cấp | ⚙ chờ thí nghiệm khí có nhãn | ≥ 0,95 (ưu tiên không bỏ sót) | — |
 | **Chạy liên tục không treo** | WDT 30 s | ⚙ chờ chạy trạm | ≥ 72 giờ | — |
 
 > ⚠️ Chỉ tiêu mưa ±10 **không bảo đảm** cho mọi giờ vì không có số Google tự động (không trả phí, không scrape); dashboard đo và hiển thị trung thực % số giờ đạt.
@@ -839,7 +828,7 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | P95 độ trễ broker (50 thiết bị) | đo: 2 ms local / 3,4 ms Docker |
 | CPU backend (50 thiết bị, Docker) | đo: ≈ 10 % |
 | Đệm offline | 2000 bản ghi, gửi bù ≤ 200 bản/lượt |
-| RAM / µs suy luận model edge | ⚙ đo bằng `bench_device.py` |
+| RAM / µs một bước luật edge | ⚙ đo bằng `bench_device.py` |
 | Bản ghi trùng sau gửi bù | 0 |
 | File C/C++/JS/shell trong repo | 0 |
 
@@ -851,16 +840,16 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Dữ liệu tự thu quá ít để huấn luyện dự báo      | Huấn luyện, dự báo từ Open-Meteo; trạm chỉ để đối chiếu                                                                        |
 | Xác suất mưa lệch Google                        | Ensemble miễn phí + học hiệu chỉnh từ số Google nhập tay; LightGBM dự phòng; đo trung thực % giờ đạt                            |
-| Chưa có dữ liệu khí đo thật                     | Edge chạy rule (`AVAILABLE = False`); pipeline ML sẵn sàng, chỉ cần `--data`                                                   |
-| MQ-2 trôi giá trị, nhạy với nhiệt độ/độ ẩm      | Burn-in, đưa T/H vào feature, hiệu chuẩn R0 bằng lệnh `calibrate` (CUSUM đã cài nhưng không triển khai)                        |
+| Luật chưa được đánh giá trên khí đo thật        | Thí nghiệm có nhãn (`label_logger.py`) đo Recall / báo động giả; chỉnh ngưỡng qua MQTT `config`                               |
+| MQ-2 trôi giá trị, nhạy với nhiệt độ/độ ẩm      | Burn-in, hiệu chuẩn R0 bằng lệnh `calibrate`, hysteresis 15 %                                                                  |
 | YL-83 bị ăn mòn khi để ngoài trời lâu           | Chỉ cấp nguồn khi đọc (GPIO18), phủ lớp bảo vệ, có module dự phòng                                                             |
 | DHT22 đọc lỗi hoặc NaN                          | Retry, dùng nhiệt độ BMP280 làm dự phòng, cờ `sensor_ok`                                                                       |
 | Wi-Fi không ổn định / board reset khi bật Wi-Fi | Đệm offline, tự kết nối lại, cảnh báo edge độc lập với mạng; cấp nguồn 5 V/2 A vào VIN thay vì USB                             |
 | Heap IDF cạn làm Wi-Fi treo                     | Giữ `GC_THRESHOLD`, stack luồng 8 KB, theo dõi `idf_free_heap`                                                                 |
 | Trùng cổng broker 1883 với Mosquitto Windows    | Docker map ra cổng host 11883 (`MQTT_HOST_PORT`), board dùng 11883                                                             |
 | Không có phần cứng khi phát triển backend       | Integration test MQTT (`backend/tests/`); dữ liệu thật chờ phần cứng                                                           |
-| Báo động giả gây phiền                          | Hysteresis, debounce, model hybrid, cooldown thông báo                                                                         |
-| Sai số do cài đặt mô hình                       | Dùng thư viện chuẩn (scikit-learn, LightGBM, statsmodels, PyTorch); so khớp `gas_model.py` (MicroPython) ↔ scikit-learn        |
+| Báo động giả gây phiền                          | Hysteresis, debounce, cooldown thông báo                                                                                       |
+| Sai số do cài đặt mô hình                       | Dùng thư viện chuẩn (scikit-learn, LightGBM, statsmodels, PyTorch); luật firmware ≡ bản Python tham chiếu (test)                 |
 | Phiên bản thư viện lệch khi nạp model           | Ghim scikit-learn/LightGBM trong `ml/pyproject.toml`; file JSON đầu mục ghi phiên bản thư viện lúc huấn luyện                  |
 | Tài liệu lệch với code                          | Nguyên tắc 3: sửa code là sửa luôn tài liệu/sơ đồ/slide và khối TRẠNG THÁI, grep tham chiếu cũ, chạy lại toàn bộ test |
 | An toàn khi thí nghiệm gas                      | Lượng nhỏ, nơi thoáng, không có nguồn lửa, có người giám sát                                                                   |
@@ -873,9 +862,6 @@ Giá trị lỗi gửi `null`; `ts = 0` khi ESP32 chưa có NTP (backend thay b�
 |----------|----------|------|
 | Ke et al. 2017 | LightGBM — GBDT dùng cho mô hình dự báo triển khai | NIPS 30, pp. 3146–3154 |
 | Friedman 2001 | Gradient Boosting Machine | Annals of Statistics 29(5) |
-| Breiman 2001 | Random Forests — model edge khí | Machine Learning 45(1) |
-| Liu, Ting, Zhou 2008 | Isolation Forest — phát hiện bất thường ở cloud | ICDM 2008 |
-| Page 1954 | CUSUM — drift baseline R0 của MQ-2 | Biometrika 41 |
 | Holt 1957; Winters 1960 | Holt-Winters — baseline thống kê | Management Science 6 |
 | Cho et al. 2014 | GRU — đối chứng deep learning | EMNLP 2014 |
 | Pedregosa et al. 2011 | scikit-learn | JMLR 12 |

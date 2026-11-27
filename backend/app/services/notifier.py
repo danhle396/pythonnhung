@@ -14,7 +14,7 @@ from app.core.config import Settings
 
 log = logging.getLogger(__name__)
 LEVEL_INFO = {0: ("🟢", "Bình thường"), 1: ("🟡", "Chú ý"), 2: ("🟠", "Cảnh báo"), 3: ("🔴", "NGUY HIỂM")}
-TYPE_NAME = {"gas": "Khí dễ cháy / khói", "anomaly": "Bất thường khí (cloud AI)", "sensor_fault": "Lỗi cảm biến",
+TYPE_NAME = {"gas": "Khí dễ cháy / khói", "sensor_fault": "Lỗi cảm biến",
              "device_offline": "Mất kết nối thiết bị", "test": "Thử còi"}
 
 
@@ -39,7 +39,7 @@ class Notifier:
                  f"Thiết bị: <code>{html.escape(a.device_id)}</code> (VKU, Ngũ Hành Sơn, Đà Nẵng)",
                  f"Thời gian: {ts.astimezone(self.tz):%H:%M:%S %d/%m/%Y}"]
         if a.gas_ppm is not None:
-            lines.append(f"Gas: <b>{a.gas_ppm:.0f} ppm</b>" + (f", AI score {a.score:.2f}" if a.score is not None else ""))
+            lines.append(f"Gas: <b>{a.gas_ppm:.0f} ppm</b>")
         if a.cause:
             lines.append("Nguyên nhân: " + html.escape(", ".join(a.cause)))
         lines.append(f"Nguồn: {a.source} | Cấp trước: {a.prev_level}")

@@ -4,7 +4,7 @@ import pytest
 
 from alert import (BUZZER_CONTINUOUS, BUZZER_INTERMITTENT, BUZZER_OFF, LED_RED_BLINK, AlertManager, RuleConfig,
                    RuleEngine)
-from edge_ai import FAULT_DISCONNECTED, FAULT_SATURATED, EdgeAI, Mq2FaultDetector, Mq2Params, mq2_convert
+from edge_gas import FAULT_DISCONNECTED, FAULT_SATURATED, EdgeGas, Mq2FaultDetector, Mq2Params, mq2_convert
 from filters import Ewma, Median5, RingBuffer, dew_point, sea_level_pressure
 
 
@@ -117,20 +117,20 @@ def test_mq2_conversion_and_fault():
     assert f.fault == FAULT_SATURATED
 
 
-def test_edge_hybrid_never_below_rule():
-    e = EdgeAI(warmup_samples=0)
-    e.rules.cfg.debounce_up = 1
-    for _ in range(5):
-        o = e.step(2500.0, 0.5, 28.0, 70.0, 100.0, True)
-    assert o.rule_level == 3
-    assert o.level >= o.rule_level
+def test_edge_gas_is_rule_only_and_reports_slope():
+    e = EdgeGas(warmup_samples=0)
+    rising = [e.step(100.0 + 40.0 * i, 28.0, True) for i in range(10)]
+    assert rising[-1].slope == pytest.approx(40.0)
+    assert rising[-1].level >= 1 and rising[-1].cause
+    o = e.step(2500.0, 28.0, True)
+    assert o.level == 3 and o.level == e.rules.level
 
 
 def test_edge_warmup_and_sensor_fault_hold_level_zero():
-    e = EdgeAI(warmup_samples=3)
-    levels = [e.step(2500.0, 0.5, 28.0, 70.0, 100.0, True).level for _ in range(4)]
+    e = EdgeGas(warmup_samples=3)
+    levels = [e.step(2500.0, 28.0, True).level for _ in range(4)]
     assert levels == [0, 0, 0, 3]
-    assert e.step(2500.0, 0.5, 28.0, 70.0, 100.0, False).level == 0
+    assert e.step(2500.0, 28.0, False).level == 0
 
 
 def test_derived_quantities():

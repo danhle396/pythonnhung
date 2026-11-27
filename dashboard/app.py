@@ -442,7 +442,7 @@ def page_device():
     dev = api_get(f"/api/devices/{device}") or {}
     cfg = (dev.get("config") or {}).get("config") or {}
     st.html(ui.info_bar([("Thiết bị", dev.get("name", device)), ("Vị trí", dev.get("location") or "—"),
-                         ("Firmware", dev.get("fw") or "—"), ("Mô hình", dev.get("model_ver") or "—"),
+                         ("Firmware", dev.get("fw") or "—"),
                          ("Lần cuối", local_ts(dev.get("last_seen"), "%H:%M:%S %d/%m")),
                          ("Trạng thái", dev.get("status") or "—")]))
     left, right = st.columns([1, 2])
@@ -469,13 +469,12 @@ def page_device():
             c = st.columns(3)
             dbu = c[0].number_input("Debounce tăng (mẫu)", 1, 30, int(cfg.get("debounce_up", 3)))
             dbd = c[1].number_input("Debounce giảm (mẫu)", 1, 60, int(cfg.get("debounce_down", 5)))
-            modes = ["hybrid", "rule", "model"]
-            mode = c[2].selectbox("Chế độ edge", modes, index=modes.index(cfg.get("mode", "hybrid")))
+            dtemp3 = c[2].number_input("Nhiệt tăng → Nguy hiểm (°C/phút)", 0.1, 20.0, float(cfg.get("dtemp3", 1.0)))
             if st.form_submit_button("💾 Gửi cấu hình xuống thiết bị", type="primary"):
                 r = api_write("PUT", f"/api/devices/{device}/config",
                               json={"th1": th1, "th2": th2, "th3": th3, "slope1": slope1, "hyst": hyst,
                                     "telemetry_ms": int(tel), "debounce_up": int(dbu), "debounce_down": int(dbd),
-                                    "mode": mode})
+                                    "dtemp3": dtemp3})
                 if r:
                     st.toast(f"Đã gửi cấu hình v{r['version']} — chờ thiết bị xác nhận")
     hist = api_get(f"/api/devices/{device}/configs") or []
@@ -517,8 +516,7 @@ def page_models():
                 "metric_value": "Giá trị"})))
         with st.expander("Toàn bộ lịch sử registry"):
             st.dataframe(df[["name", "model_ver", "model", "metric_value", "active", "created_at"]], hide_index=True)
-    for f, name in [("results_forecast.md", "Kết quả dự báo"), ("results_gas_edge.md", "Cảnh báo khí tại edge"),
-                    ("results_anomaly.md", "Bất thường ở cloud")]:
+    for f, name in [("results_forecast.md", "Kết quả dự báo")]:
         p = REPO / "docs" / "report" / f
         if p.exists():
             with st.expander(name):

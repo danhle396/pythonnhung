@@ -7,7 +7,7 @@ Bỏ qua các khối code (``` hoặc ~~~).
 
     python -m aiot_ml.mdtable docs/report/*.md README.md      # sửa tại chỗ
     python -m aiot_ml.mdtable --check docs/report/*.md         # chỉ báo file nào chưa căn (exit 1)
-Các script sinh báo cáo (train_forecast, train_gas_edge, train_anomaly, tools/load_test.py) gọi align_tables()
+Các script sinh bảng kết quả (train_forecast, tools/load_test.py) gọi align_tables()
 trước khi ghi file.
 """
 

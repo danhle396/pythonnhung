@@ -3,8 +3,7 @@ import pandas as pd
 import pytest
 
 from aiot_ml import features as fe
-from aiot_ml.gas_edge import (EdgeEngine, FeatureExtractor, ModelLevelFilter, RuleConfig, RuleEngine,
-                              ppm_from_ratio, ratio_from_ppm)
+from aiot_ml.gas_edge import EdgeGas, GasTrend, RuleConfig, RuleEngine, ppm_from_ratio, ratio_from_ppm
 
 
 def _toy_hourly(n=24 * 6, seed=0):
@@ -71,24 +70,15 @@ def test_rule_temp_rising_escalates_to_danger():
     assert r.update(1200, 0, 1.5) == 3
 
 
-def test_model_filter_and_fusion_never_lowers_rule():
-    f = ModelLevelFilter(n_up=2, n_down=2)
-    assert [f.update(x) for x in [2, 2, 0, 0]] == [0, 2, 2, 0]
-
-    class Const:
-        classes_ = np.array([0, 1, 2, 3])
-
-        def predict_proba(self, X):
-            return np.array([[1.0, 0, 0, 0]])
-
-    eng = EdgeEngine(model=Const(), mode="hybrid", rule_cfg=RuleConfig(debounce_up=1))
-    lv = [eng.step(2500, 0.5, 28, 70, 100)[0] for _ in range(3)]
-    assert lv[-1] == 3
+def test_edge_gas_rule_only_with_warmup():
+    eng = EdgeGas(rule_cfg=RuleConfig(debounce_up=1), warmup_s=2)
+    lv = [eng.step(2500, 28)[0] for _ in range(3)]
+    assert lv == [0, 0, 3]
 
 
-def test_mq2_curve_roundtrip_and_extractor():
+def test_mq2_curve_roundtrip_and_trend():
     assert np.isclose(ppm_from_ratio(ratio_from_ppm(1234.0)), 1234.0)
-    fx = FeatureExtractor()
+    tr = GasTrend()
     for i in range(20):
-        f = fx.update(100 + 10 * i, 5.0, 28.0, 70.0, 300.0)
-    assert np.isclose(f[2], 10.0)
+        slope, dtemp = tr.update(100 + 10 * i, 28.0 + i / 60.0)
+    assert np.isclose(slope, 10.0) and np.isclose(dtemp, 1.0)

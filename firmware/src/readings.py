@@ -1,6 +1,6 @@
 import config
 from compat import isnan, nan
-from edge_ai import FAULT_NONE, Mq2FaultDetector, Mq2Params, Mq2Reading, mq2_convert
+from edge_gas import FAULT_NONE, Mq2FaultDetector, Mq2Params, Mq2Reading, mq2_convert
 from filters import SensorFilter, dew_point, heat_index, sea_level_pressure
 
 

@@ -16,13 +16,13 @@ Sơ đồ khối toàn hệ thống: `system_block_diagram.drawio`, trang 1 (xem
 
 | Sơ đồ | Phần                  | Input chính                                 | Xử lý chính                                      | Output chính                                     | Code                                       |
 | ----- | --------------------- | ------------------------------------------- | ------------------------------------------------ | ------------------------------------------------ | ------------------------------------------ |
-| IPO-1 | Firmware trạm (edge)  | 5 cảm biến; lệnh, cấu hình, dự báo từ cloud | Lọc nhiễu, tính ppm, phân cấp khí 0–3            | LED, còi, màn TFT; bản tin lên cloud             | `firmware/src/`                            |
+| IPO-1 | Firmware trạm (edge)  | 5 cảm biến; lệnh, cấu hình, dự báo từ cloud | Lọc nhiễu, tính ppm, luật phân cấp khí 0–3       | LED, còi, màn TFT; bản tin lên cloud             | `firmware/src/`                            |
 | —     | Truyền tin MQTT       | Bản tin của trạm và backend                 | Xác thực, phân quyền topic, LWT, retain          | Bản tin tới đúng nơi nhận                        | `broker/` (chi tiết ở `mqtt.md`)           |
 | IPO-2 | Thu nhận và lưu trữ   | telemetry, alert, status, ack               | Kiểm tra dữ liệu, chống trùng, ghi lô            | Dữ liệu trong CSDL, luồng realtime               | `backend/app/mqtt/ingest.py`               |
 | IPO-3 | Cảnh báo (cloud)      | Cảnh báo từ trạm, ppm 10 phút gần nhất, LWT | Chọn kênh theo cấp, leo thang, phát hiện offline | Telegram/Email, lệnh `escalate`                  | `backend/app/services/alert_service.py`    |
 | IPO-4 | Dự báo (cloud)        | Open-Meteo, Ensemble, số Google nhập tay    | GBDT nhiệt độ/độ ẩm, xác suất mưa từ ensemble    | Dự báo 1/3/6 giờ, bản tin cho TFT                | `backend/app/services/forecast_service.py` |
 | IPO-5 | Dashboard và REST API | Thao tác người dùng, dữ liệu CSDL           | JWT, truy vấn, cấu hình có phiên bản             | 6 trang Streamlit, Grafana, CSV, lệnh xuống trạm | `backend/app/api/`, `dashboard/`           |
-| IPO-6 | Huấn luyện mô hình    | Open-Meteo 2021–2025, dữ liệu MQ-2 có nhãn  | scikit-learn, LightGBM: huấn luyện, chọn mô hình | File mô hình, `gas_model.py`, bảng kết quả       | `ml/` (chạy trên laptop)                   |
+| IPO-6 | Huấn luyện mô hình    | Open-Meteo 2021–2025                        | scikit-learn, LightGBM: huấn luyện, chọn mô hình | File mô hình dự báo, bảng kết quả                | `ml/` (chạy trên laptop)                   |
 
 ## IPO-1 Firmware ESP32 (edge)
 
@@ -35,7 +35,7 @@ Sơ đồ khối toàn hệ thống: `system_block_diagram.drawio`, trang 1 (xem
 - MQ-2: điện áp AO nối thẳng GPIO32.
 - Từ cloud qua MQTT:
   - `cmd`: `mute`, `test_alarm`, `calibrate`, `reboot`, `escalate`, `ota`.
-  - `config`: ngưỡng, hysteresis, debounce, chu kỳ gửi, chế độ rule/model/hybrid.
+  - `config`: ngưỡng ppm, độ dốc, nhiệt tăng, hysteresis, debounce, chu kỳ gửi.
   - `forecast`: bản tin dự báo.
 - Trên flash: `/config.json` (cấu hình, R0). Giờ lấy qua NTP.
 
@@ -46,11 +46,11 @@ Sơ đồ khối toàn hệ thống: `system_block_diagram.drawio`, trang 1 (xem
    - Tính điểm sương, chỉ số nhiệt, áp suất quy về mực biển.
    - Phân mức mưa: lấy mức cao nhất trong 3 lần đọc.
    - Phát hiện MQ-2 lỗi: kẹt, mất kết nối hoặc bão hoà.
-2. **Edge AI** (`edge_ai.py`, `alert.py`)
-   - Tính 10 feature: ppm, Rs/R0, độ dốc 10 s, độ lệch chuẩn 30 s, độ lệch so với nền, nhiệt độ, độ dốc nhiệt độ,
-     độ ẩm, độ dốc độ ẩm, lux tương đối.
-   - Luật 4 cấp: ngưỡng 300 / 1 000 / 2 000 ppm; độ dốc ≥ 15 ppm/s; nhiệt tăng ≥ 1 °C/phút.
-   - Cấp cuối = `max(luật, mô hình, lệnh cloud)`. Lệnh `mute` tắt còi 5 phút.
+2. **Luật cảnh báo khí** (`edge_gas.py`, `alert.py`) — không dùng mô hình AI
+   - Tính độ dốc ppm trên 10 mẫu gần nhất và tốc độ tăng nhiệt độ trên 60 mẫu.
+   - Luật 4 cấp: ngưỡng 300 / 1 000 / 2 000 ppm; độ dốc ≥ 15 ppm/s; nhiệt tăng ≥ 1 °C/phút khi đã ở cấp 2.
+   - Hysteresis 15 %, debounce 3 mẫu khi lên / 5 mẫu khi xuống; vượt ngưỡng cấp 3 thì lên ngay.
+   - Cấp cuối = `max(luật, lệnh cloud)`. Lệnh `mute` tắt còi 5 phút.
 3. **Luồng mạng** (`_thread`, `net.py`, `mqtt.py` tự viết)
    - Tự nối lại Wi-Fi/MQTT và gửi bản tin.
    - Mất mạng thì đệm bản tin trên flash, có mạng lại thì gửi bù 20 bản ghi mỗi lượt.
@@ -183,14 +183,12 @@ Cùng một (trạm, loại, cấp) không gửi lại trong 120 s (cooldown).
 
 ## IPO-6 Huấn luyện mô hình offline (thư viện chuẩn)
 
-**Vai trò:** huấn luyện mô hình trên laptop bằng scikit-learn, LightGBM, statsmodels, PyTorch rồi xuất file cho
-backend và firmware.
+**Vai trò:** huấn luyện mô hình dự báo thời tiết trên laptop bằng scikit-learn, LightGBM, statsmodels, PyTorch rồi
+xuất file cho backend. Cảnh báo khí không dùng mô hình nên không có pipeline huấn luyện cho khí.
 
-| Pipeline                            | Dùng dữ liệu                                                    | Kết quả                                                                                  | Trạng thái                                    |
-| ----------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------- |
-| Dự báo thời tiết (`train_forecast`) | Open-Meteo theo giờ 2021–2025 tại VKU (43 824 giờ)              | 9 mô hình GBDT + `registry.json`. **MAE nhiệt độ 1 giờ = 0,30 °C, F1 mưa 3 giờ = 0,833** | Đã xong                                       |
-| Cảnh báo khí (`train_gas_edge`)     | MQ-2 đo thật 1 Hz, gán nhãn 0–3 (gas ở 50/20/5 cm, khói, nhiễu) | `firmware/src/gas_model.py`, `gas_edge.joblib`                                           | Chờ dữ liệu MQ-2 đo thật; trạm chạy theo luật |
-| Bất thường (`train_anomaly`)        | Cần vài tuần telemetry của trạm                                 | `gas_anomaly.joblib`                                                                     | Không triển khai                              |
+| Pipeline                            | Dùng dữ liệu                                       | Kết quả                                                                                  | Trạng thái |
+| ----------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
+| Dự báo thời tiết (`train_forecast`) | Open-Meteo theo giờ 2021–2025 tại VKU (43 824 giờ) | 9 mô hình GBDT + `registry.json`. **MAE nhiệt độ 1 giờ = 0,30 °C, F1 mưa 3 giờ = 0,833** | Đã xong    |
 
 Chi tiết cách làm:
 - **Dự báo thời tiết**
@@ -199,22 +197,17 @@ Chi tiết cách làm:
   - Chia theo thời gian: train 2021–2023, val 2024, test 2025.
   - So sánh Persistence, Holt-Winters, Ridge, GBDT, GRU; với mưa so sánh Logistic và GBDT. Có early stopping trên val.
   - Kết quả ghi ở `docs/report/results_forecast.md`.
-- **Cảnh báo khí**
-  - Dùng đúng 10 feature như firmware: `gas_edge.py` khớp `edge_ai.py`, có test kiểm tra.
-  - Decision Tree / Random Forest có trọng số lớp; chia dữ liệu theo buổi thí nghiệm.
-  - Kiểm tra `gas_model.py` (float32) cho ra kết quả khớp scikit-learn.
-- **Bất thường**
-  - Isolation Forest trên 8 feature cửa sổ 10 phút; z-score theo giờ; CUSUM trên R0 hằng ngày.
-  - Backend bỏ qua bước này.
+- **Luật cảnh báo khí**: `ml/src/gas_edge.py` là bản Python tham chiếu của luật trên firmware (`edge_gas.py`,
+  `alert.py`); test chạy cùng chuỗi ppm qua cả hai và kiểm tra cấp ra giống nhau.
 
 ## Vòng phản hồi
 
 Ngoài chiều đi chính (trạm → cloud → người dùng), có 5 vòng dữ liệu đi ngược lại:
 
-| Vòng               | Từ    | Tới                 | Đường đi                                                                       |
-| ------------------ | ----- | ------------------- | ------------------------------------------------------------------------------ |
-| Lệnh và cấu hình   | IPO-5 | IPO-1               | API → MQTT `cmd`/`config` → ESP32 → `ack` → ingest                             |
-| Leo thang          | IPO-3 | IPO-1               | `cmd escalate` → `max(luật, mô hình, cloud)` → còi/đèn                         |
-| Bản tin dự báo     | IPO-4 | IPO-1               | MQTT `forecast` (retain) → trang Dự báo trên TFT                               |
-| Mô hình            | IPO-6 | IPO-1, IPO-3, IPO-4 | `registry.json`, `gas_anomaly.json`, `gas_model.py` (nạp bằng `deploy.py`/OTA) |
-| Dữ liệu huấn luyện | IPO-2 | IPO-6               | Xuất CSV telemetry → `train_anomaly`; `label_logger.py` → `train_gas_edge`     |
+| Vòng             | Từ    | Tới   | Đường đi                                                              |
+| ---------------- | ----- | ----- | --------------------------------------------------------------------- |
+| Lệnh và cấu hình | IPO-5 | IPO-1 | API → MQTT `cmd`/`config` → ESP32 → `ack` → ingest                    |
+| Leo thang        | IPO-3 | IPO-1 | `cmd escalate` → `max(luật, cloud)` → còi/đèn                         |
+| Bản tin dự báo   | IPO-4 | IPO-1 | MQTT `forecast` (retain) → trang Dự báo trên TFT                      |
+| Mô hình          | IPO-6 | IPO-4 | `registry.json` → forecast service nạp mô hình GBDT                   |
+| Hiệu chỉnh mưa   | IPO-5 | IPO-4 | Số Google nhập ở trang Dự báo → `google_rain_obs` → `rain_calib.json` |

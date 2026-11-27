@@ -1,12 +1,11 @@
 import json
 
 import config
-import gas_model
 import payloads
 from alert import (BUZZER_CONTINUOUS, BUZZER_INTERMITTENT, CAUSE_CLOUD, CAUSE_TEST, LED_GREEN, LED_RED_BLINK,
                    LED_RED_SOLID, LED_YELLOW, Actions, AlertManager, cause_list)
 from compat import allocate_lock, epoch, has_time, isnan, ticks_diff, ticks_ms
-from edge_ai import MODE_NAMES, EdgeAI, EdgeOutput, mq2_calibrate_r0
+from edge_gas import EdgeGas, EdgeOutput, mq2_calibrate_r0
 from readings import SensorData, SensorProcessor
 
 
@@ -43,7 +42,7 @@ class DisplayState:
         self.wifi = False
         self.mqtt = False
         self.warming_up = True
-        self.score = 0.0
+        self.slope = 0.0
         self.cloud_forecast = ""
 
 
@@ -54,7 +53,7 @@ class Station:
         self.cfg = storage.load_config()
         self.proc = SensorProcessor()
         self.proc.mq2.r0_kohm = self.cfg.r0_kohm
-        self.edge = EdgeAI(warmup_samples=config.MQ2_WARMUP_S)
+        self.edge = EdgeGas(warmup_samples=config.MQ2_WARMUP_S)
         self.alerts = AlertManager(config.MUTE_DURATION_MS)
         self.outbox = Outbox(storage)
         self.dstate = DisplayState()
@@ -80,9 +79,6 @@ class Station:
         c = self.cfg.copy()
         try:
             c.update_from(j)
-            mode = j.get("mode", "")
-            if mode in MODE_NAMES:
-                c.edge_mode = MODE_NAMES.index(mode)
             c.version = int(j.get("version", self.cfg.version + 1))
         except (TypeError, ValueError):
             self.send_ack("config", None, False, "invalid values")
@@ -141,7 +137,6 @@ class Station:
         if self.flag_config_changed:
             with self.cfg_lock:
                 self.edge.rules.cfg = self.cfg.rule.copy()
-                self.edge.mode = self.cfg.edge_mode
                 self.proc.mq2.r0_kohm = self.cfg.r0_kohm
                 self.flag_config_changed = False
         if self.flag_mute:
@@ -156,8 +151,7 @@ class Station:
 
         ts = epoch() if has_time() else 0
         d = self.proc.process(raw, ts)
-        o = self.edge.step(d.mq2.ppm, d.mq2.ratio, 25.0 if isnan(d.temp) else d.temp,
-                           70.0 if isnan(d.hum) else d.hum, 0.0 if isnan(d.lux) else d.lux, d.gas_ok)
+        o = self.edge.step(d.mq2.ppm, 25.0 if isnan(d.temp) else d.temp, d.gas_ok)
         act = self.alerts.update(o.level, now)
         self.out, self.act = o, act
 
@@ -181,7 +175,7 @@ class Station:
             self.outbox.put("telemetry", payloads.telemetry(d, act, o, self.storage.next_seq()), buffer=True)
 
         ds = self.dstate
-        ds.s, ds.level, ds.muted, ds.score = d, act.level, act.muted, o.score
+        ds.s, ds.level, ds.muted, ds.slope = d, act.level, act.muted, o.slope
         ds.warming_up = o.warming_up
         return d
 
@@ -199,8 +193,7 @@ class Station:
 
     def status_info(self, link):
         info = {"ts": epoch() if has_time() else 0, "offline_pending": self.storage.pending(),
-                "edge_mode": self.cfg.edge_mode, "config_ver": self.cfg.version,
-                "inference_us": self.edge.last_inference_us, "reconnects": link.reconnects, "rssi": link.rssi()}
+                "config_ver": self.cfg.version, "reconnects": link.reconnects, "rssi": link.rssi()}
         if self.hw:
             info.update(self.hw.sysinfo())
         return info

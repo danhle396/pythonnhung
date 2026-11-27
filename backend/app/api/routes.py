@@ -22,7 +22,7 @@ from app.schemas.payloads import AckRequest, CommandIn, DeviceConfigIn, GoogleRa
 router = APIRouter(prefix="/api")
 RES = {"1m": "1min", "10m": "10min", "1h": "1h", "1d": "1D"}
 NUMERIC = ["temp_dht", "hum", "temp_bmp", "pressure", "pressure_msl", "lux", "dew_point", "heat_index", "rain_raw",
-           "rain_level", "gas_raw", "gas_rs_r0", "gas_ppm", "gas_slope", "edge_risk", "edge_score"]
+           "rain_level", "gas_raw", "gas_rs_r0", "gas_ppm", "gas_slope", "edge_risk"]
 
 
 def _row(o):

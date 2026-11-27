@@ -26,7 +26,7 @@ Trạm ESP32 và backend không gọi trực tiếp nhau. Cả hai cùng nói ch
 | ---------- | ------------------ | ------------------------------------------------------------------- | --- | ------ |
 | `forecast` | 10 phút/lần        | Dự báo 1/3/6 giờ và dòng `summary` ngắn để hiện trên màn TFT        | 1   | Có     |
 | `cmd`      | Khi người dùng bấm | Lệnh `mute`, `test_alarm`, `calibrate`, `reboot`, `escalate`, `ota` | 1   | Không  |
-| `config`   | Khi sửa cấu hình   | Ngưỡng, chu kỳ gửi, chế độ edge, R0, `version`                      | 1   | Có     |
+| `config`   | Khi sửa cấu hình   | Ngưỡng luật, chu kỳ gửi, R0, `version`                              | 1   | Có     |
 
 Retain = broker giữ lại bản tin cuối cùng. Trạm vừa kết nối sẽ nhận ngay cấu hình và dự báo mới nhất, không phải chờ.
 
@@ -50,9 +50,9 @@ Backend và công cụ `tools/load_test.py` dùng QoS 1 thật.
  "temp_dht":29.4,"hum":78.2,"temp_bmp":29.9,"pressure":1008.6,"pressure_msl":1009.5,
  "lux":15230,"dew_point":25.1,"heat_index":34.2,"rain_raw":3810,"rain_level":0,
  "gas_raw":812,"gas_rs_r0":7.9,"gas_ppm":210,"gas_slope":0.4,
- "edge_risk":0,"edge_score":0.03,"warming_up":false,
+ "edge_risk":0,"warming_up":false,
  "sensor_ok":{"dht":true,"bmp":true,"bh":true,"rain":true,"gas":true},
- "fw":"2.0.0","model_ver":"gas-v1"}
+ "fw":"2.1.0"}
 ```
 
 | Trường                                         | Ý nghĩa                                                               |
@@ -64,7 +64,7 @@ Backend và công cụ `tools/load_test.py` dùng QoS 1 thật.
 | `dew_point`, `heat_index`                      | Điểm sương, chỉ số nhiệt (°C), tính trên trạm                         |
 | `rain_raw`, `rain_level`                       | Điện áp YL-83 (mV, càng thấp càng ướt) và mức mưa 0–3                 |
 | `gas_raw`, `gas_rs_r0`, `gas_ppm`, `gas_slope` | Điện áp MQ-2 (mV), tỉ số Rs/R0, nồng độ ước lượng (ppm), độ dốc ppm/s |
-| `edge_risk`, `edge_score`                      | Cấp cảnh báo khí 0–3 do trạm quyết định, điểm số của mô hình          |
+| `edge_risk`                                    | Cấp cảnh báo khí 0–3 do luật trên trạm quyết định                     |
 | `warming_up`                                   | MQ-2 đang làm nóng, số đo khí chưa tin được                           |
 | `sensor_ok`                                    | Từng cảm biến còn hoạt động không                                     |
 
@@ -75,21 +75,22 @@ Cảm biến lỗi thì trường tương ứng gửi `null`. Backend loại cá
 
 ```json
 {"device_id":"station01","ts":1762671620,"seq":10240,"type":"gas",
- "level":2,"prev_level":1,"level_name":"warning","cause":["gas_ppm>1000","model"],
- "gas_ppm":1350,"score":0.87,"rule_level":2,"model_level":2,
+ "level":2,"prev_level":1,"level_name":"warning","cause":["gas_ppm>300","slope_high","gas_ppm>1000"],
+ "gas_ppm":1350,"edge_level":2,
  "action":["led_red_blink","buzzer_intermittent","fan_on"],"edge_latency_ms":3}
 ```
 
 - `type` có 3 giá trị: `gas`, `sensor_fault`, `test`.
   - Với `sensor_fault`, trường `fault` cho biết lỗi gì: 1 = kẹt, 2 = mất kết nối, 3 = bão hoà.
-- `cause` cho biết vì sao lên cấp. `rule_level` và `model_level` là cấp do luật và do mô hình đưa ra; `level` lấy số lớn hơn.
+- `cause` cho biết luật nào làm lên cấp. `edge_level` là cấp do luật trên trạm đưa ra; `level` là cấp cuối sau khi
+  tính cả lệnh leo thang từ cloud (`cloud_escalation`) hoặc thử còi.
 - Backend tự tạo thêm cảnh báo `device_offline` với `source = cloud`.
 
 ### status và ack
 
 ```json
 {"state":"online","device_id":"station01","rssi":-61,"uptime_s":86400,"free_heap":182000,
- "reconnects":3,"offline_pending":0,"fw":"2.0.0","model_ver":"gas-v1","inference_us":42.1}
+ "reconnects":3,"offline_pending":0,"config_ver":4,"fw":"2.1.0"}
 {"device_id":"station01","ts":1762671630,"ref":"cmd","id":"<uuid>","ok":true,"msg":"mute"}
 ```
 
@@ -101,7 +102,7 @@ Cảm biến lỗi thì trường tương ứng gửi `null`. Backend loại cá
 ```json
 {"cmd":"escalate","id":"<uuid>","level":3}
 {"version":4,"th1":300,"th2":1000,"th3":2000,"slope1":15,"dtemp3":1.0,"hyst":0.15,
- "debounce_up":3,"debounce_down":5,"telemetry_ms":10000,"mode":"hybrid","r0_kohm":10.2}
+ "debounce_up":3,"debounce_down":5,"telemetry_ms":10000,"r0_kohm":10.2}
 {"device_id":"station01","ts":1762671600,"source":"open-meteo+ensemble","rain_source":"ensemble",
  "summary":"1h 28.8C 3h 28.0C Mua3h 45%",
  "items":[{"target":"temp","h":1,"value":28.83,"lower":27.97,"upper":29.70,"model_ver":"fc-temp_1h-..."},
@@ -111,7 +112,7 @@ Cảm biến lỗi thì trường tương ứng gửi `null`. Backend loại cá
 - **config**
   - `th1/th2/th3`: ngưỡng ppm cho cấp 1/2/3.
   - `hyst`: hysteresis. `debounce_up/down`: số lần đo liên tiếp cần có để lên/xuống cấp.
-  - `mode`: `rule`, `model` hoặc `hybrid`.
+  - `slope1`: độ dốc ppm/s gây cấp 1. `dtemp3`: tốc độ tăng nhiệt (°C/phút) đẩy cấp 2 lên cấp 3.
   - Trạm kiểm tra cấu hình (ví dụ `th1 < th2 < th3`, giá trị trong dải) trước khi áp dụng và lưu vào `/config.json`.
     Cấu hình sai bị từ chối bằng `ack` có `ok: false`.
 - **forecast**

@@ -169,7 +169,6 @@ class MqttService:
                 if d.status != "online":
                     d.status = "online"
                 d.fw = r.get("fw") or d.fw
-                d.model_ver = r.get("model_ver") or d.model_ver
                 s.merge(d)
         self.stats["telemetry"] += n
         self.stats["batches"] += 1
@@ -207,7 +206,6 @@ class MqttService:
                 d.last_seen = now
             d.rssi = st.rssi if st.rssi is not None else d.rssi
             d.fw = st.fw or d.fw
-            d.model_ver = st.model_ver or d.model_ver
             d.last_status = st.model_dump(mode="json")
             s.merge(d)
         if st.state == "offline" and prev != "offline":

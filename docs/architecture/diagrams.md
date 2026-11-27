@@ -26,7 +26,7 @@ python tools/render_drawio.py docs/hardware/wiring.drawio
 3. **Backend** lưu dữ liệu vào TimescaleDB, dự báo nhiệt độ/độ ẩm bằng GBDT từ Open-Meteo, gửi Telegram/Email và phục vụ
    dashboard. Xác suất mưa lấy từ Open-Meteo Ensemble (ECMWF/GFS/ICON), hiệu chỉnh theo số Google nhập ở dashboard,
    cộng thêm khi YL-83 đang báo mưa.
-4. **Huấn luyện offline** (`ml/`) tạo mô hình cho backend. Mô hình khí Random Forest cho edge chờ dữ liệu MQ-2 đo thật.
+4. **Huấn luyện offline** (`ml/`) tạo mô hình dự báo thời tiết cho backend. Cảnh báo khí không dùng mô hình AI.
 
 Ý chính: **trạm tự quyết định cảnh báo, cloud lo phần nặng.**
 
@@ -36,8 +36,8 @@ python tools/render_drawio.py docs/hardware/wiring.drawio
 | Khi mất mạng    | Vẫn cảnh báo, dữ liệu được đệm trên flash              | Nhận LWT và báo trạm offline                                 |
 | Độ trễ cảnh báo | Dưới 1 s                                               | Vài giây (gửi Telegram)                                      |
 
-Cấp cảnh báo cuối cùng = `max(luật, mô hình)`. Mô hình chỉ được phép báo **sớm hơn** luật, không được hạ cấp mà luật đã
-đưa ra. Hiện chưa có dữ liệu MQ-2 đo thật để huấn luyện mô hình, nên trạm chạy theo luật.
+Cấp cảnh báo khí do **luật 4 cấp** trên trạm quyết định (ngưỡng ppm, độ dốc ppm, nhiệt độ tăng + hysteresis,
+debounce). Cloud chỉ có thể **nâng** cấp bằng lệnh `escalate` khi thấy ppm tăng đều trong 10 phút, không hạ cấp của trạm.
 
 ## Lược đồ CSDL (trang 2)
 

@@ -6,21 +6,21 @@
 
 Sinh viên thực hiện: Lê Thành Danh (23CE010), Nguyễn Bá Thiện (23CE076).
 
-ESP32 đọc DHT22, BMP280, BH1750, YL-83, MQ-2 → cảnh báo khí/khói 4 cấp **ngay tại edge** (rule + cây quyết định,
-chạy cả khi mất mạng) → MQTT → backend Python dự báo thời tiết 1h/3h/6h, xác nhận và leo thang cảnh báo, gửi Telegram/Email
-→ dashboard realtime. **Toàn bộ mã nguồn là Python** (firmware ESP32 viết bằng MicroPython); mô hình học máy dùng
-thư viện chuẩn: **LightGBM** (GBDT dự báo), **scikit-learn** (Ridge, Logistic, Random Forest, Isolation Forest),
-**statsmodels** (Holt-Winters), **PyTorch** (GRU, chỉ để so sánh).
+ESP32 đọc DHT22, BMP280, BH1750, YL-83, MQ-2 → cảnh báo khí/khói 4 cấp **ngay tại edge** (theo luật: ngưỡng ppm,
+độ dốc, nhiệt độ tăng + hysteresis/debounce; chạy cả khi mất mạng) → MQTT → backend Python dự báo thời tiết 1h/3h/6h, xác nhận và leo thang cảnh báo, gửi Telegram/Email
+→ dashboard realtime. **Toàn bộ mã nguồn là Python** (firmware ESP32 viết bằng MicroPython); học máy chỉ dùng cho
+dự báo thời tiết, bằng thư viện chuẩn: **LightGBM** (GBDT dự báo), **scikit-learn** (Ridge, Logistic, hiệu chỉnh isotonic),
+**statsmodels** (Holt-Winters), **PyTorch** (GRU, chỉ để so sánh). Cảnh báo khí không dùng mô hình AI.
 
 > ⚠ Nguyên mẫu học thuật — không thay thế thiết bị báo cháy/báo gas đã được chứng nhận.
 
 ```
-firmware/   ESP32 + MicroPython: cảm biến, edge AI, cảnh báo, MQTT client tự viết, đệm offline, màn TFT ST7735
-ml/         pipeline huấn luyện/suy luận (scikit-learn, LightGBM, statsmodels, PyTorch) + xuất Random Forest sang MicroPython
+firmware/   ESP32 + MicroPython: cảm biến, luật cảnh báo khí 4 cấp, MQTT client tự viết, đệm offline, màn TFT ST7735
+ml/         pipeline huấn luyện/suy luận dự báo thời tiết (scikit-learn, LightGBM, statsmodels, PyTorch)
 backend/    FastAPI + SQLAlchemy + MQTT ingest + alert/forecast service + Telegram
 dashboard/  Streamlit (6 trang, giao diện `theme.py` + `.streamlit/config.toml`) + smoke test · grafana/  dashboard Grafana provision sẵn (tuỳ chọn)
 broker/     cấu hình Mosquitto (auth + ACL theo thiết bị, TLS tuỳ chọn)
-tools/      label_logger.py (thu dữ liệu khí có nhãn), load_test.py, render_drawio.py (draw.io → PNG), md_to_docx.py
+tools/      label_logger.py (ghi nhãn thí nghiệm khí để đánh giá luật), load_test.py, render_drawio.py (draw.io → PNG), md_to_docx.py
 docs/       kiến trúc, MQTT, sơ đồ, kết quả thực nghiệm, slide + kết quả thực nghiệm (docs/report/)
 ```
 
@@ -55,17 +55,15 @@ pip install -r ml/requirements.txt   # scikit-learn, LightGBM, statsmodels (+ to
 cd ml
 python -m aiot_ml.fetch_open_meteo --start 2021-01-01 --end 2025-12-31   # 5 năm dữ liệu giờ tại VKU
 python -m aiot_ml.train_forecast      # baseline + Holt-Winters + Ridge + GBDT (LightGBM) + GRU (PyTorch) → models/, docs/report/
-python -m aiot_ml.train_gas_edge --data <csv thật>   # model edge → firmware/src/gas_model.py
-python -m aiot_ml.train_anomaly       # Isolation Forest + CUSUM (không triển khai: cần vài tuần telemetry)
 ```
 Model mới chỉ được thăng cấp trong `ml/models/registry.json` khi tốt hơn model đang dùng trên tập test
 (`--force-promote` để thay bắt buộc, ví dụ khi đổi định dạng file model).
 
 ## Kiểm thử
 ```bash
-cd ml && pytest -q                    # 31 test: feature, luật edge ≡ firmware, Holt-Winters ≡ statsmodels, khớp MicroPython ↔ scikit-learn, ensemble mưa
+cd ml && pytest -q                    # 29 test: feature, luật edge ≡ firmware, Holt-Winters ≡ statsmodels, ensemble mưa
 cd backend && pytest -q tests         # 24 test API, ingest, cảnh báo, forecast (mưa ensemble, học theo số Google), integration với Mosquitto thật
-pytest -q firmware/tests              # 33 test firmware MicroPython chạy trên PC (logic, driver, toàn luồng, mpy-cross)
+pytest -q firmware/tests              # 32 test firmware MicroPython chạy trên PC (logic, driver, toàn luồng, mpy-cross)
 pytest -q dashboard/tests             # 9 test: 6 trang dashboard + ack + gửi cấu hình + khung mưa so với Google (API giả)
 python tools/load_test.py --devices 50 --duration 60 --api http://localhost:8000
 ```
@@ -82,9 +80,9 @@ python tools/load_test.py --devices 50 --duration 60 --api http://localhost:8000
 | Mất gói, Docker + TimescaleDB (50 thiết bị) | < 1 %    | **0 %**, P95 broker 3.4 ms, CPU backend ≈ 10 %                |
 | Firmware ESP32 (MicroPython, có OTA)        | —        | ⚙ đo RAM/thời gian trên board bằng `firmware/bench_device.py` |
 
-Chi tiết: `docs/report/results_*.md`. Dự án **chỉ dùng số liệu đo thật**. Chưa có dữ liệu khí MQ-2 đo thật nên chưa có mô
-hình ML cảnh báo khí: firmware chạy luật ngưỡng (`firmware/src/gas_model.py`: `AVAILABLE = False`). Thu dữ liệu bằng
-`tools/label_logger.py` rồi `python -m aiot_ml.train_gas_edge --data <csv>`.
+Chi tiết: `docs/report/results_*.md`. Dự án **chỉ dùng số liệu đo thật**. Cảnh báo khí
+chỉ dùng luật 4 cấp (`firmware/src/edge_gas.py`, `alert.py`), không dùng mô hình AI; đánh giá luật bằng thí nghiệm khí có
+nhãn ghi bởi `tools/label_logger.py`.
 
 ## Tài liệu
 - Kế hoạch: `task.md` · Tiến độ: `PROGRESS.md`

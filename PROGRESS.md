@@ -4,7 +4,7 @@
 > Phiên làm việc tiếp theo: đọc `task.md` (mục 0 — 3 nguyên tắc bắt buộc, trong đó **Nguyên tắc 3: luôn đồng bộ mọi thứ**)
 > → file này, rồi làm tiếp mục "CÒN LẠI" theo thứ tự. Cập nhật file này và `task.md` sau mỗi hạng mục hoàn thành.
 
-Cập nhật lần cuối: 2026-11-19 (đợt 17: bỏ báo cáo bao_cao.md/.docx theo người dùng, gỡ mọi tham chiếu; 97 test pass)
+Cập nhật lần cuối: 2026-11-27 (đợt 18: bỏ mô hình AI cho khí — cảnh báo khí chỉ còn luật 4 cấp; 94 test pass)
 
 ## ĐÃ XONG (đã chạy và kiểm chứng)
 
@@ -300,6 +300,32 @@ Cập nhật lần cuối: 2026-11-19 (đợt 17: bỏ báo cáo bao_cao.md/.doc
 - [x] `tools/md_to_docx.py` giữ lại nhưng bỏ đường dẫn mặc định tới `bao_cao.md` (giờ phải truyền file `.md`).
       Các đợt cũ trong file này vẫn nhắc báo cáo vì là nhật ký lịch sử.
 
+### Đợt 18 (2026-11-27) — bỏ mô hình AI cho khí, cảnh báo khí chỉ còn luật 4 cấp
+- [x] Theo yêu cầu người dùng ("bỏ model AI vì không cần thiết, phát hiện theo luật 4 mức là được"); **tên đề tài giữ nguyên**.
+- [x] **Firmware 2.1.0**: `edge_ai.py` → `edge_gas.py` (`EdgeGas`, `GasTrend`: độ dốc ppm 10 mẫu + nhiệt tăng 60 mẫu → `RuleEngine`);
+      xoá `gas_model.py`, `ModelLevelFilter`, chế độ rule/model/hybrid, vector 10 feature, `CAUSE_MODEL`; bản tin bỏ `edge_score`,
+      `model_ver`, `score`, `rule_level`/`model_level` (alert có `edge_level`), status bỏ `edge_mode`/`inference_us`;
+      màn TFT trang khí thay "AI score" bằng tốc độ tăng ppm/s; `bench_device.py` đo một bước luật. Ngưỡng/hysteresis/debounce giữ nguyên.
+- [x] **ML**: xoá `train_gas_edge.py`, `export_micropython.py`, `train_anomaly.py`, `test_export_micropython.py`, `HourlyZScore`/`CUSUM`
+      trong `prep.py`; `gas_edge.py` chỉ còn bản tham chiếu luật (`GasTrend`, `RuleEngine`, `EdgeGas`); test tương đương firmware giữ.
+- [x] **Backend**: bỏ phát hiện bất thường (Isolation Forest) và loại cảnh báo `anomaly` khỏi `alert_service`/`notifier`, bỏ
+      `ANOMALY_MODEL`; schema bỏ `edge_score`/`model_ver`/`score`/`mode` (bản tin firmware cũ vẫn nhận, trường cũ bị bỏ qua);
+      migration **`0004_drop_gas_model_cols`** (bỏ `telemetry.edge_score/model_ver`, `alerts.score`, `devices.model_ver`; thử trên
+      SQLite tạm: nâng cấp, chạy lại, quay lại đều đúng).
+- [x] **Dashboard**: trang Thiết bị bỏ ô "Mô hình" và "Chế độ edge" (thay bằng ngưỡng "Nhiệt tăng → Nguy hiểm"), trang Mô hình
+      chỉ còn kết quả dự báo; fixture bỏ các trường cũ.
+- [x] **Sơ đồ** `system_block_diagram.drawio` (sửa tại chỗ): trang 1 ESP32 "Độ dốc ppm 10 s, nhiệt tăng 60 s · Luật 4 cấp",
+      ô ml "LightGBM: nhiệt độ, độ ẩm 1/3/6 h"; trang 2 bỏ `edge_score`, `model_ver` (devices), `score` (alerts); trang 3 bước 2
+      "lọc nhiễu → độ dốc ppm → luật 4 cấp". Xuất lại 3 PNG.
+- [x] **Slide** `VKU_SLIDE_Newbie.pptx` (làm ở bản `_v2` rồi thay bản cũ theo yêu cầu người dùng): ảnh trang 4 mới, trang 2 và 4
+      ghi "cảnh báo khí 4 cấp theo luật".
+- [x] Tài liệu: `README.md`, `firmware/README.md`, `docs/architecture/ipo.md` (IPO-1, IPO-6, vòng phản hồi), `mqtt.md` (payload,
+      config), `diagrams.md`, `tools/label_logger.py` (dùng để đánh giá luật), `task.md` (TRẠNG THÁI, mục tiêu, pipeline, Nguyên tắc 1–2,
+      1.2–1.4, 1.6, 1.8–1.11, 2.1, cây thư mục, 2.2, 2.3, 2.6, Timeline, Metrics, Rủi ro, tài liệu tham khảo).
+- [x] Test: ml 29 (−2), backend 24, firmware 32 (−1), dashboard 9 → **94 test pass**.
+- [ ] ⚙ Nạp firmware 2.1.0 lên board (`python firmware/deploy.py --port COM3`); file cũ `edge_ai.mpy`, `gas_model.mpy` trên board
+      không còn được dùng, có thể xoá bằng `mpremote fs rm`.
+
 ## CÒN LẠI (cần người / phần cứng — phần mềm đã xong)
 - [ ] **Nhập số Google** (trang Dự báo → "Xác suất mưa so với Google") ≥ 40 giờ rồi bấm "Học lại hiệu chỉnh"; ghi % số giờ
       lệch ≤ 10 trước/sau khi học vào `task.md` (Metrics) và slide.
@@ -310,8 +336,8 @@ Cập nhật lần cuối: 2026-11-19 (đợt 17: bỏ báo cáo bao_cao.md/.doc
 - [ ] YL-83: thử ướt nửa tấm / cả tấm để chốt ngưỡng mưa vừa/to (đang ước lượng 2600/2000 mV); ghi bảng hiệu chuẩn vào `task.md` §2.2.1.
 - [ ] Điền GVHD vào trang bìa slide `docs/report/VKU_SLIDE_Newbie.pptx`.
 - [ ] Quay video demo theo các bước ở `task.md` §2.8 (cần trạm thật).
-- [ ] Thu dữ liệu khí thật → `python -m aiot_ml.train_gas_edge --data ...`;
-      ghi bảng rule / model / hybrid vào `task.md` §1.8 và slide.
+- [ ] Thí nghiệm khí có nhãn (`tools/label_logger.py`) → đo Recall cấp ≥ 2, báo động giả, độ trễ của **luật**;
+      ghi vào `task.md` §1.8 / Metrics và slide.
 - [ ] Chụp lại ảnh dashboard/Grafana khi trạm thật đã gửi dữ liệu (ảnh cũ chụp từ dữ liệu giả lập đã bị xoá).
 - [ ] **Nạp firmware MicroPython lên board thật** (`firmware/README.md`): nạp MicroPython ESP32_GENERIC bằng esptool →
       `python firmware/deploy.py --port COM3` → kiểm tra log `[SENS]`, màn TFT, telemetry vào DB (`credentials.py` đã chuyển
@@ -324,6 +350,6 @@ Cập nhật lần cuối: 2026-11-19 (đợt 17: bỏ báo cáo bao_cao.md/.doc
 - MQ-2 AO nối thẳng GPIO32 (không phân áp); lắp theo `firmware/src/config.py`; đo lại `MQ2_RL_KOHM` trên module.
 - `firmware/src/credentials.py` (Wi-Fi/MQTT). Nạp: `python firmware/deploy.py --port COM3` (hoặc Thonny với `--source`).
 - Burn-in MQ-2 24–48 h → lệnh `calibrate` (đo R0). Hiệu chuẩn YL-83 (`RAIN_MV_*`).
-- `python -m mpremote connect COM3 run firmware/bench_device.py` trên ESP32 thật để đo µs suy luận (khi đã có model).
-- Thu dữ liệu khí thật bằng `tools/label_logger.py` → `python -m aiot_ml.train_gas_edge --data ml/data/raw/gas_labeled.csv`.
+- `python -m mpremote connect COM3 run firmware/bench_device.py` trên ESP32 thật để đo µs một bước luật và RAM.
+- Thí nghiệm khí có nhãn bằng `tools/label_logger.py` để đánh giá luật (không huấn luyện mô hình).
 - Kiểm tra báo động giả do cồn (MQ-2 nhạy chéo theo datasheet) khi thí nghiệm; cân nhắc thêm MQ-135/MQ-5.

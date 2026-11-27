@@ -54,7 +54,7 @@ def compose_rows(st, page, clock, colors):
         rows[1] = (20, 2, hfg, hbg, " " * pad + txt)
         rows[2] = (42, 2, C["WHITE"], C["BLACK"], _f("%6.0f", s.mq2.ppm) + " ppm")
         rows[3] = (64, 1, C["WHITE"], C["BLACK"], "Rs/R0       %.2f" % s.mq2.ratio)
-        rows[4] = (76, 1, C["WHITE"], C["BLACK"], "AI score    %.2f" % st.score)
+        rows[4] = (76, 1, C["WHITE"], C["BLACK"], "Toc do %+7.1f ppm/s" % st.slope)
         if st.muted:
             rows[5] = (88, 1, C["YELLOW"], C["BLACK"], "Coi: DA TAT 5 phut")
         else:

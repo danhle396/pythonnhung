@@ -4,7 +4,7 @@ from machine import ADC, I2C, Pin
 import config
 from compat import sleep_ms, ticks_diff
 from drivers import BH1750, BMP280
-from edge_ai import mq2_convert
+from edge_gas import mq2_convert
 from readings import RawSample
 
 

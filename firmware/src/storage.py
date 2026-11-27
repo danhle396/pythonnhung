@@ -27,20 +27,19 @@ class DeviceConfig:
                                config.DEF_DTEMP3, config.DEF_HYST, config.DEF_DEBOUNCE_UP, config.DEF_DEBOUNCE_DOWN)
         self.r0_kohm = config.MQ2_R0_DEFAULT_KOHM
         self.telemetry_ms = config.TELEMETRY_PERIOD_MS
-        self.edge_mode = 2
         self.version = 0
 
     def copy(self):
         c = DeviceConfig()
         c.rule = self.rule.copy()
-        c.r0_kohm, c.telemetry_ms, c.edge_mode, c.version = self.r0_kohm, self.telemetry_ms, self.edge_mode, self.version
+        c.r0_kohm, c.telemetry_ms, c.version = self.r0_kohm, self.telemetry_ms, self.version
         return c
 
     def to_dict(self):
         r = self.rule
         return {"th1": r.th1, "th2": r.th2, "th3": r.th3, "slope1": r.slope1, "dtemp3": r.dtemp3, "hyst": r.hyst,
                 "debounce_up": r.debounce_up, "debounce_down": r.debounce_down, "r0_kohm": self.r0_kohm,
-                "telemetry_ms": self.telemetry_ms, "edge_mode": self.edge_mode, "version": self.version}
+                "telemetry_ms": self.telemetry_ms, "version": self.version}
 
     def update_from(self, d):
         r = self.rule
@@ -54,14 +53,13 @@ class DeviceConfig:
         r.debounce_down = int(d.get("debounce_down", r.debounce_down))
         self.r0_kohm = float(d.get("r0_kohm", self.r0_kohm))
         self.telemetry_ms = int(d.get("telemetry_ms", self.telemetry_ms))
-        self.edge_mode = int(d.get("edge_mode", self.edge_mode))
         self.version = int(d.get("version", self.version))
 
     def valid(self):
         r = self.rule
         return (0 < r.th1 < r.th2 < r.th3 < 10000 and 0 <= r.hyst < 0.5 and 1 <= r.debounce_up <= 30
                 and 1 <= r.debounce_down <= 60 and 1000 <= self.telemetry_ms <= 600000
-                and 0.1 < self.r0_kohm < 1000 and self.edge_mode in (0, 1, 2))
+                and 0.1 < self.r0_kohm < 1000)
 
 
 class Storage:

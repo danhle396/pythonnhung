@@ -5,8 +5,6 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
-EDGE_FEATURES = ["gas_ppm", "rs_r0", "slope10", "std30", "dev_base", "temp", "dtemp_min", "hum",
-                 "dhum_min", "lux_rel"]
 LEVEL_NAMES = ["Normal", "Advisory", "Warning", "Danger"]
 
 MQ2_A, MQ2_B = 574.25, -2.222
@@ -31,31 +29,17 @@ def _slope(buf):
     return float(np.dot(tc, y - y.mean()) / np.dot(tc, tc))
 
 
-class FeatureExtractor:
-    def __init__(self):
-        self.ppm = deque(maxlen=30)
-        self.temp = deque(maxlen=60)
-        self.hum = deque(maxlen=60)
-        self.baseline = None
-        self.lux_base = None
+class GasTrend:
+    """Bản tham chiếu của firmware/src/edge_gas.py: độ dốc ppm 10 mẫu và tốc độ tăng nhiệt độ (°C/phút, 60 mẫu)."""
 
-    def update(self, ppm, rs_r0, temp, hum, lux):
+    def __init__(self):
+        self.ppm = deque(maxlen=10)
+        self.temp = deque(maxlen=60)
+
+    def update(self, ppm, temp):
         self.ppm.append(ppm)
         self.temp.append(temp)
-        self.hum.append(hum)
-        if self.lux_base is None:
-            self.lux_base = lux
-        lux_rel = (lux - self.lux_base) / (self.lux_base + 10.0)
-        if abs(lux_rel) < 0.08:
-            self.lux_base += 0.005 * (lux - self.lux_base)
-        if self.baseline is None:
-            self.baseline = ppm
-        elif abs(ppm - self.baseline) < 100.0:
-            self.baseline += 0.005 * (ppm - self.baseline)
-        last10 = list(self.ppm)[-10:]
-        return np.array([
-            ppm, rs_r0, _slope(last10), float(np.std(self.ppm)), ppm - self.baseline,
-            temp, _slope(self.temp) * 60.0, hum, _slope(self.hum) * 60.0, lux_rel])
+        return _slope(self.ppm), _slope(self.temp) * 60.0
 
 
 @dataclass
@@ -122,71 +106,19 @@ class RuleEngine:
         return self.level
 
 
-class ModelLevelFilter:
+class EdgeGas:
+    """Cảnh báo khí 4 cấp chỉ bằng luật, giống firmware."""
 
-    def __init__(self, n_up=3, n_down=5):
-        self.n_up, self.n_down = n_up, n_down
-        self.level, self.up_cnt, self.down_cnt = 0, 0, 0
-        self.cand = 0
-
-    def update(self, raw):
-        if raw > self.level:
-            self.down_cnt = 0
-            self.cand = raw if self.up_cnt == 0 else min(self.cand, raw)
-            self.up_cnt += 1
-            if self.up_cnt >= self.n_up:
-                self.level, self.up_cnt = self.cand, 0
-        elif raw < self.level:
-            self.up_cnt = 0
-            self.down_cnt += 1
-            if self.down_cnt >= self.n_down:
-                self.level, self.down_cnt = raw, 0
-        else:
-            self.up_cnt = self.down_cnt = 0
-        return self.level
-
-
-class EdgeEngine:
-
-    def __init__(self, model=None, mode="hybrid", rule_cfg: RuleConfig | None = None, warmup_s=0):
-        self.fx = FeatureExtractor()
+    def __init__(self, rule_cfg: RuleConfig | None = None, warmup_s=0):
+        self.trend = GasTrend()
         self.rules = RuleEngine(rule_cfg)
-        self.mfilter = ModelLevelFilter()
-        self.model, self.mode = model, (mode if model is not None else "rule")
         self.warmup_s, self.t = warmup_s, 0
 
-    def step(self, ppm, rs_r0, temp, hum, lux):
+    def step(self, ppm, temp):
         self.t += 1
-        f = self.fx.update(ppm, rs_r0, temp, hum, lux)
-        rl = self.rules.update(f[0], f[2], f[6])
-        ml, score = 0, 0.0
-        if self.model is not None and self.mode != "rule":
-            p = self.model.predict_proba(f.reshape(1, -1))[0]
-            ml = self.mfilter.update(int(self.model.classes_[int(np.argmax(p))]))
-            score = float(1.0 - p[0])
-        if self.t <= self.warmup_s:
-            return 0, rl, ml, score, f
-        level = {"rule": rl, "model": ml, "hybrid": max(rl, ml)}[self.mode]
-        return level, rl, ml, score, f
-
-
-def extract_features_stream(df):
-    fx = FeatureExtractor()
-    cols = [df[c].to_numpy(dtype=float) for c in ["gas_ppm", "rs_r0", "temp", "hum", "lux"]]
-    return np.vstack([fx.update(*vals) for vals in zip(*cols)])
-
-
-def run_levels_vectorized(F, model_classes_pred, mode, rule_cfg=None):
-    rules = RuleEngine(rule_cfg)
-    mf = ModelLevelFilter()
-    out = np.zeros(len(F), dtype=int)
-    rl_all = np.zeros(len(F), dtype=int)
-    for i in range(len(F)):
-        rl = rules.update(F[i, 0], F[i, 2], F[i, 6])
-        ml = mf.update(int(model_classes_pred[i])) if model_classes_pred is not None else 0
-        rl_all[i] = rl
-        out[i] = rl if mode == "rule" else (ml if mode == "model" else max(rl, ml))
-    return out, rl_all
+        slope, dtemp = self.trend.update(ppm, temp)
+        level = self.rules.update(ppm, slope, dtemp)
+        return (0 if self.t <= self.warmup_s else level), slope
 
 
 def rule_config_dict(cfg: RuleConfig | None = None):

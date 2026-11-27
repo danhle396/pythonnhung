@@ -49,7 +49,6 @@ class Settings(BaseSettings):
     escalation_window_min: int = 10
     escalation_slope_ppm_min: float = 20.0
     ml_registry: str = str(REPO_DIR / "ml" / "models" / "registry.json")
-    anomaly_model: str = str(REPO_DIR / "ml" / "models" / "gas_anomaly.json")
     scheduler_enabled: bool = True
     use_open_meteo: bool = True
     # Xác suất mưa: Open-Meteo Ensemble (miễn phí) + hiệu chỉnh học bắt chước số Google nhập tay + trạm (YL-83)

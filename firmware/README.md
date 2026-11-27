@@ -10,14 +10,13 @@ bản tin) chạy được cả trên PC nên được kiểm thử bằng pytes
 | `credentials.py`              | Wi-Fi/MQTT của trạm, tự tạo trên máy (không đưa lên git) — xem mục Nạp lên board                            |
 | `compat.py`                   | `ticks_ms`, giờ Unix/giờ VN, khoá luồng — chạy được cả MicroPython lẫn CPython                              |
 | `filters.py`                  | Vòng đệm, median-5, EWMA, điểm sương, chỉ số nhiệt, áp suất mực biển                                        |
-| `edge_ai.py`, `alert.py`      | MQ-2 → ppm, 10 feature, rule 4 cấp (hysteresis/debounce), fusion với model, mute/escalate                   |
+| `edge_gas.py`, `alert.py`     | MQ-2 → ppm, độ dốc ppm + nhiệt độ tăng, luật 4 cấp (hysteresis/debounce), mute/escalate                    |
 | `readings.py`                 | Số đo thô → `SensorData` đã lọc, mức mưa, lỗi cảm biến                                                      |
 | `station.py`, `payloads.py`   | Điều phối: cảm biến → edge → bản tin MQTT; xử lý `cmd`/`config`/`forecast`                                  |
 | `storage.py`                  | Đệm offline 2 000 bản ghi, `/config.json`, `seq` trên flash                                                 |
 | `sensors.py`, `drivers.py`    | DHT22, ADC (YL-83, MQ-2), driver BMP280/BH1750 tự viết                                                      |
 | `st7735.py`, `display.py`     | Driver màn TFT ST7735 (SPI + framebuf) tự viết, 3 trang hiển thị                                            |
 | `mqtt.py`, `net.py`, `ota.py` | MQTT 3.1.1 client tự viết, Wi-Fi/NTP/kết nối lại, cập nhật qua HTTP                                         |
-| `gas_model.py`                | Model cây (scikit-learn) xuất tự động bởi `ml/src/export_micropython.py` (`AVAILABLE = False` khi chưa có dữ liệu thật) |
 
 ## Nạp lên board
 
